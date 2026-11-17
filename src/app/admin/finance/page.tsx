@@ -250,42 +250,54 @@ export default function AdminFinancePage() {
             <span>بازه پایش عملکرد مالی:</span>
           </div>
 
-          {/* 3 Main Mode Switcher Buttons */}
-          <div className="inline-flex p-1 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5]">
+          {/* 3 Main Mode Switcher Buttons (320px-safe responsive grid) */}
+          <div className="grid grid-cols-3 sm:inline-flex gap-1 p-1 rounded-2xl bg-farm-bg border border-farm-border w-full sm:w-auto">
             <button
+              type="button"
               onClick={() => setPeriodMode('DAILY')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black transition-all cursor-pointer ${
                 periodMode === 'DAILY'
-                  ? 'bg-[#2C4A2E] text-white shadow-sm'
+                  ? 'bg-farm-primary text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
-              <span>پایش روزانه (Daily)</span>
+              <Clock className="w-3.5 h-3.5 shrink-0 hidden min-[380px]:block" />
+              <span className="truncate">
+                <span className="sm:hidden">روزانه</span>
+                <span className="hidden sm:inline">پایش روزانه</span>
+              </span>
             </button>
 
             <button
+              type="button"
               onClick={() => setPeriodMode('WEEKLY')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black transition-all cursor-pointer ${
                 periodMode === 'WEEKLY'
-                  ? 'bg-[#2C4A2E] text-white shadow-sm'
+                  ? 'bg-farm-primary text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>پایش هفتگی (Weekly)</span>
+              <Calendar className="w-3.5 h-3.5 shrink-0 hidden min-[380px]:block" />
+              <span className="truncate">
+                <span className="sm:hidden">هفتگی</span>
+                <span className="hidden sm:inline">پایش هفتگی</span>
+              </span>
             </button>
 
             <button
+              type="button"
               onClick={() => setPeriodMode('MONTHLY')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black transition-all cursor-pointer ${
                 periodMode === 'MONTHLY'
-                  ? 'bg-[#2C4A2E] text-white shadow-sm'
+                  ? 'bg-farm-primary text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
               }`}
             >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>پایش ماهانه (Monthly)</span>
+              <CalendarDays className="w-3.5 h-3.5 shrink-0 hidden min-[380px]:block" />
+              <span className="truncate">
+                <span className="sm:hidden">ماهانه</span>
+                <span className="hidden sm:inline">پایش ماهانه</span>
+              </span>
             </button>
           </div>
         </div>

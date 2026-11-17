@@ -215,15 +215,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-1.5 sm:gap-2">
             {/* Logo & Brand */}
-            <div className="flex items-center gap-1.5 sm:gap-4 shrink-0 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-4 shrink-0 min-w-0">
               <button
                 ref={menuButtonRef}
                 type="button"
                 onClick={() => (mobileMenuOpen ? closeMobileMenu() : setMobileMenuOpen(true))}
-                className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-farm-primary hover:bg-farm-bg-warm transition-colors shrink-0 cursor-pointer"
+                className="md:hidden min-w-[40px] min-h-[44px] flex items-center justify-center rounded-xl text-farm-primary hover:bg-farm-bg-warm transition-colors shrink-0 cursor-pointer"
                 aria-label="منوی اصلی"
                 aria-expanded={mobileMenuOpen}
                 aria-controls="mobile-nav-drawer"
@@ -231,14 +231,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                 {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
               </button>
 
-              <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
-                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-farm-primary flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform shrink-0">
-                  <Leaf className="w-5 h-5 sm:w-6 sm:h-6 text-farm-accent" />
+              <Link href="/" className="flex items-center gap-1.5 sm:gap-2.5 group shrink-0">
+                <div className="w-8 h-8 min-[380px]:w-9 min-[380px]:h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-farm-primary flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform shrink-0">
+                  <Leaf className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5 sm:w-6 sm:h-6 text-farm-accent" />
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1 sm:gap-1.5">
-                    <span className="text-base sm:text-xl font-black text-farm-primary tracking-tight">پروفارم</span>
-                    <span className="text-[11px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-md bg-farm-primary/10 text-farm-primary">
+                    <span className="text-sm min-[380px]:text-base sm:text-xl font-black text-farm-primary tracking-tight">پروفارم</span>
+                    <span className="hidden min-[380px]:inline-block text-[11px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-md bg-farm-primary/10 text-farm-primary">
                       شیراز
                     </span>
                   </div>
@@ -278,15 +278,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             </nav>
 
             {/* Action Buttons & Authentic Account State */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className="flex items-center gap-1 min-[380px]:gap-1.5 sm:gap-2.5 shrink-0">
               {/* Authenticated Account Menu or Guest Login Button */}
               {!isUserLoggedIn ? (
                 <Link
                   href="/login"
-                  className="flex items-center gap-1.5 sm:gap-2 min-h-[44px] px-3 sm:px-4 rounded-xl bg-farm-primary text-white hover:bg-farm-primary-dark text-xs font-bold transition-all shadow-xs active:scale-98 shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 min-h-[40px] min-[380px]:min-h-[44px] px-2.5 min-[380px]:px-3 sm:px-4 rounded-xl bg-farm-primary text-white hover:bg-farm-primary-dark text-xs font-bold transition-all shadow-xs active:scale-98 shrink-0"
                   title="ورود به حساب کاربری یا ثبت‌نام"
                 >
-                  <UserIcon className="w-4 h-4" />
+                  <UserIcon className="w-4 h-4 shrink-0" />
                   <span className="hidden sm:inline">ورود / ثبت‌نام</span>
                   <span className="sm:hidden text-xs">ورود</span>
                 </Link>
@@ -297,7 +297,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     aria-expanded={userMenuOpen}
                     aria-haspopup="menu"
-                    className={`flex items-center gap-1.5 sm:gap-2 min-h-[44px] px-2.5 sm:px-3.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 ${
+                    className={`flex items-center gap-1 sm:gap-2 min-h-[40px] min-[380px]:min-h-[44px] px-2 min-[380px]:px-2.5 sm:px-3.5 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 ${
                       isAdmin
                         ? 'bg-farm-primary-dark text-white border-farm-accent/40 shadow-xs'
                         : isPro
@@ -307,19 +307,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                         : 'bg-white text-farm-primary border-farm-border hover:bg-farm-bg'
                     }`}
                   >
-                    <UserIcon className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4 shrink-0" />
                     {isPro && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-farm-primary-dark/15 text-farm-gold-ink text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-farm-primary-dark/15 text-farm-gold-ink text-[10px] min-[380px]:text-[11px] font-black">
                         پرو
                       </span>
                     )}
                     {isPlus && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] min-[380px]:text-[11px] font-black">
                         پلاس
                       </span>
                     )}
                     {isAdmin && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-farm-accent text-farm-gold-ink text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-farm-accent text-farm-gold-ink text-[10px] min-[380px]:text-[11px] font-black">
                         مدیر
                       </span>
                     )}
@@ -410,20 +410,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                 ref={searchButtonRef}
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs cursor-pointer shrink-0"
+                className="flex items-center justify-center w-10 h-10 min-[380px]:min-w-[44px] min-[380px]:min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs cursor-pointer shrink-0"
                 aria-label="جستجوی سریع محصولات"
                 title="جستجوی سریع محصولات"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5" />
               </button>
 
               {/* Cart Button */}
               <Link
                 href="/cart"
-                className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs shrink-0"
+                className="relative flex items-center justify-center w-10 h-10 min-[380px]:min-w-[44px] min-[380px]:min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs shrink-0"
                 aria-label={`سبد خرید (${toPersianDigits(cartCount)} قلم)`}
               >
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingBag className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5" />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-farm-accent-warm text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
                     {toPersianDigits(cartCount)}

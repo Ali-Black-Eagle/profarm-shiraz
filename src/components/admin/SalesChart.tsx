@@ -9,12 +9,14 @@ interface SalesChartProps {
 }
 
 export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [pinnedIdx, setPinnedIdx] = useState<number | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const maxAmount = Math.max(...data.map((d) => d.amount), 1);
   const totalWeeklySales = data.reduce((sum, d) => sum + d.amount, 0);
   const totalOrders = data.reduce((sum, d) => sum + d.orderCount, 0);
-  const activeDay = selectedIdx !== null ? data[selectedIdx] : null;
+  const activeIdx = hoveredIdx ?? pinnedIdx;
+  const activeDay = activeIdx !== null ? data[activeIdx] : null;
 
   return (
     <div className="bg-white rounded-3xl p-5 sm:p-6 border border-farm-border shadow-farm space-y-5">
@@ -74,17 +76,20 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
           <div className="h-52 flex items-end justify-between gap-1.5 sm:gap-4 pt-6 px-1">
             {data.map((item, idx) => {
               const heightPercent = item.amount > 0 ? Math.max(12, Math.round((item.amount / maxAmount) * 100)) : 4;
-              const isSelected = selectedIdx === idx;
+              const isSelected = activeIdx === idx;
+              const isPinned = pinnedIdx === idx;
               const isPeak = item.amount > 0 && item.amount === maxAmount;
 
               return (
                 <button
                   key={item.day}
                   type="button"
-                  onClick={() => setSelectedIdx(isSelected ? null : idx)}
-                  onMouseEnter={() => setSelectedIdx(idx)}
-                  onFocus={() => setSelectedIdx(idx)}
-                  aria-pressed={isSelected}
+                  onClick={() => setPinnedIdx((prev) => (prev === idx ? null : idx))}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  onFocus={() => setHoveredIdx(idx)}
+                  onBlur={() => setHoveredIdx(null)}
+                  aria-pressed={isPinned}
                   aria-label={`${item.day}: ${formatToman(item.amount)} (${toPersianDigits(item.orderCount)} سفارش)`}
                   className="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer focus-visible:rounded-xl"
                 >
