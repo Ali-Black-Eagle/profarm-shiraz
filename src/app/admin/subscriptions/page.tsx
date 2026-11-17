@@ -32,8 +32,11 @@ import { farmStore } from '@/lib/db-store';
 import { SubscriptionSettings, SubscriptionStats } from '@/types';
 import { formatToman, toPersianDigits, getDeduplicatedPerks } from '@/lib/formatters';
 import SubscriptionLiveEditor from '@/components/modules/SubscriptionLiveEditor';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 
 export default function AdminSubscriptionsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<SubscriptionSettings>(() =>
     farmStore.getSubscriptionSettings()
@@ -155,11 +158,14 @@ export default function AdminSubscriptionsPage() {
   };
 
   const handleReset = async () => {
-    if (
-      window.confirm(
-        'آیا از بازنشانی کلیه تنظیمات، قیمت‌ها، ظرفیت‌ها و مزایای اشتراک به مقادیر پیش‌فرض مزارع اطمینان دارید؟'
-      )
-    ) {
+    const ok = await confirm({
+      title: 'بازنشانی تنظیمات اشتراک‌ها',
+      description: 'آیا از بازنشانی کلیه تنظیمات، قیمت‌ها، ظرفیت‌ها و مزایای اشتراک به مقادیر پیش‌فرض مزارع اطمینان دارید؟',
+      confirmLabel: 'بازنشانی پیش‌فرض',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (ok) {
       const reset = farmStore.resetSubscriptionSettings();
       try {
         const res = await fetch('/api/admin', {
@@ -172,14 +178,17 @@ export default function AdminSubscriptionsPage() {
         });
         if (!res.ok) {
           showToast('خطا در بازنشانی تنظیمات در سرور.');
+          toast.error('خطا در بازنشانی تنظیمات در سرور.');
           return;
         }
       } catch {
         showToast('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
+        toast.error('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
         return;
       }
       refreshData();
       showToast('تنظیمات اشتراک با موفقیت به مقادیر اولیه بازگردانی شد.');
+      toast.success('تنظیمات اشتراک با موفقیت به مقادیر اولیه بازگردانی شد.');
     }
   };
 

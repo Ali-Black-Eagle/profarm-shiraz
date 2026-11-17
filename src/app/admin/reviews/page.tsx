@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { farmStore } from '@/lib/db-store';
 import { ProductReview, ReviewStatus, Product } from '@/types';
 import { toPersianDigits } from '@/lib/formatters';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   Star,
   CheckCircle2,
@@ -25,6 +26,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminReviewsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReviewStatus>('ALL');
@@ -66,11 +69,19 @@ export default function AdminReviewsPage() {
     }
   };
 
-  const handleDelete = (reviewId: string) => {
-    if (!confirm('آیا از حذف دائمی این دیدگاه اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) return;
+  const handleDelete = async (reviewId: string) => {
+    const ok = await confirm({
+      title: 'حذف دائمی دیدگاه',
+      description: 'آیا از حذف دائمی این دیدگاه اطمینان دارید؟ این عملیات غیرقابل بازگشت است.',
+      confirmLabel: 'حذف دائمی',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (!ok) return;
     const res = farmStore.deleteReview(reviewId);
     if (res) {
       showToast('دیدگاه به طور کامل حذف شد.');
+      toast.success('دیدگاه به طور کامل حذف شد.');
       refreshData();
     }
   };

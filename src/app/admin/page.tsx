@@ -32,6 +32,7 @@ import { farmStore } from '@/lib/db-store';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import { isCountableSaleOrder } from '@/lib/order-utils';
+import { Dialog } from '@/components/ui/Dialog';
 import { Order, FinancialSummary, Product, ReturnRequest } from '@/types';
 import { SalesChart } from '@/components/admin/SalesChart';
 
@@ -570,25 +571,15 @@ export default function AdminOverviewPage() {
         </div>
       </div>
 
-      {/* Universal Stock Restock Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2 text-[#2C4A2E]">
-                <Package className="w-5 h-5 text-[#D4A373]" />
-                <h3 className="font-black text-base">شارژ موجودی انبار (تعیین مقدار دلخواه)</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleModalRestockSubmit} className="space-y-4 text-xs">
+      {/* Universal Stock Restock Modal (Native <dialog>) */}
+      <Dialog
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="شارژ موجودی انبار (تعیین مقدار دلخواه)"
+        icon={<Package className="w-5 h-5 text-farm-gold-text" />}
+        size="lg"
+      >
+        <form onSubmit={handleModalRestockSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block text-gray-700 font-bold mb-1.5">
                   انتخاب کالای مورد نظر جهت شارژ:
@@ -693,9 +684,7 @@ export default function AdminOverviewPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Dialog>
     </div>
   );
 }

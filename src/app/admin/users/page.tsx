@@ -6,6 +6,8 @@ import { farmStore } from '@/lib/db-store';
 import { User, SubscriptionTier, UserRole } from '@/types';
 import { toPersianDigits } from '@/lib/formatters';
 import { useAuth } from '@/hooks/useAuth';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   Users,
   Crown,
@@ -24,6 +26,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminUsersPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [filterTier, setFilterTier] = useState<'ALL' | 'PRO' | 'PLUS' | 'FREE'>('ALL');
@@ -121,11 +125,15 @@ export default function AdminUsersPage() {
         setSaveError('این حساب آخرین مدیر ارشد سامانه است و نمی‌توان نقش آن را کاهش داد.');
         return;
       }
-      const confirmRole = window.confirm(
-        `آیا از تغییر نقش «${editingUser.name || editingUser.phone}» به «${
+      const confirmRole = await confirm({
+        title: 'تغییر سطح دسترسی کاربر',
+        description: `آیا از تغییر نقش «${editingUser.name || editingUser.phone}» به «${
           userRole === 'ADMIN' ? 'مدیر ارشد' : 'کاربر عادی'
-        }» اطمینان دارید؟`
-      );
+        }» اطمینان دارید؟`,
+        confirmLabel: 'تغییر نقش کاربر',
+        cancelLabel: 'انصراف',
+        variant: 'warning',
+      });
       if (!confirmRole) return;
     }
 
@@ -530,33 +538,21 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Edit User Subscription & Role Modal */}
-      {isEditModalOpen && editingUser && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-[#E6E1D5] shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F3EFE6]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
-                  <Crown className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#2C4A2E]">
-                    مدیریت اشتراک و دسترسی کاربر
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {editingUser.name || 'کاربر بدون نام'} ({editingUser.phone})
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveUser} className="space-y-5 text-sm">
+      {/* Edit User Subscription & Role Modal (Native <dialog>) */}
+      <Dialog
+        open={Boolean(isEditModalOpen && editingUser)}
+        onClose={() => setIsEditModalOpen(false)}
+        title="مدیریت اشتراک و دسترسی کاربر"
+        description={
+          editingUser
+            ? `${editingUser.name || 'کاربر بدون نام'} (${editingUser.phone})`
+            : undefined
+        }
+        icon={<Crown className="w-5 h-5" />}
+        size="lg"
+      >
+        {editingUser && (
+          <form onSubmit={handleSaveUser} className="space-y-5 text-sm">
               {/* Subscription Tier Selection */}
               <div className="space-y-2">
                 <label className="block text-gray-800 font-black text-xs">
@@ -730,9 +726,8 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 }

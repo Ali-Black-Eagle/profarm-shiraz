@@ -30,6 +30,8 @@ import { farmStore } from '@/lib/db-store';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { PERSIAN_MONTHS, formatToJalali } from '@/lib/jalali';
 import { SITE_CONFIG } from '@/lib/site-config';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast } from '@/components/ui/ToastProvider';
 import {
   FinancialRecord,
   FinancialSummary,
@@ -52,6 +54,7 @@ const WEEKDAYS_LIST = [
 ];
 
 export default function AdminFinancePage() {
+  const toast = useToast();
   // Period Mode: Daily, Weekly, or Monthly
   const [periodMode, setPeriodMode] = useState<MonitorPeriodMode>('MONTHLY');
 
@@ -145,8 +148,8 @@ export default function AdminFinancePage() {
       URL.revokeObjectURL(url);
 
       showToast(`گزارش مالی دوره (${summary?.selectedPeriodLabel || 'انتخاب‌شده'}) در قالب اکسل ذخیره گردید.`);
-    } catch (e) {
-      alert('خطا در صدور فایل اکسل. لطفاً مجدداً تلاش کنید.');
+    } catch {
+      toast.error('خطا در صدور فایل اکسل. لطفاً مجدداً تلاش کنید.');
     }
   };
 
@@ -1193,35 +1196,25 @@ export default function AdminFinancePage() {
         </div>
       </div>
 
-      {/* Official Persian Tax Invoice Modal (No Settlement Clutter) */}
-      {isInvoiceOpen && selectedInvoiceRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 space-y-6 relative max-h-[90vh] overflow-y-auto">
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200 no-print">
-              <div className="flex items-center gap-2 text-[#2C4A2E] font-black text-base">
-                <Receipt className="w-5 h-5 text-[#D4A373]" />
-                <span>پیش‌نمایش صورتحساب رسمی فروش کالا (دارایی)</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handlePrint}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>چاپ فاکتور (A4)</span>
-                </button>
-                <button
-                  onClick={() => setIsInvoiceOpen(false)}
-                  className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Standard Printable Persian Tax Invoice Area */}
+      {/* Official Persian Tax Invoice Modal (Native <dialog>) */}
+      <Dialog
+        open={Boolean(isInvoiceOpen && selectedInvoiceRecord)}
+        onClose={() => setIsInvoiceOpen(false)}
+        title="پیش‌نمایش صورتحساب رسمی فروش کالا (دارایی)"
+        icon={<Receipt className="w-5 h-5 text-farm-gold-text" />}
+        size="3xl"
+        headerActions={
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors cursor-pointer"
+          >
+            <Printer className="w-4 h-4" />
+            <span>چاپ فاکتور (A4)</span>
+          </button>
+        }
+      >
+        {selectedInvoiceRecord && (
             <div className="border-2 border-gray-800 rounded-2xl p-6 sm:p-8 space-y-6 bg-white text-gray-900 printable-invoice">
               {/* Header Box */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-gray-800">
@@ -1361,9 +1354,8 @@ export default function AdminFinancePage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 }
