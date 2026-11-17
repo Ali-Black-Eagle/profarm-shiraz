@@ -374,7 +374,7 @@ export default function ProductDetailClient({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[#1E3520] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#D4A373]/30 flex items-center gap-3 animate-fade-in text-sm font-bold whitespace-nowrap">
+        <div role="status" className="fixed top-24 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2rem)] bg-farm-primary-dark text-white px-5 py-3 rounded-2xl shadow-2xl border border-farm-accent/30 flex items-center gap-3 animate-in fade-in text-sm font-bold">
           <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />
           <span>{toastMessage}</span>
         </div>
@@ -1186,7 +1186,7 @@ export default function ProductDetailClient({
       {relatedProducts.length > 0 && (
         <div className="pt-8 border-t border-[#E6E1D5] space-y-6">
           <div>
-            <span className="text-xs font-bold text-[#D4A373] tracking-wide">
+            <span className="text-xs font-bold text-farm-gold-text tracking-wide">
               پیشنهادات ویژه مزرعه
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-[#2C4A2E]">

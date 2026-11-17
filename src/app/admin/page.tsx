@@ -444,10 +444,10 @@ export default function AdminOverviewPage() {
           <h2 className="text-xl sm:text-2xl font-black text-white">
             تحلیل درآمد، بهای خرید کالا و تراز سود خالص
           </h2>
-          <p className="text-xs text-white/80 max-w-2xl leading-relaxed">
-            مجموع فروش خالص تا کنون: <strong>{formatToman(finSummary?.netRevenue || totalRevenue)}</strong> |{' '}
-            بهای خرید از کشاورزان: <strong>{formatToman(finSummary?.totalCost || Math.round(totalRevenue * 0.68))}</strong> |{' '}
-            سود ناخالص حاصله: <strong className="text-emerald-300">{formatToman(finSummary?.grossProfit || Math.round(totalRevenue * 0.32))}</strong>
+          <p className="text-xs text-white/85 max-w-2xl leading-relaxed">
+            مجموع فروش خالص تا کنون: <strong>{formatToman(finSummary?.netRevenue ?? totalRevenue)}</strong> |{' '}
+            بهای خرید از کشاورزان: <strong>{formatToman(finSummary?.totalCost ?? 0)}</strong> |{' '}
+            سود ناخالص واقعی: <strong className="text-emerald-200">{formatToman(finSummary?.grossProfit ?? 0)}</strong>
           </p>
         </div>
 
@@ -477,7 +477,44 @@ export default function AdminOverviewPage() {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Cards for Recent Orders (Zero horizontal scrolling) */}
+        <div className="md:hidden space-y-3">
+          {orders.slice(0, 5).map((order) => {
+            const statusMeta = getOrderStatusMeta(order.status);
+            return (
+              <div
+                key={order.id}
+                className="p-3.5 rounded-2xl bg-farm-bg border border-farm-border space-y-2 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono font-bold text-farm-primary">{order.orderNumber}</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusMeta.badgeClass}`}>
+                    {statusMeta.shortLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-gray-800">
+                  <span className="font-bold truncate">{order.address?.recipientName || 'مشتری'}</span>
+                  <span className="font-mono text-farm-text-muted" dir="ltr">{order.address?.phone}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-farm-border/70">
+                  <span className="text-farm-text-muted truncate">
+                    {order.deliverySlot
+                      ? `${order.deliverySlot.date}`
+                      : order.isSubscription
+                      ? 'عضویت دیجیتال'
+                      : 'سفارش عمده / باربری'}
+                  </span>
+                  <span className="font-black text-farm-primary shrink-0">
+                    {formatToman(order.totalAmount)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop Table for Recent Orders */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-right text-xs">
             <thead>
               <tr className="border-b border-gray-100 text-gray-500">

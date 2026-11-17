@@ -28,6 +28,7 @@ function ProductsCatalogContent() {
   });
   const [organicOnly, setOrganicOnly] = useState(false);
   const [bulkOnly, setBulkOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'available'>('default');
 
   // Sync category param if URL changes
   useEffect(() => {
@@ -69,7 +70,7 @@ function ProductsCatalogContent() {
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       const matchesCategory =
         selectedCategory === 'همه محصولات' || p.category === selectedCategory;
       const matchesSearch =
@@ -80,13 +81,25 @@ function ProductsCatalogContent() {
 
       return matchesCategory && matchesSearch && matchesOrganic && matchesBulk;
     });
-  }, [products, searchQuery, selectedCategory, organicOnly, bulkOnly]);
+
+    if (sortBy === 'price-asc') {
+      return [...list].sort((a, b) => a.price - b.price);
+    }
+    if (sortBy === 'price-desc') {
+      return [...list].sort((a, b) => b.price - a.price);
+    }
+    if (sortBy === 'available') {
+      return [...list].sort((a, b) => (b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0));
+    }
+    return list;
+  }, [products, searchQuery, selectedCategory, organicOnly, bulkOnly, sortBy]);
 
   const resetFilters = () => {
     setSearchQuery('');
     handleSelectCategory('همه محصولات');
     setOrganicOnly(false);
     setBulkOnly(false);
+    setSortBy('default');
   };
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
@@ -154,28 +167,44 @@ function ProductsCatalogContent() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white p-5 rounded-3xl border border-[#E6E1D5] shadow-farm space-y-4">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white p-5 rounded-3xl border border-farm-border shadow-farm space-y-4">
+        <div className="flex flex-col md:flex-row gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-farm-text-muted" />
             <input
-              type="text"
+              type="search"
+              aria-label="جستجوی محصول"
               placeholder="جستجوی محصول (مانند: تخم‌مرغ کامفیروز، عسل دشت ارژن، پنیر، سبزی...)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-xs"
+              className="w-full min-h-[44px] pr-10 pl-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-base sm:text-sm"
             />
           </div>
 
+          {/* Sort Dropdown */}
+          <select
+            aria-label="مرتب‌سازی محصولات"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'default' | 'price-asc' | 'price-desc' | 'available')}
+            className="min-h-[44px] px-3.5 py-2 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-sm font-bold text-farm-text focus:outline-none focus:border-farm-primary cursor-pointer"
+          >
+            <option value="default">مرتب‌سازی: پیشنهاد مزرعه</option>
+            <option value="price-asc">ارزان‌ترین</option>
+            <option value="price-desc">گران‌ترین</option>
+            <option value="available">کالاهای موجود اول</option>
+          </select>
+
           {/* Quick Filter Checkboxes */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
+              type="button"
               onClick={() => setOrganicOnly(!organicOnly)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              aria-pressed={organicOnly}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 organicOnly
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'bg-[#F9F8F5] text-gray-700 hover:bg-[#F3EFE6] border border-[#E6E1D5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'bg-farm-bg text-gray-800 hover:bg-farm-bg-warm border border-farm-border'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />

@@ -53,21 +53,21 @@ export const CartFloatingPopup: React.FC = () => {
     return (
       <aside
         aria-label="سبد خرید شناور"
-        className={`fixed z-50 animate-in fade-in duration-200 ${
+        className={`fixed z-30 no-print animate-in fade-in ${
           isProductDetailPage
-            ? 'bottom-20 sm:bottom-6 left-4 sm:left-6'
+            ? 'bottom-24 sm:bottom-6 left-4 sm:left-6'
             : 'bottom-4 sm:bottom-6 left-4 sm:left-6'
         }`}
       >
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-3 bg-[#2C4A2E] text-white px-4 py-2.5 sm:py-3 rounded-2xl shadow-2xl hover:bg-[#1E3520] hover:scale-102 active:scale-98 transition-all cursor-pointer border border-[#D4A373]/40 group"
+          className="flex items-center gap-3 min-h-[48px] bg-farm-primary text-white px-4 py-2.5 rounded-2xl shadow-xl hover:bg-farm-primary-dark active:scale-98 transition-all cursor-pointer border border-farm-accent/40 group"
           title="مشاهده و باز کردن سبد خرید"
         >
           <div className="relative flex items-center justify-center shrink-0">
-            <ShoppingBag className="w-5 h-5 text-[#D4A373] group-hover:scale-110 transition-transform" />
-            <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-[#E76F51] text-white text-[11px] font-black rounded-full flex items-center justify-center border-2 border-[#2C4A2E]">
+            <ShoppingBag className="w-5 h-5 text-farm-accent group-hover:scale-105 transition-transform" />
+            <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-farm-accent-warm text-white text-[11px] font-black rounded-full flex items-center justify-center border-2 border-farm-primary">
               {toPersianDigits(totalCount)}
             </span>
           </div>
@@ -76,7 +76,7 @@ export const CartFloatingPopup: React.FC = () => {
             <span className="text-xs font-black leading-tight text-white">
               سبد خرید ({toPersianDigits(totalCount)})
             </span>
-            <span className="text-[10px] text-[#D4A373] font-bold mt-0.5">
+            <span className="text-xs text-[#F3E5AB] font-bold mt-0.5">
               {formatToman(totalPrice)}
             </span>
           </div>
@@ -93,7 +93,7 @@ export const CartFloatingPopup: React.FC = () => {
   return (
     <aside
       aria-label="پاپ آپ سبد خرید"
-      className={`fixed ${positionClass} sm:w-[380px] z-50 animate-in slide-in-from-bottom-5 duration-200`}
+      className={`fixed ${positionClass} sm:w-[380px] z-30 no-print animate-in slide-in-from-bottom-4`}
     >
       <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-[#2C4A2E]/25 overflow-hidden ring-1 ring-black/5 flex flex-col">
         {/* Header with Minimize Button (Closed cart + Down arrow) */}
@@ -166,30 +166,30 @@ export const CartFloatingPopup: React.FC = () => {
 
                 {/* Quantity Controls & Delete */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <div className="flex items-center bg-white border border-[#E6E1D5] rounded-lg p-0.5 shadow-xs">
+                  <div className="flex items-center bg-white border border-farm-border rounded-lg p-0.5 shadow-xs">
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                       disabled={item.quantity >= maxStock}
-                      className="w-5 h-5 rounded flex items-center justify-center text-gray-700 hover:bg-[#2C4A2E] hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
+                      className="w-8 h-8 rounded flex items-center justify-center text-gray-700 hover:bg-farm-primary hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
                       title="افزایش تعداد"
-                      aria-label="افزایش تعداد"
+                      aria-label={`افزایش تعداد ${item.product.title}`}
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
 
-                    <span className="w-5 text-center text-[11px] font-black text-[#2C4A2E]">
+                    <span className="w-6 text-center text-xs font-black text-farm-primary">
                       {toPersianDigits(item.quantity)}
                     </span>
 
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                      className="w-5 h-5 rounded flex items-center justify-center text-gray-700 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                      className="w-8 h-8 rounded flex items-center justify-center text-gray-700 hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
                       title={item.quantity === 1 ? 'حذف محصول' : 'کاهش تعداد'}
-                      aria-label="کاهش تعداد"
+                      aria-label={`کاهش تعداد ${item.product.title}`}
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -197,11 +197,11 @@ export const CartFloatingPopup: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => removeItem(item.product.id)}
-                    className="w-6 h-6 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg text-gray-500 hover:text-rose-700 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
                     title="حذف کامل از سبد"
-                    aria-label="حذف کامل محصول"
+                    aria-label={`حذف کامل ${item.product.title}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
