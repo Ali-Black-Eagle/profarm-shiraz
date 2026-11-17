@@ -123,7 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: TicketPercent,
       highlight: true,
     },
-    { label: 'مدیریت محتوای سایت (CMS)', href: '/admin/cms', icon: LayoutTemplate },
+    { label: 'محتوای سایت (CMS)', href: '/admin/cms', icon: LayoutTemplate },
     {
       label: 'پایش مالی و تراز درآمد',
       href: '/admin/finance',
@@ -227,7 +227,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // 4. ADMIN AUTHORIZED VIEW
   return (
-    <div className="min-h-screen bg-[#F8F7F4] flex flex-col md:flex-row text-gray-800 antialiased selection:bg-[#2C4A2E] selection:text-white">
+    <div className="min-h-screen bg-farm-bg flex flex-col md:flex-row md:items-start text-farm-text antialiased selection:bg-farm-primary selection:text-white">
       {/* Mobile Topbar (Sticky on screens < md, hidden inside Android app to eliminate duplicate headers) */}
       {!isInApp && (
         <header
@@ -277,8 +277,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile Sliding Drawer (کشویی از سمت راست در چیدمان RTL) */}
       <aside
-        className={`fixed top-0 right-0 bottom-0 w-[290px] sm:w-[320px] max-w-[85vw] bg-[#1E3520] text-white z-50 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-out md:hidden no-print ${
-          isMobileOpen ? 'translate-x-0' : 'translate-x-full'
+        inert={!isMobileOpen ? true : undefined}
+        aria-hidden={!isMobileOpen}
+        className={`fixed top-0 right-0 bottom-0 w-[290px] sm:w-[320px] max-w-[85vw] bg-farm-primary-dark text-white z-50 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-out md:hidden no-print ${
+          isMobileOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
         aria-label="منوی کشویی مدیریت"
       >
@@ -319,7 +321,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           {/* Drawer Nav Items with Smooth Touch Scrolling */}
-          <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto overscroll-contain text-xs">
+          <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto overscroll-contain admin-sidebar-scroll text-xs">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -434,7 +436,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
 
           {/* Nav Items with scroll */}
-          <nav className="flex-1 py-3 space-y-1 text-xs overflow-y-auto pr-0.5">
+          <nav className="flex-1 py-3 space-y-1 text-xs overflow-y-auto admin-sidebar-scroll pr-0.5">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -495,10 +497,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main Admin Content Area */}
-      <main className={`flex-1 p-3.5 sm:p-6 md:p-8 lg:p-9 max-w-full overflow-x-hidden overflow-y-auto ${isInApp ? 'pb-6 pt-4' : 'pb-28 md:pb-8'} leading-relaxed`}>
+      {/* Main Admin Content Area (uses div inside root <main> to avoid nested <main> landmarks, and overflow-x-clip without overflow-y-auto so sticky sidebar stays pinned) */}
+      <div
+        data-admin-content
+        className={`flex-1 min-w-0 p-3.5 sm:p-6 md:p-8 lg:p-9 max-w-full overflow-x-clip ${isInApp ? 'pb-6 pt-4' : 'pb-28 md:pb-8'} leading-relaxed`}
+      >
         {children}
-      </main>
+      </div>
 
       {/* Mobile Bottom Quick Navigation Bar (Sticky at bottom on screens < md, hidden inside Android app to eliminate duplicate bottombars) */}
       {!isInApp && (

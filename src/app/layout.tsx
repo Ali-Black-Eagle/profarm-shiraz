@@ -1,10 +1,19 @@
 import type { Metadata, Viewport } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Header } from '@/components/modules/Header';
 import { Footer } from '@/components/modules/Footer';
 import { ScrollToTop } from '@/components/modules/ScrollToTop';
 import { CartFloatingPopup } from '@/components/modules/CartFloatingPopup';
 import { safeJsonLdStringify } from '@/lib/formatters';
+
+const vazirmatn = localFont({
+  src: './fonts/Vazirmatn-Variable.woff2',
+  variable: '--font-vazirmatn',
+  weight: '100 900',
+  display: 'swap',
+  preload: true,
+});
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
 
@@ -209,16 +218,14 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
-      </head>
+    <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
       <body
-        className="min-h-screen flex flex-col bg-[#F9F8F5] text-[#212529] antialiased"
+        className="min-h-screen flex flex-col bg-farm-bg text-farm-text font-sans antialiased"
         suppressHydrationWarning
       >
+        <a href="#main-content" className="skip-link">
+          پرش به محتوای اصلی
+        </a>
         {/* Structured Data Scripts for Google Knowledge Graph & Local SEO */}
         <script
           type="application/ld+json"
@@ -252,7 +259,7 @@ export default function RootLayout({
         />
         <ScrollToTop />
         <Header />
-        <main className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1 flex flex-col">{children}</main>
         <Footer />
         <CartFloatingPopup />
       </body>
