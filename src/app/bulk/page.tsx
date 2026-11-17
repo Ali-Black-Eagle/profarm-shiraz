@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, Send, CheckCircle2, ShieldCheck, MapPin, Building, Phone, User } from 'lucide-react';
+import { Package, Send, CheckCircle2, ShieldCheck, MapPin, Building, Phone, User, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { farmStore } from '@/lib/db-store';
+import { SITE_CONFIG } from '@/lib/site-config';
 
 export default function BulkOrderInquiryPage() {
   const [name, setName] = useState('');
@@ -13,10 +14,12 @@ export default function BulkOrderInquiryPage() {
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setSubmitError(null);
 
     try {
       const res = await fetch('/api/bulk-inquiries', {
@@ -31,24 +34,22 @@ export default function BulkOrderInquiryPage() {
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.inquiry) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success !== false) {
+        if (data?.inquiry) {
           farmStore.createBulkInquiry(data.inquiry);
-        } else {
-          farmStore.createBulkInquiry({ name, phone, companyName, city, message });
         }
         setIsSubmitted(true);
       } else {
-        // Fallback store write so inquiry is never lost
-        farmStore.createBulkInquiry({ name, phone, companyName, city, message });
-        setIsSubmitted(true);
+        setSubmitError(
+          data?.message ||
+            'ثبت درخواست در سرور با خطا مواجه شد. لطفاً مجدداً تلاش کنید یا با واحد فروش عمده تماس بگیرید.'
+        );
       }
-    } catch (error) {
-      console.error(error);
-      // Fallback local save in case network fails
-      farmStore.createBulkInquiry({ name, phone, companyName, city, message });
-      setIsSubmitted(true);
+    } catch {
+      setSubmitError(
+        'ارتباط با سرور برقرار نشد. لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً ارسال نمایید.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -167,6 +168,16 @@ export default function BulkOrderInquiryPage() {
                 />
               </div>
 
+              {submitError && (
+                <div
+                  role="alert"
+                  className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-start gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 variant="primary"
@@ -186,19 +197,23 @@ export default function BulkOrderInquiryPage() {
           <div className="bg-[#F3EFE6] rounded-3xl p-6 border border-[#E6E1D5] space-y-3">
             <h4 className="font-bold text-sm text-[#2C4A2E]">شرایط توزیع عمده به سراسر کشور</h4>
             <ul className="space-y-2.5 list-disc list-inside leading-relaxed text-gray-700">
-              <li>حداقل تیراژ سفارش عمده: ۱۰ کارتن یا ۵ میلیون تومان</li>
-              <li>ارسال سریع از پایانه باربری شیراز به تمام استان‌ها و با پیک پروفارم در شیراز</li>
-              <li>صدور پیش‌فاکتور رسمی به‌همراه برگه آزمایشگاه جهاد دانشگاهی</li>
+              <li>حداقل تیراژ سفارش عمده: {SITE_CONFIG.policies.bulkThresholdLabel}</li>
+              <li>{SITE_CONFIG.policies.bulkDeliveryScope}</li>
+              <li>صدور پیش‌فاکتور رسمی برای فروشگاه‌ها، رستوران‌ها و شرکت‌ها</li>
               <li>تخفیفات پله‌ای برای خریدهای ماهانه و قراردادی</li>
             </ul>
           </div>
 
           <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-2">
-            <h4 className="font-bold text-sm text-[#2C4A2E]">شماره مستقیم بازرگانی عمده</h4>
-            <p className="text-gray-500">پاسخگویی شنبه تا چهارشنبه: ۸ الی ۱۷</p>
-            <div className="text-base font-black text-[#2C4A2E] pt-1" dir="ltr">
-              ۰۷۱ - ۳۲۲۲ ۱۱۰۰
-            </div>
+            <h4 className="font-bold text-sm text-[#2C4A2E]">شماره مستقیم واحد فروش عمده</h4>
+            <p className="text-gray-600">{SITE_CONFIG.contact.wholesaleHours}</p>
+            <a
+              href={`tel:${SITE_CONFIG.contact.wholesalePhoneTel}`}
+              className="inline-block text-base font-black text-[#2C4A2E] pt-1 hover:underline"
+              dir="ltr"
+            >
+              {SITE_CONFIG.contact.wholesalePhoneDisplay}
+            </a>
           </div>
         </div>
       </div>

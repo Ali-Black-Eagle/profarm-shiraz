@@ -8,7 +8,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { DeliverySlotPicker } from '@/components/modules/DeliverySlotPicker';
 import { ShirazGuardAlert } from '@/components/modules/ShirazGuardAlert';
 import { generateDeliverySlots, SlotOption } from '@/lib/jalali';
-import { formatToman, toPersianDigits, isValidIranPhone, normalizePhoneNumber } from '@/lib/formatters';
+import {
+  formatToman,
+  toPersianDigits,
+  toEnglishDigits,
+  isValidIranPhone,
+  normalizePhoneNumber,
+} from '@/lib/formatters';
+import { SITE_CONFIG } from '@/lib/site-config';
 import { Button } from '@/components/ui/Button';
 import {
   MapPin,
@@ -32,6 +39,42 @@ import {
 import { CouponInputBox } from '@/components/modules/CouponInputBox';
 import { CouponValidationResult } from '@/types';
 import { farmStore } from '@/lib/db-store';
+
+const CHECKOUT_DRAFT_KEY = 'profarm_checkout_draft';
+
+const IRAN_PROVINCES = [
+  'فارس',
+  'تهران',
+  'اصفهان',
+  'بوشهر',
+  'خوزستان',
+  'کرمان',
+  'هرمزگان',
+  'یزد',
+  'کهگیلویه و بویراحمد',
+  'خراسان رضوی',
+  'آذربایجان شرقی',
+  'آذربایجان غربی',
+  'البرز',
+  'گیلان',
+  'مازندران',
+  'قم',
+  'قزوین',
+  'مرکزی',
+  'همدان',
+  'لرستان',
+  'کرمانشاه',
+  'کردستان',
+  'گلستان',
+  'سمنان',
+  'زنجان',
+  'اردبیل',
+  'چهارمحال و بختیاری',
+  'سیستان و بلوچستان',
+  'خراسان جنوبی',
+  'خراسان شمالی',
+  'ایلام',
+] as const;
 
 function CheckoutContent() {
   const router = useRouter();
@@ -94,7 +137,7 @@ function CheckoutContent() {
 
   const totalPrice = isSubscription ? subPrice : discounts.itemsSubtotal;
 
-  // Form State - dynamically populated from authenticated user
+  // Form State - dynamically populated from authenticated user or non-sensitive guest draft
   const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
   const [recipientName, setRecipientName] = useState(user?.name || defaultAddr?.recipientName || '');
   const [phone, setPhone] = useState(user?.phone || defaultAddr?.phone || '');
@@ -103,6 +146,51 @@ function CheckoutContent() {
   const [streetAddress, setStreetAddress] = useState(defaultAddr?.streetAddress || '');
   const [unit, setUnit] = useState(defaultAddr?.unit || '');
   const [postalCode, setPostalCode] = useState(defaultAddr?.postalCode || '');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Restore non-sensitive guest draft from sessionStorage (never stores OTP or secrets)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.recipientName) setRecipientName((prev) => prev || String(draft.recipientName));
+        if (draft.phone) setPhone((prev) => prev || String(draft.phone));
+        if (draft.province) setProvince(String(draft.province));
+        if (draft.city) setCity(String(draft.city));
+        if (draft.streetAddress) setStreetAddress((prev) => prev || String(draft.streetAddress));
+        if (draft.unit) setUnit((prev) => prev || String(draft.unit));
+        if (draft.postalCode) setPostalCode((prev) => prev || String(draft.postalCode));
+      }
+    } catch {
+      // ignore invalid storage
+    }
+  }, []);
+
+  // Persist non-sensitive checkout fields so guests don't lose input across login redirect
+  const saveCheckoutDraft = () => {
+    try {
+      sessionStorage.setItem(
+        CHECKOUT_DRAFT_KEY,
+        JSON.stringify({
+          recipientName,
+          phone,
+          province,
+          city,
+          streetAddress,
+          unit,
+          postalCode,
+        })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  useEffect(() => {
+    if (!mounted) return;
+    saveCheckoutDraft();
+  }, [mounted, recipientName, phone, province, city, streetAddress, unit, postalCode]);
 
   // Delivery Slot Selection (ONLY for physical product orders, never for subscriptions)
   const [slots, setSlots] = useState<SlotOption[]>([]);
@@ -173,12 +261,13 @@ function CheckoutContent() {
     }
     setIsSendingOtp(true);
     try {
+      const normalizedPhone = normalizePhoneNumber(phone);
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'send',
-          phone,
+          phone: normalizedPhone,
           fallbackEmail: user?.email || undefined,
         }),
       });
@@ -200,19 +289,21 @@ function CheckoutContent() {
   const handleVerifyCheckoutOtp = async () => {
     setOtpErrorMsg(null);
     setOtpSuccessMsg(null);
-    if (otpCode.trim().length !== 5) {
+    const cleanCode = toEnglishDigits(otpCode).replace(/\D/g, '');
+    if (cleanCode.length !== 5) {
       setOtpErrorMsg('لطفاً کد تایید ۵ رقمی را به صورت کامل وارد فرمایید.');
       return;
     }
     setIsVerifyingOtp(true);
     try {
+      const normalizedPhone = normalizePhoneNumber(phone);
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'verify-checkout-phone',
-          phone,
-          code: otpCode.trim(),
+          phone: normalizedPhone,
+          code: cleanCode,
         }),
       });
       const data = await res.json();
@@ -254,13 +345,27 @@ function CheckoutContent() {
 
       <div className="flex gap-2">
         <input
+          id="checkout-phone"
           type="tel"
+          inputMode="tel"
+          autoComplete="tel"
           required
+          aria-invalid={Boolean(fieldErrors.phone)}
+          aria-describedby={fieldErrors.phone ? 'checkout-phone-error' : undefined}
           placeholder="۰۹۱۷۱۲۳۴۵۶۷"
           value={phone}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (!isPhoneVerified && isValidIranPhone(phone)) {
+                handleSendCheckoutOtp();
+              }
+            }
+          }}
           onChange={(e) => {
             const val = e.target.value;
             setPhone(val);
+            setFieldErrors((prev) => ({ ...prev, phone: '' }));
             if (
               user?.isPhoneVerified &&
               user?.phone &&
@@ -272,10 +377,12 @@ function CheckoutContent() {
             }
           }}
           className={`w-full px-3.5 py-2.5 rounded-xl border ${
-            isPhoneVerified
+            fieldErrors.phone
+              ? 'border-rose-400 bg-rose-50/30'
+              : isPhoneVerified
               ? 'border-emerald-400 bg-emerald-50/20'
               : 'border-[#E6E1D5] bg-[#F9F8F5]'
-          } focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono font-bold text-sm transition-all`}
+          } focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono font-bold text-base sm:text-sm transition-all`}
           dir="ltr"
         />
 
@@ -284,7 +391,7 @@ function CheckoutContent() {
             type="button"
             onClick={handleSendCheckoutOtp}
             disabled={isSendingOtp || !isValidIranPhone(phone)}
-            className="shrink-0 px-3.5 py-2.5 bg-[#2C4A2E] hover:bg-[#1E3520] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="shrink-0 min-h-[44px] px-3.5 py-2.5 bg-[#2C4A2E] hover:bg-[#1E3520] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
           >
             {isSendingOtp ? (
               <span>در حال ارسال...</span>
@@ -297,32 +404,50 @@ function CheckoutContent() {
         )}
       </div>
 
+      {fieldErrors.phone && (
+        <p id="checkout-phone-error" className="text-xs text-rose-700 font-bold">
+          {fieldErrors.phone}
+        </p>
+      )}
+
       {/* Inline Verification Box */}
       {!isPhoneVerified && otpStep === 'SENT' && (
         <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-3 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-amber-950">کد تایید ۵ رقمی پیامک‌شده:</span>
-            <span className="text-amber-800 font-mono text-[11px]">
+            <label htmlFor="checkout-otp-input" className="font-bold text-amber-950">
+              کد تایید ۵ رقمی پیامک‌شده:
+            </label>
+            <span className="text-amber-800 font-mono text-xs">
               {otpTimer > 0 ? `اعتبار: ${toPersianDigits(otpTimer)} ثانیه` : 'کد منقضی شده؛ ارسال مجدد را بزنید'}
             </span>
           </div>
 
           <div className="flex gap-2">
             <input
+              id="checkout-otp-input"
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={5}
               placeholder="•••••"
               value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleVerifyCheckoutOtp();
+                }
+              }}
+              onChange={(e) =>
+                setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 5))
+              }
               className="w-32 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-[#2C4A2E] focus:outline-none focus:border-[#2C4A2E]"
               dir="ltr"
             />
             <button
               type="button"
               onClick={handleVerifyCheckoutOtp}
-              disabled={isVerifyingOtp || otpCode.trim().length !== 5}
-              className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              disabled={isVerifyingOtp || toEnglishDigits(otpCode).replace(/\D/g, '').length !== 5}
+              className="flex-1 min-h-[44px] px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
             >
               {isVerifyingOtp ? 'در حال بررسی...' : 'تایید و ثبت شماره در حساب'}
             </button>
@@ -401,13 +526,15 @@ function CheckoutContent() {
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setFieldErrors({});
 
     const redirectTarget = isSubscription
       ? `/checkout?subscriptionPlan=${subscriptionPlan}`
       : '/checkout';
 
     if (!user || !isAuthenticated) {
-      setErrorMessage('جهت تکمیل سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری شوید.');
+      saveCheckoutDraft();
+      setErrorMessage('جهت تکمیل سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری شوید. اطلاعات فرم شما محفوظ می‌ماند.');
       router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
       return;
     }
@@ -424,28 +551,30 @@ function CheckoutContent() {
       return;
     }
 
+    const nextFieldErrors: Record<string, string> = {};
     if (!recipientName.trim()) {
-      setErrorMessage('لطفاً نام و نام‌خانوادگی را وارد نمایید.');
-      return;
+      nextFieldErrors.recipientName = 'لطفاً نام و نام‌خانوادگی تحویل‌گیرنده را وارد نمایید.';
     }
-
     if (!isValidIranPhone(phone)) {
-      setErrorMessage('شماره موبایل وارد شده معتبر نمی‌باشد (مانند ۰۹۱۷۱۲۳۴۵۶۷).');
-      return;
+      nextFieldErrors.phone = 'شماره موبایل معتبر ۱۱ رقمی وارد نمایید (مانند ۰۹۱۷۱۲۳۴۵۶۷).';
+    } else if (!isPhoneVerified) {
+      nextFieldErrors.phone = 'تایید شماره همراه با کد پیامکی الزامی است.';
     }
-
-    if (!isPhoneVerified) {
-      setErrorMessage('تایید شماره همراه الزامی است. لطفاً روی دکمه «دریافت کد تایید» کلیک کرده و شماره خود را تایید فرمایید.');
-      return;
-    }
-
     if (!isSubscription && !streetAddress.trim()) {
-      setErrorMessage('لطفاً نشانی کامل پستی را وارد فرمایید.');
+      nextFieldErrors.streetAddress = 'لطفاً نشانی دقیق خیابان و کوچه را وارد نمایید.';
+    }
+    if (!isSubscription && !city.trim()) {
+      nextFieldErrors.city = 'لطفاً شهر مقصد را وارد نمایید.';
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setErrorMessage(Object.values(nextFieldErrors)[0]);
       return;
     }
 
     if (!isSubscription && isBlockedByShirazRule) {
-      setErrorMessage('سفارشات خارج از شیراز تنها به صورت خرید عمده قابل ثبت است.');
+      setErrorMessage(`سفارشات خارج از شیراز تنها به صورت خرید عمده (${SITE_CONFIG.policies.bulkThresholdLabel}) قابل ثبت است.`);
       return;
     }
 
@@ -677,74 +806,140 @@ function CheckoutContent() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">
+                    <label htmlFor="checkout-recipient" className="block text-gray-700 font-semibold mb-1.5">
                       نام و نام‌خانوادگی تحویل‌گیرنده:
                     </label>
                     <input
+                      id="checkout-recipient"
                       type="text"
+                      autoComplete="name"
                       required
+                      aria-invalid={Boolean(fieldErrors.recipientName)}
+                      aria-describedby={fieldErrors.recipientName ? 'checkout-recipient-error' : undefined}
                       value={recipientName}
-                      onChange={(e) => setRecipientName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      onChange={(e) => {
+                        setRecipientName(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, recipientName: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                        fieldErrors.recipientName ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
+                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
                     />
+                    {fieldErrors.recipientName && (
+                      <p id="checkout-recipient-error" className="text-xs text-rose-700 font-bold mt-1">
+                        {fieldErrors.recipientName}
+                      </p>
+                    )}
                   </div>
 
                   {renderPhoneVerificationField('شماره تلفن همراه (پیامک وضعیت و هماهنگی تحویل):')}
 
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">استان:</label>
-                    <input
-                      type="text"
+                    <label htmlFor="checkout-province" className="block text-gray-700 font-semibold mb-1.5">
+                      استان مقصد:
+                    </label>
+                    <select
+                      id="checkout-province"
+                      autoComplete="address-level1"
                       value={province}
-                      onChange={(e) => setProvince(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
-                    />
+                      onChange={(e) => {
+                        const nextProv = e.target.value;
+                        setProvince(nextProv);
+                        if (nextProv === 'فارس' && !city.trim()) {
+                          setCity('شیراز');
+                        } else if (nextProv !== 'فارس' && city.trim() === 'شیراز') {
+                          setCity('');
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                    >
+                      {IRAN_PROVINCES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">
-                      شهر مقصد:
+                    <label htmlFor="checkout-city" className="block text-gray-700 font-semibold mb-1.5">
+                      شهر مقصد {isBulkOrder ? '(سراسر کشور)' : '(پیک اختصاصی شیراز)'}:
                     </label>
                     <input
+                      id="checkout-city"
                       type="text"
+                      autoComplete="address-level2"
                       required
+                      aria-invalid={Boolean(fieldErrors.city)}
                       value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      onChange={(e) => {
+                        setCity(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, city: '' }));
+                      }}
+                      placeholder={province === 'فارس' ? 'شیراز' : 'نام شهر مقصد (سفارش عمده)'}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                        fieldErrors.city ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
+                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
                     />
+                    {fieldErrors.city && (
+                      <p className="text-xs text-rose-700 font-bold mt-1">{fieldErrors.city}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-gray-700 font-semibold mb-1.5">
+                    <label htmlFor="checkout-street" className="block text-gray-700 font-semibold mb-1.5">
                       نشانی دقیق خیابان و کوچه:
                     </label>
                     <input
+                      id="checkout-street"
                       type="text"
+                      autoComplete="street-address"
                       required
+                      aria-invalid={Boolean(fieldErrors.streetAddress)}
+                      aria-describedby={fieldErrors.streetAddress ? 'checkout-street-error' : undefined}
                       value={streetAddress}
-                      onChange={(e) => setStreetAddress(e.target.value)}
+                      onChange={(e) => {
+                        setStreetAddress(e.target.value);
+                        setFieldErrors((prev) => ({ ...prev, streetAddress: '' }));
+                      }}
                       placeholder="مثال: بلوار ارم، کوچه ۶، پلاک ۱۲"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                        fieldErrors.streetAddress ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
+                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
                     />
+                    {fieldErrors.streetAddress && (
+                      <p id="checkout-street-error" className="text-xs text-rose-700 font-bold mt-1">
+                        {fieldErrors.streetAddress}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">پلاک / واحد:</label>
+                    <label htmlFor="checkout-unit" className="block text-gray-700 font-semibold mb-1.5">
+                      پلاک / واحد:
+                    </label>
                     <input
+                      id="checkout-unit"
                       type="text"
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">کد پستی ۱۰ رقمی:</label>
+                    <label htmlFor="checkout-postal" className="block text-gray-700 font-semibold mb-1.5">
+                      کد پستی ۱۰ رقمی:
+                    </label>
                     <input
+                      id="checkout-postal"
                       type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      maxLength={10}
                       value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left"
+                      onChange={(e) => setPostalCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 10))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -898,28 +1093,46 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div
+                role="radiogroup"
+                aria-label="انتخاب درگاه پرداخت"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1"
+              >
                 {/* Option 1: ZarinPal */}
-                <div
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentMethod === 'zarinpal'}
                   onClick={() => setPaymentMethod('zarinpal')}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right ${
                     paymentMethod === 'zarinpal'
                       ? 'border-[#2C4A2E] bg-emerald-50/40 shadow-sm'
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between w-full">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-[#2C4A2E] text-[#D4AF37] flex items-center justify-center font-black text-sm">
-                        Z
+                      <div
+                        className="w-9 h-9 rounded-xl bg-[#2C4A2E] text-[#FDE68A] flex items-center justify-center shrink-0"
+                        aria-hidden="true"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+                          <path
+                            d="M5 7h14l-9.5 10H19"
+                            stroke="currentColor"
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </div>
                       <div>
-                        <div className="font-bold text-xs text-gray-900">درگاه پرداخت زرین‌پال</div>
-                        <span className="text-[10px] text-gray-500">پرداخت امن شاپرک با کلیه کارت‌ها</span>
+                        <div className="font-bold text-sm text-gray-900">درگاه پرداخت زرین‌پال</div>
+                        <span className="text-xs text-gray-600">پرداخت امن شاپرک با کلیه کارت‌ها</span>
                       </div>
                     </div>
                     <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                         paymentMethod === 'zarinpal'
                           ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white'
                           : 'border-gray-300'
@@ -929,41 +1142,54 @@ function CheckoutContent() {
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-gray-600 bg-white p-2 rounded-xl border border-gray-100 flex items-center justify-between">
+                  <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between w-full">
                     <span>مبلغ پرداخت نقدی:</span>
                     <span className="font-bold text-[#2C4A2E]">{formatToman(finalAmount)}</span>
                   </div>
-                </div>
+                </button>
 
                 {/* Option 2: SnappPay BNPL (if enabled) */}
                 {paymentSettings.snapppay.enabled && (
-                  <div
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={paymentMethod === 'snapppay'}
                     onClick={() => setPaymentMethod('snapppay')}
-                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right ${
                       paymentMethod === 'snapppay'
-                        ? 'border-[#00D170] bg-emerald-50/50 shadow-sm ring-2 ring-[#00D170]/20'
+                        ? 'border-[#047857] bg-emerald-50/50 shadow-sm ring-2 ring-[#00D170]/30'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between w-full">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-[#00D170] text-white flex items-center justify-center font-black text-base shadow-xs">
-                          S
+                        <div
+                          className="w-9 h-9 rounded-xl bg-[#00D170] text-[#052E16] flex items-center justify-center shadow-xs shrink-0"
+                          aria-hidden="true"
+                        >
+                          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+                            <path
+                              d="M16.5 8.5C16.5 6.8 14.5 6 12 6s-4.5.9-4.5 2.7c0 3.6 9 1.8 9 5.6 0 1.8-2 2.7-4.5 2.7s-4.5-.9-4.5-2.7"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                            />
+                          </svg>
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-gray-900">خرید اقساطی اسنپ‌پی</span>
-                            <span className="text-[9px] bg-[#00D170] text-white font-bold px-1.5 py-0.2 rounded-md">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-sm text-gray-900">خرید اقساطی اسنپ‌پی</span>
+                            <span className="text-xs bg-[#00D170] text-[#052E16] font-extrabold px-2 py-0.5 rounded-md">
                               بدون کارمزد
                             </span>
                           </div>
-                          <span className="text-[10px] text-emerald-700 font-medium">پرداخت در ۴ قسط بدون ضامن</span>
+                          <span className="text-xs text-emerald-800 font-medium">پرداخت در ۴ قسط بدون ضامن</span>
                         </div>
                       </div>
                       <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                           paymentMethod === 'snapppay'
-                            ? 'border-[#00D170] bg-[#00D170] text-white'
+                            ? 'border-[#047857] bg-[#047857] text-white'
                             : 'border-gray-300'
                         }`}
                       >
@@ -971,13 +1197,13 @@ function CheckoutContent() {
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-gray-700 bg-white p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
+                    <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between w-full">
                       <span>قسط اول (امروز):</span>
-                      <span className="font-black text-emerald-800">
+                      <span className="font-black text-emerald-900">
                         {formatToman(Math.ceil(finalAmount / 4))}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
 
@@ -1192,7 +1418,7 @@ function CheckoutContent() {
                 isLoading={isLoading}
                 className={`w-full ${
                   paymentMethod === 'snapppay'
-                    ? '!bg-[#00D170] hover:!bg-[#00B963] !text-white'
+                    ? '!bg-[#00D170] hover:!bg-[#00B963] !text-[#052E16] font-black'
                     : ''
                 }`}
               >
@@ -1209,12 +1435,12 @@ function CheckoutContent() {
                   : 'پرداخت امن با درگاه زرین‌پال'}
               </Button>
 
-              <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 pt-1 text-center">
-                <ShieldCheck className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-600 pt-1 text-center">
+                <ShieldCheck className="w-4 h-4 text-[#2C4A2E] shrink-0" />
                 <span>
                   {isSubscription
-                    ? 'ضمانت بازگشت وجه در صورت انصراف طی ۷ روز اول'
-                    : 'تضمین بازگشت وجه در صورت عدم رضایت از کیفیت ارگانیک'}
+                    ? SITE_CONFIG.policies.subscriptionRefundLabel
+                    : SITE_CONFIG.policies.freshReturnLabel}
                 </span>
               </div>
             </div>

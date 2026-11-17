@@ -20,17 +20,16 @@ import { SiteContent } from '@/types';
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
-
-  // Never render public store footer on admin pages
-  if (pathname?.startsWith('/admin')) {
-    return null;
-  }
-
   const [content, setContent] = useState<SiteContent>({ ...DEFAULT_SITE_CONTENT });
 
   useEffect(() => {
     setContent(farmStore.getSiteContent());
   }, []);
+
+  // Never render public store footer on admin pages (placed safely AFTER all hooks)
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <footer className="bg-[#1E3520] text-[#F3EFE6] border-t border-[#2C4A2E] mt-20">
@@ -127,12 +126,12 @@ export const Footer: React.FC = () => {
                     ایتا
                   </a>
                 )}
-                {content.socialWhatsapp && (
+                {content.socialWhatsapp && !content.socialWhatsapp.includes('989170000000') && (
                   <a
                     href={content.socialWhatsapp}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-[11px] font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-xs font-bold"
                   >
                     واتساپ
                   </a>

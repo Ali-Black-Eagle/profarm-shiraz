@@ -34,12 +34,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const pathname = usePathname();
-
-  // Never render public store header or public banner on admin pages
-  if (pathname?.startsWith('/admin')) {
-    return null;
-  }
-
   const [mounted, setMounted] = useState(false);
   const [bannerText, setBannerText] = useState(
     'توزیع مستقیم مزارع استان فارس به شیراز | تحویل با پیک پروفارم'
@@ -169,6 +163,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
       )
       .slice(0, 8);
   }, [searchQuery]);
+
+  // Never render public store header or public banner on admin pages (placed safely AFTER all hooks)
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 glass-nav border-b border-[#E6E1D5] transition-all">

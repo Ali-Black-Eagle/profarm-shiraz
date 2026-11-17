@@ -8,6 +8,7 @@ import { useCart } from '@/hooks/useCart';
 import { farmStore } from '@/lib/db-store';
 import { Order, Address, Coupon, OrderStatus, ProductReview } from '@/types';
 import { formatToman, toPersianDigits, isValidIranPhone, getDeduplicatedPerks } from '@/lib/formatters';
+import { getOrderStatusMeta } from '@/lib/site-config';
 import { UserInvoiceModal } from '@/components/modules/UserInvoiceModal';
 import {
   User as UserIcon,
@@ -925,30 +926,21 @@ function AccountContent() {
                             {order.orderNumber}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fa-IR') : '۱۴۰۵/۰۶/۱۸'}
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fa-IR') : 'ثبت سیستمی'}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                              order.status === 'DELIVERED'
-                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                : order.status === 'OUT_FOR_DELIVERY'
-                                ? 'bg-blue-100 text-blue-900 border-blue-300'
-                                : order.status === 'PROCESSING'
-                                ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                : 'bg-gray-100 text-gray-800 border-gray-200'
-                            }`}
-                          >
-                            {order.status === 'DELIVERED'
-                              ? 'تحویل‌شده'
-                              : order.status === 'OUT_FOR_DELIVERY'
-                              ? 'در مسیر توزیع با پیک پروفارم'
-                              : order.status === 'PROCESSING'
-                              ? 'در حال آماده‌سازی'
-                              : 'ثبت‌شده'}
-                          </span>
+                          {(() => {
+                            const statusMeta = getOrderStatusMeta(order.status);
+                            return (
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta.badgeClass}`}
+                              >
+                                {statusMeta.label}
+                              </span>
+                            );
+                          })()}
 
                           <span className="text-sm font-black text-[#2C4A2E]">
                             {formatToman(order.totalAmount)}
@@ -957,13 +949,15 @@ function AccountContent() {
                       </div>
 
                       {/* Delivery Slot info */}
-                      <div className="flex items-center gap-2 text-xs text-gray-600 bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]/60">
-                        <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span>زمان تحویل شیراز:</span>
-                        <strong className="text-gray-800">
-                          {order.deliverySlot?.date || 'چهارشنبه ۱۸ شهریور'} ({order.deliverySlot?.timeWindow || '۱۵:۰۰ الی ۲۱:۰۰'})
-                        </strong>
-                      </div>
+                      {order.deliverySlot && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]/60">
+                          <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>زمان تحویل شیراز:</span>
+                          <strong className="text-gray-800">
+                            {order.deliverySlot.date} ({order.deliverySlot.timeWindow || '۱۵:۰۰ الی ۲۱:۰۰'})
+                          </strong>
+                        </div>
+                      )}
 
                       {/* Items Row */}
                       <div className="divide-y divide-gray-100">
@@ -1195,8 +1189,11 @@ function AccountContent() {
                       </span>
                     </div>
 
-                    <span className="text-xs text-white/80 font-mono">
-                      اعتبار: {user.proExpiresAt || (tier === 'FREE' ? 'نامحدود' : '۱۴۰۵/۱۲/۲۹')}
+                    <span className="text-xs text-white/90 font-mono">
+                      اعتبار:{' '}
+                      {tier === 'FREE'
+                        ? 'نامحدود'
+                        : (tier === 'PRO' ? user.proExpiresAt : user.plusExpiresAt) || 'ثبت در حساب کاربری'}
                     </span>
                   </div>
 
@@ -1208,13 +1205,13 @@ function AccountContent() {
                       : 'ارتقا به پلاس یا پرو برای ارسال روزانه'}
                   </h3>
 
-                  {/* Quota Progress (for Pro & Plus) */}
+                  {/* Quota Progress (for Pro & Plus) — uses real usage only, never invented fallback */}
                   {(tier === 'PRO' || tier === 'PLUS') && (
                     <div className="bg-black/20 backdrop-blur-md p-4 rounded-2xl border border-white/10 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span>سهمیه مصرف‌شده تخم‌مرغ کامفیروز:</span>
                         <span className="font-bold font-mono">
-                          {toPersianDigits(user.eggDiscountUsed || 40)} از{' '}
+                          {toPersianDigits(user.eggDiscountUsed ?? 0)} از{' '}
                           {toPersianDigits(tier === 'PRO' ? subSettings.proEggMaxQuota : subSettings.plusEggMaxQuota)} عدد
                         </span>
                       </div>
@@ -1224,8 +1221,8 @@ function AccountContent() {
                           style={{
                             width: `${Math.min(
                               100,
-                              ((user.eggDiscountUsed || 40) /
-                                (tier === 'PRO' ? subSettings.proEggMaxQuota : subSettings.plusEggMaxQuota)) *
+                              ((user.eggDiscountUsed ?? 0) /
+                                Math.max(1, tier === 'PRO' ? subSettings.proEggMaxQuota : subSettings.plusEggMaxQuota)) *
                                 100
                             )}%`,
                           }}

@@ -5,6 +5,7 @@
 import { CartItem, SubscriptionTier, SubscriptionSettings } from '@/types';
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+const ARABIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
 const ENGLISH_DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 export function toPersianDigits(input: string | number | null | undefined): string {
@@ -17,7 +18,9 @@ export function toEnglishDigits(input: string | null | undefined): string {
   if (!input) return '';
   let str = input;
   for (let i = 0; i < 10; i++) {
-    str = str.replace(new RegExp(PERSIAN_DIGITS[i], 'g'), ENGLISH_DIGITS[i]);
+    str = str
+      .replace(new RegExp(PERSIAN_DIGITS[i], 'g'), ENGLISH_DIGITS[i])
+      .replace(new RegExp(ARABIC_DIGITS[i], 'g'), ENGLISH_DIGITS[i]);
   }
   return str;
 }

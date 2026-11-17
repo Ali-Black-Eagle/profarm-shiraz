@@ -131,8 +131,10 @@ export function CouponInputBox({
           </div>
 
           <button
+            type="button"
             onClick={handleRemove}
-            className="p-1.5 rounded-xl hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition-colors cursor-pointer"
+            aria-label="حذف کد تخفیف"
+            className="p-2 rounded-xl hover:bg-rose-100 text-gray-600 hover:text-rose-700 transition-colors cursor-pointer"
             title="حذف کد تخفیف"
           >
             <X className="w-4 h-4" />
@@ -143,14 +145,20 @@ export function CouponInputBox({
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="مثلاً: SHIRAZ1403 یا FREESHIP"
+              aria-label="کد تخفیف"
+              placeholder="کد تخفیف (مثلاً SHIRAZ1403)"
               value={inputCode}
               onChange={(e) => {
                 setInputCode(e.target.value.toUpperCase());
                 setErrorMessage(null);
               }}
-              onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-              className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-mono tracking-wider text-left focus:bg-white focus:border-[#2C4A2E] outline-none transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleApply();
+                }
+              }}
+              className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-base sm:text-xs font-mono tracking-wider text-left focus:bg-white focus:border-[#2C4A2E] outline-none transition-all"
               dir="ltr"
             />
             <button

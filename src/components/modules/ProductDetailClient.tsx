@@ -9,6 +9,7 @@ import { Product, ProductReview } from '@/types';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { formatToman, toPersianDigits, safeJsonLdStringify } from '@/lib/formatters';
+import { SITE_CONFIG } from '@/lib/site-config';
 import { ProductCard } from '@/components/modules/ProductCard';
 import {
   Sparkles,
@@ -272,12 +273,12 @@ export default function ProductDetailClient({
     }
   };
 
-  // Calculations for Ratings
+  // Calculations for Ratings (never invent 5.0 when there are no reviews)
   const totalApprovedReviews = reviews.length;
   const averageRating =
     totalApprovedReviews > 0
       ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalApprovedReviews).toFixed(1)
-      : '5.0';
+      : null;
 
   // Related products from same category or fallback
   const relatedProducts = farmStore
@@ -317,16 +318,20 @@ export default function ProductDetailClient({
       itemCondition: 'https://schema.org/NewCondition',
       seller: {
         '@type': 'Organization',
-        name: 'پروفارم شیراز',
+        name: SITE_CONFIG.brandName,
       },
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: averageRating,
-      reviewCount: Math.max(1, totalApprovedReviews).toString(),
-      bestRating: '5',
-      worstRating: '1',
-    },
+    ...(totalApprovedReviews > 0 && averageRating
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: averageRating,
+            reviewCount: totalApprovedReviews.toString(),
+            bestRating: '5',
+            worstRating: '1',
+          },
+        }
+      : {}),
   };
 
   const breadcrumbSchema = {
@@ -477,26 +482,33 @@ export default function ProductDetailClient({
               {product.title}
             </h1>
 
-            {/* Ratings Summary */}
+            {/* Ratings Summary (Honest: no fake 5-star fallback when 0 reviews) */}
             <div className="flex items-center gap-3 pt-1">
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`w-4 h-4 ${
-                      star <= Math.round(Number(averageRating))
-                        ? 'text-amber-400 fill-amber-400'
-                        : 'text-gray-200 fill-gray-200'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs font-black text-gray-800 flex items-baseline gap-1">
-                <span>{toPersianDigits(averageRating)}</span>
-                <span className="text-gray-400 font-normal">از ۵</span>
-              </span>
+              {totalApprovedReviews > 0 && averageRating ? (
+                <>
+                  <div className="flex items-center gap-1" aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= Math.round(Number(averageRating))
+                            ? 'text-amber-500 fill-amber-500'
+                            : 'text-gray-200 fill-gray-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-black text-gray-800 flex items-baseline gap-1">
+                    <span>{toPersianDigits(averageRating)}</span>
+                    <span className="text-gray-600 font-normal">از ۵</span>
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs font-medium text-gray-600">هنوز امتیازی ثبت نشده</span>
+              )}
               <span className="text-gray-300">•</span>
               <button
+                type="button"
                 onClick={() => {
                   setActiveTab('reviews');
                   const el = document.getElementById('reviews-section');
@@ -504,7 +516,9 @@ export default function ProductDetailClient({
                 }}
                 className="text-xs text-[#2C4A2E] hover:underline font-bold cursor-pointer"
               >
-                {toPersianDigits(totalApprovedReviews)} دیدگاه خریداران واقعی
+                {totalApprovedReviews > 0
+                  ? `${toPersianDigits(totalApprovedReviews)} دیدگاه خریداران واقعی`
+                  : 'ثبت اولین دیدگاه'}
               </button>
             </div>
           </div>
@@ -682,8 +696,8 @@ export default function ProductDetailClient({
             <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center gap-2.5">
               <ShieldCheck className="w-5 h-5 text-[#2C4A2E] shrink-0" />
               <div>
-                <div className="font-bold text-gray-900 text-xs">ضمانت ۱۰۰٪ مرجوعی</div>
-                <div className="text-[10px] text-gray-500">بازگشت وجه در صورت عدم رضایت</div>
+                <div className="font-bold text-gray-900 text-xs">{SITE_CONFIG.policies.freshReturnShort}</div>
+                <div className="text-xs text-gray-600">تضمین سلامت و کیفیت ارگانیک</div>
               </div>
             </div>
 
@@ -860,40 +874,58 @@ export default function ProductDetailClient({
               </p>
             </div>
 
-            {/* Nutrition Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center space-y-1">
-                <span className="text-xs text-gray-500 font-bold block">انرژی / کالری</span>
-                <span className="text-2xl font-black text-amber-700">
-                  {toPersianDigits(product.nutritionalInfo?.calories || '۷۲')}
-                </span>
-                <span className="text-[10px] text-gray-400 block">کیلوکالری در هر ۱۰۰ گرم</span>
-              </div>
+            {/* Nutrition Cards (Only render real recorded data; never invent egg nutrition for other products) */}
+            {product.nutritionalInfo &&
+            (product.nutritionalInfo.calories ||
+              product.nutritionalInfo.protein ||
+              product.nutritionalInfo.fat ||
+              product.nutritionalInfo.carbs) ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {product.nutritionalInfo.calories && (
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center space-y-1">
+                    <span className="text-xs text-gray-600 font-bold block">انرژی / کالری</span>
+                    <span className="text-2xl font-black text-amber-800">
+                      {toPersianDigits(product.nutritionalInfo.calories)}
+                    </span>
+                    <span className="text-xs text-gray-600 block">کیلوکالری در هر ۱۰۰ گرم</span>
+                  </div>
+                )}
 
-              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 text-center space-y-1">
-                <span className="text-xs text-gray-500 font-bold block">پروتئین خالص</span>
-                <span className="text-2xl font-black text-blue-700">
-                  {toPersianDigits(product.nutritionalInfo?.protein || '۶.۳')}
-                </span>
-                <span className="text-[10px] text-gray-400 block">گرم در هر ۱۰۰ گرم</span>
-              </div>
+                {product.nutritionalInfo.protein && (
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 text-center space-y-1">
+                    <span className="text-xs text-gray-600 font-bold block">پروتئین خالص</span>
+                    <span className="text-2xl font-black text-blue-800">
+                      {toPersianDigits(product.nutritionalInfo.protein)}
+                    </span>
+                    <span className="text-xs text-gray-600 block">گرم در هر ۱۰۰ گرم</span>
+                  </div>
+                )}
 
-              <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200/80 text-center space-y-1">
-                <span className="text-xs text-gray-500 font-bold block">چربی کل</span>
-                <span className="text-2xl font-black text-rose-700">
-                  {toPersianDigits(product.nutritionalInfo?.fat || '۴.۸')}
-                </span>
-                <span className="text-[10px] text-gray-400 block">گرم چربی طبیعی</span>
-              </div>
+                {product.nutritionalInfo.fat && (
+                  <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200/80 text-center space-y-1">
+                    <span className="text-xs text-gray-600 font-bold block">چربی کل</span>
+                    <span className="text-2xl font-black text-rose-800">
+                      {toPersianDigits(product.nutritionalInfo.fat)}
+                    </span>
+                    <span className="text-xs text-gray-600 block">گرم چربی طبیعی</span>
+                  </div>
+                )}
 
-              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-center space-y-1">
-                <span className="text-xs text-gray-500 font-bold block">کربوهیدرات</span>
-                <span className="text-2xl font-black text-emerald-700">
-                  {toPersianDigits(product.nutritionalInfo?.carbs || '۰.۵')}
-                </span>
-                <span className="text-[10px] text-gray-400 block">گرم در هر ۱۰۰ گرم</span>
+                {product.nutritionalInfo.carbs && (
+                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-center space-y-1">
+                    <span className="text-xs text-gray-600 font-bold block">کربوهیدرات</span>
+                    <span className="text-2xl font-black text-emerald-800">
+                      {toPersianDigits(product.nutritionalInfo.carbs)}
+                    </span>
+                    <span className="text-xs text-gray-600 block">گرم در هر ۱۰۰ گرم</span>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] text-sm text-gray-600">
+                جدول ارزش غذایی دقیق برای این محصول هنوز توسط واحد کنترل کیفیت ثبت نشده است.
+              </div>
+            )}
 
             {/* Storage Instructions Banner */}
             <div className="p-5 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
@@ -970,15 +1002,24 @@ export default function ProductDetailClient({
               {/* Score Left */}
               <div className="flex items-center gap-5">
                 <div className="text-center p-4 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15">
-                  <div className="text-4xl font-black text-[#2C4A2E]">
-                    {toPersianDigits(averageRating)}
+                  <div className="text-3xl font-black text-[#2C4A2E]">
+                    {totalApprovedReviews > 0 && averageRating ? toPersianDigits(averageRating) : '—'}
                   </div>
-                  <div className="flex items-center justify-center gap-0.5 mt-1 text-amber-400 fill-amber-400">
+                  <div className="flex items-center justify-center gap-0.5 mt-1">
                     {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-3.5 h-3.5 fill-amber-400" />
+                      <Star
+                        key={s}
+                        className={`w-3.5 h-3.5 ${
+                          averageRating && s <= Math.round(Number(averageRating))
+                            ? 'text-amber-500 fill-amber-500'
+                            : 'text-gray-200 fill-gray-200'
+                        }`}
+                      />
                     ))}
                   </div>
-                  <span className="text-[10px] text-gray-400 mt-1 block">از ۵ امتیاز رضایت</span>
+                  <span className="text-xs text-gray-600 mt-1 block">
+                    {totalApprovedReviews > 0 ? 'از ۵ امتیاز رضایت' : 'بدون امتیاز'}
+                  </span>
                 </div>
 
                 <div className="space-y-1">
