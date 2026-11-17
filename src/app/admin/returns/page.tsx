@@ -159,20 +159,20 @@ export default function AdminReturnsPage() {
     <div className="space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-[#2C4A2E] text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in">
+        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-farm-primary text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-[#D4A373] shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-farm-border">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#D4A373]">
-            <RotateCcw className="w-4 h-4 text-[#2C4A2E]" />
+            <RotateCcw className="w-4 h-4 text-farm-primary" />
             <span>سامانه تضمین کیفیت ۱۰۰٪ و خدمات پس از فروش پروفارم</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary mt-0.5">
             مدیریت مرجوعی کالا، تضمین کیفیت و بازگشت وجه
           </h1>
           <p className="text-xs text-gray-500 mt-1">
@@ -183,7 +183,7 @@ export default function AdminReturnsPage() {
 
       {/* 4 Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
             <span>در انتظار بررسی کارشناس</span>
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
@@ -193,10 +193,10 @@ export default function AdminReturnsPage() {
           <div className="text-2xl font-black text-amber-700">
             {toPersianDigits(pendingCount)} درخواست
           </div>
-          <div className="text-[11px] text-gray-500">نیازمند تماس و بررسی ادعا</div>
+          <div className="text-xs text-gray-500">نیازمند تماس و بررسی ادعا</div>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
             <span>تایید شده (در نوبت استرداد)</span>
             <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
@@ -206,25 +206,25 @@ export default function AdminReturnsPage() {
           <div className="text-2xl font-black text-blue-800">
             {toPersianDigits(approvedCount)} مورد
           </div>
-          <div className="text-[11px] text-gray-500">آماده واریز به شماره شبا</div>
+          <div className="text-xs text-gray-500">آماده واریز به شماره شبا</div>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
             <span>مجموع بازگشت وجه انجام‌شده</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-[#2C4A2E]">
+          <div className="text-2xl font-black text-farm-primary">
             {formatToman(totalRefundedMoney)}
           </div>
-          <div className="text-[11px] text-emerald-700 font-medium">
+          <div className="text-xs text-emerald-700 font-medium">
             تعداد {toPersianDigits(refundedCount)} فقره تسویه موفق
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
             <span>نرخ سلامت محموله‌های شیراز</span>
             <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center">
@@ -232,7 +232,7 @@ export default function AdminReturnsPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-teal-900">۹۸.۶٪</div>
-          <div className="text-[11px] text-teal-700 font-medium">رضایت تضمین کیفیت مزارع</div>
+          <div className="text-xs text-teal-700 font-medium">رضایت تضمین کیفیت مزارع</div>
         </div>
       </div>
 
@@ -243,8 +243,8 @@ export default function AdminReturnsPage() {
             onClick={() => setStatusFilter('ALL')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'ALL'
-                ? 'bg-[#2C4A2E] text-white shadow-xs'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+                ? 'bg-farm-primary text-white shadow-xs'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
             }`}
           >
             همه موارد ({toPersianDigits(returns.length)})
@@ -285,22 +285,22 @@ export default function AdminReturnsPage() {
         </div>
 
         <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute right-3 top-2.5" />
+          <Search className="w-4 h-4 text-gray-500 absolute right-3 top-2.5" />
           <input
             type="text"
             placeholder="جستجو سفارش، مشتری، محصول..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-9 pl-3 py-2 rounded-xl border border-[#E6E1D5] bg-white text-xs text-gray-800 w-full sm:w-60 focus:outline-none focus:border-[#2C4A2E]"
+            className="pr-9 pl-3 py-2 rounded-xl border border-farm-border bg-white text-xs text-gray-800 w-full sm:w-60 focus:outline-none focus:border-farm-primary"
           />
         </div>
       </div>
 
       {/* Returns Table */}
-      <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs sm:text-sm">
-            <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+            <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
               <tr>
                 <th className="py-3.5 px-5 font-black">کد سفارش</th>
                 <th className="py-3.5 px-5 font-black">مشتری و تماس</th>
@@ -312,7 +312,7 @@ export default function AdminReturnsPage() {
                 <th className="py-3.5 px-5 font-black">اقدام ادمین</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E6E1D5]">
+            <tbody className="divide-y divide-farm-border">
               {filteredReturns.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-gray-500 font-medium">
@@ -322,13 +322,13 @@ export default function AdminReturnsPage() {
               ) : (
                 filteredReturns.map((req) => (
                   <tr key={req.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-4 px-5 font-bold text-[#2C4A2E] font-mono">
+                    <td className="py-4 px-5 font-bold text-farm-primary font-mono">
                       {req.orderNumber}
                     </td>
 
                     <td className="py-4 px-5">
                       <div className="font-bold text-gray-900">{req.customerName}</div>
-                      <div className="text-[11px] text-gray-500 font-mono" dir="ltr">
+                      <div className="text-xs text-gray-500 font-mono" dir="ltr">
                         {toPersianDigits(req.customerPhone)}
                       </div>
                     </td>
@@ -343,13 +343,13 @@ export default function AdminReturnsPage() {
                     <td className="py-4 px-5">
                       <div className="font-medium text-gray-800">{getReasonLabel(req.reason)}</div>
                       {req.description && (
-                        <div className="text-[11px] text-gray-500 line-clamp-1 max-w-xs mt-0.5">
+                        <div className="text-xs text-gray-500 line-clamp-1 max-w-xs mt-0.5">
                           «{req.description}»
                         </div>
                       )}
                     </td>
 
-                    <td className="py-4 px-5 font-black text-[#2C4A2E]">
+                    <td className="py-4 px-5 font-black text-farm-primary">
                       {formatToman(req.refundAmount)}
                     </td>
 
@@ -362,7 +362,7 @@ export default function AdminReturnsPage() {
                     <td className="py-4 px-5">
                       <button
                         onClick={() => handleOpenReview(req)}
-                        className="px-3.5 py-1.5 rounded-xl bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        className="px-3.5 py-1.5 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>بررسی و تعیین تکلیف</span>
@@ -392,7 +392,7 @@ export default function AdminReturnsPage() {
         {selectedRequest && (
           <form onSubmit={handleSaveReview} className="space-y-4 text-xs sm:text-sm">
               {/* Product and Claim Details */}
-              <div className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
+              <div className="p-4 rounded-2xl bg-farm-bg border border-farm-border space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">کالای مرجوعی:</span>
                   <span className="font-bold text-gray-800">
@@ -409,7 +409,7 @@ export default function AdminReturnsPage() {
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">مبلغ استرداد وجه:</span>
-                  <span className="font-black text-[#2C4A2E] text-sm">
+                  <span className="font-black text-farm-primary text-sm">
                     {formatToman(selectedRequest.refundAmount)}
                   </span>
                 </div>
@@ -490,7 +490,7 @@ export default function AdminReturnsPage() {
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
                   placeholder="مثال: تماس گرفته شد، با هماهنگی مشتری مبلغ به کارت بانک ملی ایشان پایا گردید."
-                  className="w-full p-3 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                  className="w-full p-3 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary"
                 />
               </div>
 
@@ -505,7 +505,7 @@ export default function AdminReturnsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer"
+                  className="px-6 py-2 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-4 h-4 text-[#D4A373]" />
                   <span>ثبت تغییرات وضعیت</span>

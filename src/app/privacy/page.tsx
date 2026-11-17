@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield, Lock, Eye, CheckCircle2, ArrowRight } from 'lucide-react';
+import { SITE_CONFIG } from '@/lib/site-config';
 
 export const metadata = {
   title: 'سیاست حفظ حریم خصوصی',
@@ -12,10 +13,10 @@ export default function PrivacyPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="w-16 h-16 rounded-3xl bg-[#2C4A2E]/10 border border-[#2C4A2E]/20 text-[#2C4A2E] flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 rounded-3xl bg-farm-primary/10 border border-farm-primary/20 text-farm-primary flex items-center justify-center mx-auto">
           <Shield className="w-8 h-8" />
         </div>
-        <h1 className="text-3xl font-black text-[#2C4A2E]">
+        <h1 className="text-3xl font-black text-farm-primary">
           سیاست حفظ حریم خصوصی کاربران
         </h1>
         <p className="text-xs sm:text-sm text-gray-500 max-w-lg mx-auto">
@@ -24,9 +25,9 @@ export default function PrivacyPage() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E6E1D5] shadow-farm space-y-8 text-sm text-gray-700 leading-relaxed">
+      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-farm-border shadow-farm space-y-8 text-sm text-gray-700 leading-relaxed">
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <Lock className="w-5 h-5 text-[#D4A373]" />
             ۱. جمع‌آوری و استفاده از اطلاعات شخصی
           </h2>
@@ -36,7 +37,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <Eye className="w-5 h-5 text-[#D4A373]" />
             ۲. امنیت داده‌ها و اطلاعات پرداخت بانکی
           </h2>
@@ -46,7 +47,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-[#D4A373]" />
             ۳. عدم اشتراک‌گذاری اطلاعات با اشخاص ثالث
           </h2>
@@ -56,24 +57,24 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <Shield className="w-5 h-5 text-[#D4A373]" />
             ۴. تماس و پشتیبانی حریم خصوصی
           </h2>
           <p>
-            در صورت هرگونه سوال یا درخواست حذف حساب کاربری و سوابق نشانی، می‌توانید از طریق شماره پشتیبانی ۰۷۱۳۶۲۸۰۰۰۰ با کارشناسان حقوقی و پشتیبانی مزارع پروفارم در تماس باشید.
+            در صورت هرگونه سوال یا درخواست حذف حساب کاربری و سوابق نشانی، می‌توانید از طریق شماره پشتیبانی {SITE_CONFIG.contact.supportPhoneDisplay} با کارشناسان حقوقی و پشتیبانی مزارع پروفارم در تماس باشید.
           </p>
         </section>
 
-        <div className="pt-6 border-t border-[#F3EFE6] flex items-center justify-between">
+        <div className="pt-6 border-t border-farm-bg-warm flex items-center justify-between">
           <Link
             href="/"
-            className="text-xs font-bold text-[#2C4A2E] hover:underline flex items-center gap-1.5"
+            className="text-xs font-bold text-farm-primary hover:underline flex items-center gap-1.5"
           >
             <ArrowRight className="w-4 h-4" />
             بازگشت به صفحه اصلی
           </Link>
-          <span className="text-xs text-gray-400">آخرین ویرایش: شهریور ۱۴۰۵</span>
+          <span className="text-xs text-gray-600">آخرین ویرایش: شهریور ۱۴۰۵</span>
         </div>
       </div>
     </div>

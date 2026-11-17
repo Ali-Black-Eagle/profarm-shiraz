@@ -42,14 +42,14 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto shadow-2xl border border-[#E6E1D5] text-[#2C4A2E] print:p-0 print:border-none print:shadow-none print:max-h-none print:w-full"
+        className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto shadow-2xl border border-farm-border text-farm-primary print:p-0 print:border-none print:shadow-none print:max-h-none print:w-full"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Controls Bar (hidden during browser print) */}
-        <div className="sticky top-0 z-20 flex items-center justify-between p-4 bg-[#F9F8F5] border-b border-[#E6E1D5] no-print rounded-t-3xl">
+        <div className="sticky top-0 z-20 flex items-center justify-between p-4 bg-farm-bg border-b border-farm-border no-print rounded-t-3xl">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-700" />
-            <span className="text-sm font-bold text-[#2C4A2E]">
+            <span className="text-sm font-bold text-farm-primary">
               فاکتور سفارش {order.orderNumber}
             </span>
           </div>
@@ -58,7 +58,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
             <button
               type="button"
               onClick={handlePrint}
-              className="px-3.5 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3.5 py-2 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <Printer className="w-4 h-4 text-[#FDE68A]" />
               <span>چاپ فاکتور</span>
@@ -77,20 +77,20 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
         {/* Invoice Printable Body */}
         <div className="p-6 sm:p-8 space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b-2 border-[#2C4A2E]/20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b-2 border-farm-primary/20">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-[#8A6218]">
-                <ShieldCheck className="w-4 h-4 text-[#2C4A2E]" />
+                <ShieldCheck className="w-4 h-4 text-farm-primary" />
                 <span>پلتفرم تخصصی محصولات ارگانیک مزارع فارس</span>
               </div>
-              <h2 className="text-2xl font-black text-[#2C4A2E] mt-1">{SITE_CONFIG.brandName}</h2>
+              <h2 className="text-2xl font-black text-farm-primary mt-1">{SITE_CONFIG.brandName}</h2>
               <p className="text-xs text-gray-600 mt-0.5">{SITE_CONFIG.policies.retailDeliveryScope}</p>
             </div>
 
-            <div className="text-left sm:text-right text-xs space-y-1.5 bg-[#F9F8F5] p-3.5 rounded-2xl border border-[#E6E1D5]">
+            <div className="text-left sm:text-right text-xs space-y-1.5 bg-farm-bg p-3.5 rounded-2xl border border-farm-border">
               <div>
                 <span className="text-gray-600">شماره فاکتور: </span>
-                <strong className="font-mono text-[#2C4A2E] text-sm">{order.orderNumber}</strong>
+                <strong className="font-mono text-farm-primary text-sm">{order.orderNumber}</strong>
               </div>
               {order.createdAt && (
                 <div>
@@ -108,9 +108,9 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
           </div>
 
           {/* Customer & Delivery Information Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-[#F3EFE6]/60 p-4 rounded-2xl border border-[#E6E1D5]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-farm-bg-warm/60 p-4 rounded-2xl border border-farm-border">
             <div className="space-y-1.5">
-              <div className="font-bold text-[#2C4A2E] flex items-center gap-1.5 text-sm">
+              <div className="font-bold text-farm-primary flex items-center gap-1.5 text-sm">
                 <MapPin className="w-4 h-4 text-emerald-700" />
                 <span>مشخصات تحویل‌گیرنده</span>
               </div>
@@ -135,8 +135,8 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
               </div>
             </div>
 
-            <div className="space-y-1.5 border-t sm:border-t-0 sm:border-r border-[#E6E1D5] sm:pr-4 pt-3 sm:pt-0">
-              <div className="font-bold text-[#2C4A2E] flex items-center gap-1.5 text-sm">
+            <div className="space-y-1.5 border-t sm:border-t-0 sm:border-r border-farm-border sm:pr-4 pt-3 sm:pt-0">
+              <div className="font-bold text-farm-primary flex items-center gap-1.5 text-sm">
                 <Truck className="w-4 h-4 text-amber-700" />
                 <span>اطلاعات ارسال و تحویل</span>
               </div>
@@ -159,16 +159,16 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
               {order.deliverySlot?.timeWindow && (
                 <div className="text-gray-800">
                   <span className="text-gray-600">بازه زمانی: </span>
-                  <span className="font-bold text-[#2C4A2E]">{order.deliverySlot.timeWindow}</span>
+                  <span className="font-bold text-farm-primary">{order.deliverySlot.timeWindow}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Items Table */}
-          <div className="overflow-x-auto rounded-2xl border border-[#E6E1D5]">
+          <div className="overflow-x-auto rounded-2xl border border-farm-border">
             <table className="w-full text-right text-xs">
-              <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E] font-bold">
+              <thead className="bg-farm-bg border-b border-farm-border text-farm-primary font-bold">
                 <tr>
                   <th scope="col" className="py-3 px-3.5">ردیف</th>
                   <th scope="col" className="py-3 px-3.5 min-w-[180px]">شرح کالا و مشخصات بسته</th>
@@ -177,7 +177,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
                   <th scope="col" className="py-3 px-3.5 text-left">مجموع (تومان)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6E1D5]">
+              <tbody className="divide-y divide-farm-border">
                 {order.items.map((item, idx) => (
                   <tr key={item.id || idx} className="hover:bg-gray-50/60 transition-colors">
                     <td className="py-3 px-3.5 text-gray-600 font-bold">{toPersianDigits(idx + 1)}</td>
@@ -193,7 +193,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
                     <td className="py-3 px-3.5 text-left font-mono text-gray-700">
                       {formatToman(item.unitPrice)}
                     </td>
-                    <td className="py-3 px-3.5 text-left font-mono font-bold text-[#2C4A2E]">
+                    <td className="py-3 px-3.5 text-left font-mono font-bold text-farm-primary">
                       {formatToman(item.unitPrice * item.quantity)}
                     </td>
                   </tr>
@@ -205,7 +205,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
           {/* Reconciled Financial Totals */}
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 pt-2">
             <div className="text-xs text-gray-600 space-y-1 max-w-sm">
-              <p className="font-bold text-[#2C4A2E]">ضمانت سلامت و بازگشت کالا:</p>
+              <p className="font-bold text-farm-primary">ضمانت سلامت و بازگشت کالا:</p>
               <p className="leading-relaxed">
                 {order.isSubscription
                   ? SITE_CONFIG.policies.subscriptionRefundLabel
@@ -213,7 +213,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
               </p>
             </div>
 
-            <div className="w-full sm:w-72 bg-[#F9F8F5] p-4 rounded-2xl border border-[#E6E1D5] space-y-2 text-xs">
+            <div className="w-full sm:w-72 bg-farm-bg p-4 rounded-2xl border border-farm-border space-y-2 text-xs">
               <div className="flex items-center justify-between text-gray-700">
                 <span>جمع اقلام:</span>
                 <span className="font-mono font-bold">{formatToman(itemsSubtotal)}</span>
@@ -235,7 +235,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
                 </div>
               )}
 
-              <div className="pt-2 border-t border-[#E6E1D5] flex items-center justify-between text-sm font-black text-[#2C4A2E]">
+              <div className="pt-2 border-t border-farm-border flex items-center justify-between text-sm font-black text-farm-primary">
                 <span>مبلغ نهایی فاکتور:</span>
                 <span className="text-base text-emerald-800">{formatToman(order.totalAmount)}</span>
               </div>
@@ -243,7 +243,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
           </div>
 
           {/* Clean Official Footer (No fake QR or invented health codes) */}
-          <div className="pt-4 border-t border-[#E6E1D5] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
+          <div className="pt-4 border-t border-farm-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
             <div className="font-bold text-gray-700">
               {SITE_CONFIG.brandFullName} — {SITE_CONFIG.contact.address}
             </div>

@@ -223,7 +223,7 @@ export default function AdminPaymentSettingsPage() {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-[#2C4A2E] border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-3 border-farm-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-bold text-gray-500">در حال بارگذاری تنظیمات درگاه...</span>
         </div>
       </div>
@@ -238,16 +238,16 @@ export default function AdminPaymentSettingsPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-farm-border">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-bold text-[11px] border border-indigo-200">
+            <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-bold text-xs border border-indigo-200">
               شاپرک و درگاه‌های آنلاین
             </span>
-            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-600">•</span>
             <span className="text-xs text-emerald-700 font-bold">اتصال مستقیم به سیستم بانکی</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] mt-1.5 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary mt-1.5 flex items-center gap-3">
             <CreditCard className="w-8 h-8 text-[#D4A373]" />
             <span>تنظیمات درگاه پرداخت و اتصالات بانکی</span>
           </h1>
@@ -269,7 +269,7 @@ export default function AdminPaymentSettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold shadow-md hover:bg-[#1E3520] transition-all cursor-pointer disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-farm-primary text-white text-xs font-bold shadow-md hover:bg-farm-primary-dark transition-all cursor-pointer disabled:opacity-60"
           >
             {isSaving ? (
               <RefreshCw className="w-4 h-4 animate-spin text-[#D4A373]" />
@@ -305,7 +305,7 @@ export default function AdminPaymentSettingsPage() {
         <div
           onClick={() => setActiveTab('zarinpal')}
           className={`p-5 rounded-3xl border transition-all cursor-pointer bg-white relative overflow-hidden group shadow-xs ${
-            activeTab === 'zarinpal' ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/10' : 'border-[#E6E1D5] hover:border-gray-300'
+            activeTab === 'zarinpal' ? 'border-farm-primary ring-2 ring-farm-primary/10' : 'border-farm-border hover:border-gray-300'
           }`}
         >
           <div className="flex items-start justify-between">
@@ -315,12 +315,12 @@ export default function AdminPaymentSettingsPage() {
               </div>
               <div>
                 <h3 className="font-black text-sm text-gray-900">زرین‌پال شاپرک</h3>
-                <p className="text-[11px] text-gray-500">کارت‌های عضو شتاب</p>
+                <p className="text-xs text-gray-500">کارت‌های عضو شتاب</p>
               </div>
             </div>
 
             <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                 settings.zarinpal.enabled
                   ? 'bg-emerald-100 text-emerald-800'
                   : 'bg-gray-100 text-gray-600'
@@ -339,7 +339,7 @@ export default function AdminPaymentSettingsPage() {
 
           <div className="mt-1 flex items-center justify-between text-xs">
             <span className="text-gray-500">قالب مرچنت:</span>
-            <span className={`font-bold text-[11px] ${isMerchantValidFormat ? 'text-emerald-700' : 'text-rose-600'}`}>
+            <span className={`font-bold text-xs ${isMerchantValidFormat ? 'text-emerald-700' : 'text-rose-600'}`}>
               {isMerchantValidFormat ? 'معتبر (۳۶ حرف)' : 'کد نامعتبر / پیش‌فرض'}
             </span>
           </div>
@@ -349,7 +349,7 @@ export default function AdminPaymentSettingsPage() {
         <div
           onClick={() => setActiveTab('snapppay')}
           className={`p-5 rounded-3xl border transition-all cursor-pointer bg-white relative overflow-hidden group shadow-xs ${
-            activeTab === 'snapppay' ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/10' : 'border-[#E6E1D5] hover:border-gray-300'
+            activeTab === 'snapppay' ? 'border-farm-primary ring-2 ring-farm-primary/10' : 'border-farm-border hover:border-gray-300'
           }`}
         >
           <div className="flex items-start justify-between">
@@ -359,12 +359,12 @@ export default function AdminPaymentSettingsPage() {
               </div>
               <div>
                 <h3 className="font-black text-sm text-gray-900">اسنپ‌پی (BNPL)</h3>
-                <p className="text-[11px] text-gray-500">۴ قسط بدون کارمزد</p>
+                <p className="text-xs text-gray-500">۴ قسط بدون کارمزد</p>
               </div>
             </div>
 
             <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                 settings.snapppay.enabled
                   ? 'bg-emerald-100 text-emerald-800'
                   : 'bg-gray-100 text-gray-600'
@@ -384,7 +384,7 @@ export default function AdminPaymentSettingsPage() {
           <div className="mt-1 flex items-center justify-between text-xs">
             <span className="text-gray-500">کلیدهای اتصال:</span>
             <span
-              className={`font-bold text-[11px] ${
+              className={`font-bold text-xs ${
                 settings.snapppay.clientId && settings.snapppay.clientSecret
                   ? 'text-emerald-700'
                   : 'text-amber-700'
@@ -401,7 +401,7 @@ export default function AdminPaymentSettingsPage() {
         <div
           onClick={() => setActiveTab('general')}
           className={`p-5 rounded-3xl border transition-all cursor-pointer bg-white relative overflow-hidden group shadow-xs ${
-            activeTab === 'general' ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/10' : 'border-[#E6E1D5] hover:border-gray-300'
+            activeTab === 'general' ? 'border-farm-primary ring-2 ring-farm-primary/10' : 'border-farm-border hover:border-gray-300'
           }`}
         >
           <div className="flex items-start justify-between">
@@ -411,11 +411,11 @@ export default function AdminPaymentSettingsPage() {
               </div>
               <div>
                 <h3 className="font-black text-sm text-gray-900">تسویه و پرداخت در محل</h3>
-                <p className="text-[11px] text-gray-500">پیک اختصاصی شیراز</p>
+                <p className="text-xs text-gray-500">پیک اختصاصی شیراز</p>
               </div>
             </div>
 
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
               تومان
             </span>
           </div>
@@ -437,13 +437,13 @@ export default function AdminPaymentSettingsPage() {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-[#E6E1D5] pb-px overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-farm-border pb-px overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('zarinpal')}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-black border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'zarinpal'
-              ? 'border-[#2C4A2E] text-[#2C4A2E] bg-white rounded-t-2xl shadow-xs'
+              ? 'border-farm-primary text-farm-primary bg-white rounded-t-2xl shadow-xs'
               : 'border-transparent text-gray-500 hover:text-gray-800'
           }`}
         >
@@ -460,7 +460,7 @@ export default function AdminPaymentSettingsPage() {
               : 'border-transparent text-gray-500 hover:text-gray-800'
           }`}
         >
-          <div className="w-4 h-4 rounded bg-[#00D170] text-white flex items-center justify-center text-[10px] font-black">
+          <div className="w-4 h-4 rounded bg-[#00D170] text-white flex items-center justify-center text-xs font-black">
             S
           </div>
           <span>درگاه اقساطی اسنپ‌پی (BNPL)</span>
@@ -495,7 +495,7 @@ export default function AdminPaymentSettingsPage() {
 
       {/* Tab 1: ZarinPal Configuration */}
       {activeTab === 'zarinpal' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6 animate-in fade-in duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
             <div>
               <h2 className="text-lg font-black text-gray-900 flex items-center gap-2.5">
@@ -528,7 +528,7 @@ export default function AdminPaymentSettingsPage() {
                   }`}
                 />
               </button>
-              <span className={`text-xs font-black ${settings.zarinpal.enabled ? 'text-emerald-700' : 'text-gray-400'}`}>
+              <span className={`text-xs font-black ${settings.zarinpal.enabled ? 'text-emerald-700' : 'text-gray-600'}`}>
                 {settings.zarinpal.enabled ? 'فعال' : 'غیرفعال'}
               </span>
             </div>
@@ -547,7 +547,7 @@ export default function AdminPaymentSettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowZarinpalMerchant(!showZarinpalMerchant)}
-                    className="text-[11px] font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
                   >
                     {showZarinpalMerchant ? (
                       <>
@@ -565,7 +565,7 @@ export default function AdminPaymentSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleCopy(settings.zarinpal.merchantId, 'merchant')}
-                    className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
                   >
                     {copiedField === 'merchant' ? (
                       <>
@@ -602,18 +602,18 @@ export default function AdminPaymentSettingsPage() {
                 />
                 <div className="absolute left-3 top-3">
                   {isMerchantValidFormat ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       <span>فرمت UUID صحیح</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold">
                       ۳۶ کاراکتر مورد نیاز
                     </span>
                   )}
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 این کد را از پنل کاربری زرین‌پال در بخش «درگاه‌های پرداخت من» پس از تایید هویت و وب‌سایت دریافت می‌کنید.
               </p>
             </div>
@@ -702,9 +702,9 @@ export default function AdminPaymentSettingsPage() {
                   })
                 }
                 placeholder="سفارش محصولات ارگانیک شیراز"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs text-gray-900 outline-hidden focus:border-[#2C4A2E]"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs text-gray-900 outline-hidden focus:border-farm-primary"
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 این عبارت در برگه پرداخت شاپرک به عنوان توضیحات خرید به مشتری نمایش داده می‌شود.
               </p>
             </div>
@@ -718,7 +718,7 @@ export default function AdminPaymentSettingsPage() {
                   <Server className="w-4 h-4 text-indigo-700" />
                   <span>آزمون زنده ارتباط با سرور زرین‌پال (Live Healthcheck)</span>
                 </h4>
-                <p className="text-[11px] text-indigo-800/80 mt-0.5">
+                <p className="text-xs text-indigo-800/80 mt-0.5">
                   ارسال درخواست تست به وب‌سرویس REST v4 جهت بررسی در دسترس بودن سرور و اصالت مرچنت‌کد
                 </p>
               </div>
@@ -754,7 +754,7 @@ export default function AdminPaymentSettingsPage() {
                 <div className="space-y-1">
                   <div>{zarinpalTestResult.message}</div>
                   {zarinpalTestResult.latencyMs !== undefined && (
-                    <div className="text-[11px] font-mono text-gray-600 flex items-center gap-2">
+                    <div className="text-xs font-mono text-gray-600 flex items-center gap-2">
                       <span>زمان پاسخ سرور (Latency):</span>
                       <span className="font-bold text-gray-900">{zarinpalTestResult.latencyMs} میلی‌ثانیه</span>
                     </div>
@@ -768,7 +768,7 @@ export default function AdminPaymentSettingsPage() {
           <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
               <span className="font-black text-gray-800 block">آدرس بازگشت (Callback URL) سایت:</span>
-              <span className="font-mono text-gray-600 text-[11px] block mt-0.5" dir="ltr">
+              <span className="font-mono text-gray-600 text-xs block mt-0.5" dir="ltr">
                 {callbackUrl}
               </span>
             </div>
@@ -795,7 +795,7 @@ export default function AdminPaymentSettingsPage() {
 
       {/* Tab 2: SnappPay Configuration */}
       {activeTab === 'snapppay' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6 animate-in fade-in duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
             <div>
               <h2 className="text-lg font-black text-gray-900 flex items-center gap-2.5">
@@ -828,7 +828,7 @@ export default function AdminPaymentSettingsPage() {
                   }`}
                 />
               </button>
-              <span className={`text-xs font-black ${settings.snapppay.enabled ? 'text-emerald-700' : 'text-gray-400'}`}>
+              <span className={`text-xs font-black ${settings.snapppay.enabled ? 'text-emerald-700' : 'text-gray-600'}`}>
                 {settings.snapppay.enabled ? 'فعال' : 'غیرفعال'}
               </span>
             </div>
@@ -855,7 +855,7 @@ export default function AdminPaymentSettingsPage() {
                 dir="ltr"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-gray-50/50 text-sm font-mono outline-hidden focus:border-[#00D170] focus:ring-2 focus:ring-[#00D170]/10"
               />
-              <p className="text-[11px] text-gray-500">شناسه اختصاصی پذیرنده که توسط تیم سازمانی اسنپ‌پی اعطا می‌شود.</p>
+              <p className="text-xs text-gray-500">شناسه اختصاصی پذیرنده که توسط تیم سازمانی اسنپ‌پی اعطا می‌شود.</p>
             </div>
 
             {/* Client Secret */}
@@ -869,7 +869,7 @@ export default function AdminPaymentSettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowSnappSecret(!showSnappSecret)}
-                  className="text-[11px] font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
                 >
                   {showSnappSecret ? (
                     <>
@@ -898,7 +898,7 @@ export default function AdminPaymentSettingsPage() {
                 dir="ltr"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-gray-50/50 text-sm font-mono outline-hidden focus:border-[#00D170] focus:ring-2 focus:ring-[#00D170]/10"
               />
-              <p className="text-[11px] text-gray-500">برای اعتبارسنجی توکن‌های وب‌سرویس Basic Auth استفاده می‌گردد.</p>
+              <p className="text-xs text-gray-500">برای اعتبارسنجی توکن‌های وب‌سرویس Basic Auth استفاده می‌گردد.</p>
             </div>
 
             {/* Base API URL */}
@@ -919,7 +919,7 @@ export default function AdminPaymentSettingsPage() {
                 dir="ltr"
                 className="w-full px-4 py-2.5 rounded-2xl border border-gray-300 bg-white text-xs font-mono outline-hidden focus:border-[#00D170]"
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 آدرس سرور رسمی اسنپ‌پی: <code className="font-mono text-emerald-800">https://api.snapppay.ir/api/online/v1</code>
               </p>
             </div>
@@ -941,7 +941,7 @@ export default function AdminPaymentSettingsPage() {
                 placeholder="200000"
                 className="w-full px-4 py-2.5 rounded-2xl border border-gray-300 bg-white text-xs font-mono outline-hidden focus:border-[#00D170]"
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 سفارش‌های کمتر از این سقف منحصراً از طریق کارت بانکی قابل تسویه خواهند بود.
               </p>
             </div>
@@ -955,7 +955,7 @@ export default function AdminPaymentSettingsPage() {
                   <Server className="w-4 h-4 text-emerald-700" />
                   <span>آزمون اعتبار کلیدهای اسنپ‌پی</span>
                 </h4>
-                <p className="text-[11px] text-emerald-800/80 mt-0.5">
+                <p className="text-xs text-emerald-800/80 mt-0.5">
                   ارسال درخواست تست به متد /payment/token جهت اطمینان از دسترسی پذیرنده به شبکه اسنپ‌پی
                 </p>
               </div>
@@ -991,7 +991,7 @@ export default function AdminPaymentSettingsPage() {
                 <div className="space-y-1">
                   <div>{snappPayTestResult.message}</div>
                   {snappPayTestResult.latencyMs !== undefined && (
-                    <div className="text-[11px] font-mono text-gray-600">
+                    <div className="text-xs font-mono text-gray-600">
                       زمان پاسخ: {snappPayTestResult.latencyMs} میلی‌ثانیه | وضعیت: {snappPayTestResult.statusCode || 'OK'}
                     </div>
                   )}
@@ -1004,7 +1004,7 @@ export default function AdminPaymentSettingsPage() {
 
       {/* Tab 3: General & Cash on Delivery */}
       {activeTab === 'general' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6 animate-in fade-in duration-200">
           <div>
             <h2 className="text-lg font-black text-gray-900 flex items-center gap-2.5">
               <span className="w-3 h-3 rounded-full bg-purple-600" />
@@ -1021,7 +1021,7 @@ export default function AdminPaymentSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-black text-gray-900">پرداخت در محل (کارت‌خوان سیار پیک):</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     مشتریان شهر شیراز می‌توانند هنگام تحویل سفارش با دستگاه پوز سیار تسویه نمایند.
                   </p>
                 </div>
@@ -1080,9 +1080,9 @@ export default function AdminPaymentSettingsPage() {
                 }
                 min={5}
                 max={60}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs font-mono outline-hidden focus:border-[#2C4A2E]"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs font-mono outline-hidden focus:border-farm-primary"
               />
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 در صورتی که خریدار ظرف این مدت پرداخت را نهایی نکند، ظرفیت اسلات تحویل و موجودی آزاد می‌شود.
               </p>
             </div>
@@ -1102,7 +1102,7 @@ export default function AdminPaymentSettingsPage() {
                   })
                 }
                 placeholder="پرداخت امن از طریق درگاه رسمی شاپرک با کلیه کارت‌های عضو شتاب"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs text-gray-900 outline-hidden focus:border-[#2C4A2E]"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs text-gray-900 outline-hidden focus:border-farm-primary"
               />
             </div>
           </div>
@@ -1111,7 +1111,7 @@ export default function AdminPaymentSettingsPage() {
 
       {/* Tab 4: Step-by-Step Gateway Connection Guide */}
       {activeTab === 'guide' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6 animate-in fade-in duration-200">
           <div>
             <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500" />
@@ -1167,8 +1167,8 @@ export default function AdminPaymentSettingsPage() {
           </div>
 
           {/* Important Technical Notices */}
-          <div className="p-5 rounded-2xl bg-[#F8F7F4] border border-[#E6E1D5] space-y-3">
-            <h4 className="text-xs font-black text-[#2C4A2E] flex items-center gap-2">
+          <div className="p-5 rounded-2xl bg-[#F8F7F4] border border-farm-border space-y-3">
+            <h4 className="text-xs font-black text-farm-primary flex items-center gap-2">
               <Info className="w-4 h-4 text-[#D4A373]" />
               <span>نکات امنیتی و فنی شاپرک</span>
             </h4>

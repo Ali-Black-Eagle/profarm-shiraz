@@ -67,7 +67,7 @@ export const CartFloatingPopup: React.FC = () => {
         >
           <div className="relative flex items-center justify-center shrink-0">
             <ShoppingBag className="w-5 h-5 text-farm-accent group-hover:scale-105 transition-transform" />
-            <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-farm-accent-warm text-white text-[11px] font-black rounded-full flex items-center justify-center border-2 border-farm-primary">
+            <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-farm-accent-warm text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-farm-primary">
               {toPersianDigits(totalCount)}
             </span>
           </div>
@@ -95,13 +95,13 @@ export const CartFloatingPopup: React.FC = () => {
       aria-label="پاپ آپ سبد خرید"
       className={`fixed ${positionClass} sm:w-[380px] z-30 no-print animate-in slide-in-from-bottom-4`}
     >
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-[#2C4A2E]/25 overflow-hidden ring-1 ring-black/5 flex flex-col">
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-farm-primary/25 overflow-hidden ring-1 ring-black/5 flex flex-col">
         {/* Header with Minimize Button (Closed cart + Down arrow) */}
-        <div className="bg-gradient-to-l from-[#2C4A2E] to-[#1E3520] text-white px-3.5 py-2.5 flex items-center justify-between">
+        <div className="bg-gradient-to-l from-farm-primary to-farm-primary-dark text-white px-3.5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="relative flex items-center justify-center w-7 h-7 rounded-lg bg-white/15 border border-white/20">
               <ShoppingBag className="w-3.5 h-3.5 text-[#D4A373]" />
-              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-[#E76F51] text-white text-[10px] font-black rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-[#E76F51] text-white text-xs font-black rounded-full flex items-center justify-center">
                 {toPersianDigits(totalCount)}
               </span>
             </div>
@@ -123,7 +123,7 @@ export const CartFloatingPopup: React.FC = () => {
           >
             <ShoppingBag className="w-3.5 h-3.5 text-[#D4A373]" />
             <ChevronDown className="w-4 h-4 text-emerald-200 group-hover:translate-y-0.5 transition-transform" />
-            <span className="text-[11px] font-bold text-white/90">بستن</span>
+            <span className="text-xs font-bold text-white/90">بستن</span>
           </button>
         </div>
 
@@ -136,7 +136,7 @@ export const CartFloatingPopup: React.FC = () => {
             return (
               <div
                 key={item.product.id}
-                className="py-1 px-2 rounded-xl bg-[#F9F8F5] hover:bg-[#F3EFE6]/80 transition-colors border border-[#E6E1D5]/70 flex items-center justify-between gap-2"
+                className="py-1 px-2 rounded-xl bg-farm-bg hover:bg-farm-bg-warm/80 transition-colors border border-farm-border/70 flex items-center justify-between gap-2"
               >
                 {/* Mini Image */}
                 <div className="relative w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
@@ -151,13 +151,13 @@ export const CartFloatingPopup: React.FC = () => {
 
                 {/* Title & Price */}
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-bold text-gray-900 truncate leading-tight">
+                  <div className="text-xs font-bold text-gray-900 truncate leading-tight">
                     {item.product.title}
                   </div>
-                  <div className="text-[10px] text-[#2C4A2E] font-medium mt-0.5 flex items-center gap-1.5">
+                  <div className="text-xs text-farm-primary font-medium mt-0.5 flex items-center gap-1.5">
                     <span className="font-bold">{formatToman(itemTotal)}</span>
                     {item.quantity > 1 && (
-                      <span className="text-gray-400 text-[9px]">
+                      <span className="text-gray-600 text-xs">
                         ({toPersianDigits(item.quantity)} × {formatToman(item.product.price)})
                       </span>
                     )}
@@ -171,7 +171,7 @@ export const CartFloatingPopup: React.FC = () => {
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                       disabled={item.quantity >= maxStock}
-                      className="w-8 h-8 rounded flex items-center justify-center text-gray-700 hover:bg-farm-primary hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
+                      className="w-10 h-10 rounded flex items-center justify-center text-gray-700 hover:bg-farm-primary hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
                       title="افزایش تعداد"
                       aria-label={`افزایش تعداد ${item.product.title}`}
                     >
@@ -185,7 +185,7 @@ export const CartFloatingPopup: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                      className="w-8 h-8 rounded flex items-center justify-center text-gray-700 hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
+                      className="w-10 h-10 rounded flex items-center justify-center text-gray-700 hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
                       title={item.quantity === 1 ? 'حذف محصول' : 'کاهش تعداد'}
                       aria-label={`کاهش تعداد ${item.product.title}`}
                     >
@@ -197,7 +197,7 @@ export const CartFloatingPopup: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => removeItem(item.product.id)}
-                    className="w-8 h-8 rounded-lg text-gray-500 hover:text-rose-700 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-10 h-10 rounded-lg text-gray-500 hover:text-rose-700 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
                     title="حذف کامل از سبد"
                     aria-label={`حذف کامل ${item.product.title}`}
                   >
@@ -215,14 +215,14 @@ export const CartFloatingPopup: React.FC = () => {
             <span className="text-xs text-gray-600 font-medium">
               مجموع خرید ({toPersianDigits(totalCount)} قلم):
             </span>
-            <span className="text-sm font-black text-[#2C4A2E]">
+            <span className="text-sm font-black text-farm-primary">
               {formatToman(totalPrice)}
             </span>
           </div>
 
           <Link
             href="/cart"
-            className="w-full py-2.5 px-3 rounded-xl bg-[#2C4A2E] text-white text-xs font-black hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
+            className="w-full py-2.5 px-3 rounded-xl bg-farm-primary text-white text-xs font-black hover:bg-farm-primary-dark active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
           >
             <span>مشاهده و تکمیل سفارش در سبد خرید</span>
             <ArrowLeft className="w-3.5 h-3.5 text-[#D4A373]" />

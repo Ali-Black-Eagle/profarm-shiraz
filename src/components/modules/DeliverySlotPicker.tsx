@@ -79,15 +79,15 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
   const activeGroup = dateGroups.find((g) => g.jalali.isoDateString === activeDateIso);
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-6">
+    <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-6">
       {/* Header & User Tier Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#F3EFE6]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-farm-bg-warm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+          <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-[#2C4A2E]">
+            <h3 className="text-base font-bold text-farm-primary">
               انتخاب روز و زمان تحویل اختصاصی شیراز
             </h3>
             <p className="text-xs text-gray-500">
@@ -181,15 +181,15 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
                 disabled={!isClickable}
                 className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white shadow-md scale-102 ring-2 ring-[#2C4A2E]/20'
+                    ? 'border-farm-primary bg-farm-primary text-white shadow-md scale-102 ring-2 ring-farm-primary/20'
                     : isClickable
-                    ? 'border-[#E6E1D5] bg-[#F9F8F5] text-[#2C4A2E] hover:border-[#2C4A2E]/50 hover:bg-white'
-                    : 'border-dashed border-gray-300 bg-gray-50 text-gray-400 opacity-60 cursor-not-allowed'
+                    ? 'border-farm-border bg-farm-bg text-farm-primary hover:border-farm-primary/50 hover:bg-white'
+                    : 'border-dashed border-gray-300 bg-gray-50 text-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
                 {!isAllowed && (
                   <div className="absolute top-1.5 left-1.5">
-                    <Lock className="w-3.5 h-3.5 text-gray-400" />
+                    <Lock className="w-3.5 h-3.5 text-gray-500" />
                   </div>
                 )}
                 {isAllowed && isDayFull && (
@@ -197,22 +197,22 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
                     <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
                   </div>
                 )}
-                <span className="text-[11px] font-medium opacity-90">
+                <span className="text-xs font-medium opacity-90">
                   {group.jalali.dayOfWeek}
                 </span>
                 <span className="text-lg font-black my-0.5">
                   {toPersianDigits(group.jalali.day)}
                 </span>
-                <span className="text-[10px] font-medium opacity-80">
+                <span className="text-xs font-medium opacity-80">
                   {group.jalali.monthName}
                 </span>
 
                 {!isAllowed ? (
-                  <span className="mt-1 text-[9px] text-amber-700 font-bold px-1 rounded bg-amber-100/80">
+                  <span className="mt-1 text-xs text-amber-700 font-bold px-1 rounded bg-amber-100/80">
                     ویژه پلاس
                   </span>
                 ) : isDayFull ? (
-                  <span className="mt-1 text-[9px] text-rose-700 font-bold px-1 rounded bg-rose-100">
+                  <span className="mt-1 text-xs text-rose-700 font-bold px-1 rounded bg-rose-100">
                     تکمیل ظرفیت
                   </span>
                 ) : null}
@@ -245,16 +245,16 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
                   }}
                   className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                     isSelected
-                      ? 'border-[#2C4A2E] bg-[#F3EFE6]/50 shadow-sm ring-2 ring-[#2C4A2E]/20'
+                      ? 'border-farm-primary bg-farm-bg-warm/50 shadow-sm ring-2 ring-farm-primary/20'
                       : isAvailable
-                      ? 'border-[#E6E1D5] bg-white hover:border-[#2C4A2E]/40 hover:bg-[#F9F8F5]'
+                      ? 'border-farm-border bg-white hover:border-farm-primary/40 hover:bg-farm-bg'
                       : 'border-rose-200 bg-rose-50/40 opacity-75 cursor-not-allowed'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <Clock className={`w-4 h-4 ${isFull ? 'text-rose-500' : 'text-[#2C4A2E]'}`} />
-                      <span className={`text-sm font-bold ${isFull ? 'text-gray-600' : 'text-[#2C4A2E]'}`}>
+                      <Clock className={`w-4 h-4 ${isFull ? 'text-rose-500' : 'text-farm-primary'}`} />
+                      <span className={`text-sm font-bold ${isFull ? 'text-gray-600' : 'text-farm-primary'}`}>
                         {slot.timeWindow}
                       </span>
                     </div>
@@ -262,7 +262,7 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
                     <div
                       className={`w-5 h-5 rounded-full border flex items-center justify-center ${
                         isSelected
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white'
+                          ? 'border-farm-primary bg-farm-primary text-white'
                           : isFull
                           ? 'border-rose-300 text-rose-500 bg-rose-50'
                           : 'border-gray-300'

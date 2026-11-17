@@ -13,10 +13,10 @@ export default function TermsPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="w-16 h-16 rounded-3xl bg-[#2C4A2E]/10 border border-[#2C4A2E]/20 text-[#2C4A2E] flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 rounded-3xl bg-farm-primary/10 border border-farm-primary/20 text-farm-primary flex items-center justify-center mx-auto">
           <FileText className="w-8 h-8" />
         </div>
-        <h1 className="text-3xl font-black text-[#2C4A2E]">
+        <h1 className="text-3xl font-black text-farm-primary">
           شرایط و قوانین خرید از {SITE_CONFIG.brandName}
         </h1>
         <p className="text-sm text-gray-600 max-w-lg mx-auto">
@@ -25,9 +25,9 @@ export default function TermsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E6E1D5] shadow-farm space-y-8 text-sm text-gray-700 leading-relaxed">
+      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-farm-border shadow-farm space-y-8 text-sm text-gray-700 leading-relaxed">
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <Truck className="w-5 h-5 text-[#8A6218]" />
             ۱. محدوده ارسال و ناوگان تحویل
           </h2>
@@ -43,7 +43,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-[#8A6218]" />
             ۲. ضمانت سلامت و بازگشت محصولات تازه
           </h2>
@@ -52,7 +52,7 @@ export default function TermsPage() {
             <strong className="text-gray-900">۲۴ ساعت پس از تحویل</strong> از طریق تماس با پشتیبانی (
             <a
               href={`tel:${SITE_CONFIG.contact.supportPhoneTel}`}
-              className="font-mono font-bold text-[#2C4A2E] hover:underline"
+              className="font-mono font-bold text-farm-primary hover:underline"
               dir="ltr"
             >
               {SITE_CONFIG.contact.supportPhoneDisplay}
@@ -62,7 +62,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-[#8A6218]" />
             ۳. زمان‌بندی و بازه‌های تحویل
           </h2>
@@ -72,7 +72,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold text-[#2C4A2E] flex items-center gap-2">
+          <h2 className="text-lg font-bold text-farm-primary flex items-center gap-2">
             <Crown className="w-5 h-5 text-[#8A6218]" />
             ۴. قوانین اشتراک‌های پرو و پلاس
           </h2>
@@ -82,12 +82,12 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <section className="p-4 rounded-2xl bg-farm-bg border border-farm-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-gray-700">
-            <Phone className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+            <Phone className="w-4 h-4 text-farm-primary shrink-0" />
             <span>
               پشتیبانی مشتریان:{' '}
-              <strong className="font-mono text-[#2C4A2E]" dir="ltr">
+              <strong className="font-mono text-farm-primary" dir="ltr">
                 {SITE_CONFIG.contact.supportPhoneDisplay}
               </strong>{' '}
               ({SITE_CONFIG.contact.supportHours})
@@ -95,16 +95,16 @@ export default function TermsPage() {
           </div>
           <div className="text-xs text-gray-700">
             واحد فروش عمده:{' '}
-            <strong className="font-mono text-[#2C4A2E]" dir="ltr">
+            <strong className="font-mono text-farm-primary" dir="ltr">
               {SITE_CONFIG.contact.wholesalePhoneDisplay}
             </strong>
           </div>
         </section>
 
-        <div className="pt-6 border-t border-[#F3EFE6] flex items-center justify-between">
+        <div className="pt-6 border-t border-farm-bg-warm flex items-center justify-between">
           <Link
             href="/"
-            className="text-xs font-bold text-[#2C4A2E] hover:underline flex items-center gap-1.5"
+            className="text-xs font-bold text-farm-primary hover:underline flex items-center gap-1.5"
           >
             <ArrowRight className="w-4 h-4" />
             بازگشت به صفحه اصلی

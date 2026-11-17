@@ -73,7 +73,7 @@ export default function InlineEditableText({
     return (
       <div className="relative inline-block w-full group/inline my-0.5">
         {label && (
-          <span className="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-0.5 select-none">
+          <span className="block text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-0.5 select-none">
             {label}
           </span>
         )}
@@ -144,7 +144,7 @@ export default function InlineEditableText({
       className={`relative group/editable cursor-pointer transition-all rounded-md px-1 -mx-1 hover:outline-dashed hover:outline-2 hover:outline-emerald-500/70 hover:bg-emerald-500/10 ${className}`}
     >
       {value || <span className="opacity-50 italic">{placeholder}</span>}
-      <span className="opacity-0 group-hover/editable:opacity-100 transition-opacity inline-flex items-center justify-center mr-1.5 p-1 rounded-md bg-emerald-700 text-white text-[10px] shadow-sm align-middle select-none pointer-events-none">
+      <span className="opacity-0 group-hover/editable:opacity-100 transition-opacity inline-flex items-center justify-center mr-1.5 p-1 rounded-md bg-emerald-700 text-white text-xs shadow-sm align-middle select-none pointer-events-none">
         <Edit2 className="w-2.5 h-2.5" />
       </span>
     </Component>

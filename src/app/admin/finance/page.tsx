@@ -169,7 +169,7 @@ export default function AdminFinancePage() {
   if (!summary) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 rounded-full border-3 border-[#2C4A2E] border-t-transparent animate-spin" />
+        <div className="w-10 h-10 rounded-full border-3 border-farm-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -200,29 +200,29 @@ export default function AdminFinancePage() {
     <div className="space-y-8 pb-12">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-[#2C4A2E] text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in slide-in-from-bottom-4 no-print">
+        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-farm-primary text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in slide-in-from-bottom-4 no-print">
           <CheckCircle2 className="w-5 h-5 text-[#D4A373] shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-[#E6E1D5] no-print">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-farm-border no-print">
         <div>
           <div className="flex items-center gap-2.5 text-xs text-gray-500 mb-1">
-            <Link href="/admin" className="hover:text-[#2C4A2E] font-semibold">
+            <Link href="/admin" className="hover:text-farm-primary font-semibold">
               پنل مدیریت
             </Link>
             <span>/</span>
-            <span className="text-[#2C4A2E] font-bold">مدیریت مالی و گزارشات درآمدی</span>
+            <span className="text-farm-primary font-bold">مدیریت مالی و گزارشات درآمدی</span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
               میز پایش و تراز مالی هوشمند
             </h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
               <CalendarDays className="w-3.5 h-3.5 text-emerald-700" />
-              <span>دوره فعال: {summary.selectedPeriodLabel || 'شهریور ۱۴۰۵'}</span>
+              <span>دوره فعال: {summary.selectedPeriodLabel || (() => { const j = formatToJalali(new Date()); return `${j.monthName} ${toPersianDigits(j.year)}`; })()}</span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
@@ -234,7 +234,7 @@ export default function AdminFinancePage() {
         <div className="flex flex-wrap items-center gap-3 self-start lg:self-center">
           <button
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-xs sm:text-sm font-black shadow-farm hover:shadow-farm-hover transition-all cursor-pointer group"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs sm:text-sm font-black shadow-farm hover:shadow-farm-hover transition-all cursor-pointer group"
           >
             <FileSpreadsheet className="w-4 h-4 text-[#D4A373] group-hover:scale-110 transition-transform" />
             <span>دانلود فایل اکسل دوره فعال (CSV)</span>
@@ -243,10 +243,10 @@ export default function AdminFinancePage() {
       </div>
 
       {/* Primary Period Mode Switcher (پایش روزانه | پایش هفتگی | پایش ماهانه) */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E6E1D5] shadow-farm space-y-4 no-print">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-farm-border shadow-farm space-y-4 no-print">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-            <TrendingUp className="w-4 h-4 text-[#2C4A2E]" />
+            <TrendingUp className="w-4 h-4 text-farm-primary" />
             <span>بازه پایش عملکرد مالی:</span>
           </div>
 
@@ -308,12 +308,12 @@ export default function AdminFinancePage() {
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-bold">پایش بلادرنگ امروز:</span>
-              <span className="font-mono font-bold text-[#2C4A2E]">
+              <span className="font-mono font-bold text-farm-primary">
                 {new Date().toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-[#F9F8F5] px-3 py-1.5 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-2 text-xs text-gray-500 bg-farm-bg px-3 py-1.5 rounded-xl border border-gray-100">
               <span>شیفت‌های فعال ۴ گانه: تامین صبح، پردازش انبار، توزیع پیک عصر، سفارش‌های شبانه</span>
             </div>
           </div>
@@ -323,19 +323,19 @@ export default function AdminFinancePage() {
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>انتخاب روز مشخص از هفته جاری جهت بررسی دقیق‌تر:</span>
-              <span className="text-[11px] text-gray-400">چهارشنبه روز اصلی ارسال مرسولات شیراز</span>
+              <span className="text-xs text-gray-600">چهارشنبه روز اصلی ارسال مرسولات شیراز</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
               <button
                 onClick={() => setSelectedWeekday('ALL')}
                 className={`px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
                   selectedWeekday === 'ALL'
-                    ? 'bg-[#2C4A2E] text-white shadow-sm ring-2 ring-emerald-500/20'
-                    : 'bg-[#F9F8F5] text-gray-700 hover:bg-gray-100 border border-gray-100'
+                    ? 'bg-farm-primary text-white shadow-sm ring-2 ring-emerald-500/20'
+                    : 'bg-farm-bg text-gray-700 hover:bg-gray-100 border border-gray-100'
                 }`}
               >
                 <span className="font-black">کل ۷ روز هفته</span>
-                <span className={`text-[10px] ${selectedWeekday === 'ALL' ? 'text-emerald-200' : 'text-gray-400'}`}>
+                <span className={`text-xs ${selectedWeekday === 'ALL' ? 'text-emerald-200' : 'text-gray-600'}`}>
                   مجموع دوره
                 </span>
               </button>
@@ -351,10 +351,10 @@ export default function AdminFinancePage() {
                     onClick={() => setSelectedWeekday(w.name)}
                     className={`px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 relative ${
                       isSelected
-                        ? 'bg-[#2C4A2E] text-white shadow-sm ring-2 ring-emerald-500/20'
+                        ? 'bg-farm-primary text-white shadow-sm ring-2 ring-emerald-500/20'
                         : isToday
                         ? 'bg-emerald-50 text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-100/70'
-                        : 'bg-[#F9F8F5] text-gray-800 hover:bg-gray-100 border border-gray-100'
+                        : 'bg-farm-bg text-gray-800 hover:bg-gray-100 border border-gray-100'
                     }`}
                   >
                     {isToday && (
@@ -362,8 +362,8 @@ export default function AdminFinancePage() {
                     )}
                     <span className="font-black">{w.name}</span>
                     <span
-                      className={`text-[9px] font-mono ${
-                        isSelected ? 'text-emerald-200' : isToday ? 'text-emerald-700 font-bold' : 'text-gray-400'
+                      className={`text-xs font-mono ${
+                        isSelected ? 'text-emerald-200' : isToday ? 'text-emerald-700 font-bold' : 'text-gray-600'
                       }`}
                     >
                       {dayStat ? `${toPersianDigits(dayStat.ordersCount)} سفارش` : '-'}
@@ -379,19 +379,19 @@ export default function AdminFinancePage() {
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>انتخاب ماه مالی سال ۱۴۰۵ جهت بررسی جزئیات و درآمد:</span>
-              <span className="text-[11px] text-gray-400">شهریور ماه جاری با آمار لحظه‌ای متصل به درگاه</span>
+              <span className="text-xs text-gray-600">شهریور ماه جاری با آمار لحظه‌ای متصل به درگاه</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-13 gap-2">
               <button
                 onClick={() => setSelectedMonth('ALL')}
                 className={`px-3 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                   selectedMonth === 'ALL'
-                    ? 'bg-[#2C4A2E] text-white shadow-md ring-2 ring-emerald-500/30'
-                    : 'bg-[#F9F8F5] text-gray-700 hover:bg-gray-100 border border-gray-100'
+                    ? 'bg-farm-primary text-white shadow-md ring-2 ring-emerald-500/30'
+                    : 'bg-farm-bg text-gray-700 hover:bg-gray-100 border border-gray-100'
                 }`}
               >
                 <span>کل سال</span>
-                <span className={`text-[10px] font-normal ${selectedMonth === 'ALL' ? 'text-emerald-200' : 'text-gray-400'}`}>
+                <span className={`text-xs font-normal ${selectedMonth === 'ALL' ? 'text-emerald-200' : 'text-gray-600'}`}>
                   ۱۴۰۵
                 </span>
               </button>
@@ -408,12 +408,12 @@ export default function AdminFinancePage() {
                     onClick={() => setSelectedMonth(mName)}
                     className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
                       isSelected
-                        ? 'bg-[#2C4A2E] text-white shadow-md ring-2 ring-emerald-500/30'
+                        ? 'bg-farm-primary text-white shadow-md ring-2 ring-emerald-500/30'
                         : isCurrent
                         ? 'bg-emerald-50 text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-100/70'
                         : hasData
-                        ? 'bg-[#F9F8F5] text-gray-800 hover:bg-gray-100 border border-gray-100'
-                        : 'bg-gray-50/60 text-gray-400 hover:bg-gray-100 border border-transparent'
+                        ? 'bg-farm-bg text-gray-800 hover:bg-gray-100 border border-gray-100'
+                        : 'bg-gray-50/60 text-gray-600 hover:bg-gray-100 border border-transparent'
                     }`}
                   >
                     {isCurrent && (
@@ -421,12 +421,12 @@ export default function AdminFinancePage() {
                     )}
                     <span className="font-black">{mName}</span>
                     <span
-                      className={`text-[9px] font-mono ${
+                      className={`text-xs font-mono ${
                         isSelected
                           ? 'text-emerald-200'
                           : isCurrent
                           ? 'text-emerald-700 font-bold'
-                          : 'text-gray-400'
+                          : 'text-gray-600'
                       }`}
                     >
                       {hasData && mStat ? `${toPersianDigits(mStat.ordersCount)} سفارش` : 'بدون سفارش'}
@@ -442,7 +442,7 @@ export default function AdminFinancePage() {
       {/* 4 Clean High-Value Executive KPI Cards (No Settlement Clutter) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 no-print">
         {/* KPI 1: Net Revenue (Hero Card) */}
-        <div className="bg-gradient-to-bl from-[#2C4A2E] via-[#1E3520] to-[#142616] text-white rounded-3xl p-6 shadow-farm relative overflow-hidden flex flex-col justify-between">
+        <div className="bg-gradient-to-bl from-farm-primary via-farm-primary-dark to-[#142616] text-white rounded-3xl p-6 shadow-farm relative overflow-hidden flex flex-col justify-between">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-200">
@@ -452,7 +452,7 @@ export default function AdminFinancePage() {
                 <CircleDollarSign className="w-5 h-5" />
               </div>
             </div>
-            <div className="text-3xl font-black text-white tracking-tight">
+            <div className="text-3xl font-black text-white">
               {formatToman(summary.netRevenue)}
             </div>
             <div className="flex items-center gap-2 text-xs text-[#F3E5AB]">
@@ -462,7 +462,7 @@ export default function AdminFinancePage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-emerald-200/90">
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-emerald-200/90">
             <span>میانگین هر سفارش (AOV): {formatToman(summary.averageOrderValue)}</span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-400/20">
               تایید شاپرک
@@ -471,9 +471,9 @@ export default function AdminFinancePage() {
         </div>
 
         {/* KPI 2: Total Orders & Traffic */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3 relative group hover:border-[#2C4A2E]/40 transition-colors flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3 relative group hover:border-farm-primary/40 transition-colors flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between text-[#2C4A2E]">
+            <div className="flex items-center justify-between text-farm-primary">
               <span className="text-xs font-bold text-gray-500">تعداد سفارشات تکمیل‌شده</span>
               <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                 <ShoppingBag className="w-5 h-5" />
@@ -491,16 +491,16 @@ export default function AdminFinancePage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-100 text-[10px] text-gray-400 font-medium flex items-center justify-between">
+          <div className="pt-2 border-t border-gray-100 text-xs text-gray-600 font-medium flex items-center justify-between">
             <span>درآمد اشتراک‌های فعال:</span>
-            <span className="font-bold text-[#2C4A2E]">{formatToman(summary.subscriptionRevenue)}</span>
+            <span className="font-bold text-farm-primary">{formatToman(summary.subscriptionRevenue)}</span>
           </div>
         </div>
 
         {/* KPI 3: Gross Volume & Discounts */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3 relative group hover:border-amber-400/50 transition-colors flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3 relative group hover:border-amber-400/50 transition-colors flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between text-[#2C4A2E]">
+            <div className="flex items-center justify-between text-farm-primary">
               <span className="text-xs font-bold text-gray-500">فروش ناخالص و تخفیف‌ها</span>
               <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center">
                 <Percent className="w-5 h-5" />
@@ -514,7 +514,7 @@ export default function AdminFinancePage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-100 text-[10px] text-gray-400">
+          <div className="pt-2 border-t border-gray-100 text-xs text-gray-600">
             شامل تخفیف‌های ویژه پرو/پلاس و کدهای تبلیغاتی
           </div>
         </div>
@@ -524,7 +524,7 @@ export default function AdminFinancePage() {
           <div>
             <div className="flex items-center justify-between text-white">
               <span className="text-xs font-bold text-emerald-300">سود ناخالص و حاشیه سود</span>
-              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black">
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-black">
                 {toPersianDigits(summary.profitMarginPercent ?? 0)}٪ مارجین
               </span>
             </div>
@@ -533,7 +533,7 @@ export default function AdminFinancePage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-emerald-900 text-[10px] text-emerald-300/70 font-medium">
+          <div className="pt-2 border-t border-emerald-900 text-xs text-emerald-300/70 font-medium">
             بهای خرید از کشاورزان: {formatToman(summary.totalCost || 0)}
           </div>
         </div>
@@ -543,10 +543,10 @@ export default function AdminFinancePage() {
 
       {/* 1. DAILY SHIFTS TABLE (Shown when DAILY mode is active) */}
       {periodMode === 'DAILY' && (
-        <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden p-6 space-y-4 no-print">
+        <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden p-6 space-y-4 no-print">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
             <div>
-              <h3 className="text-base sm:text-lg font-black text-[#2C4A2E] flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-black text-farm-primary flex items-center gap-2">
                 <Clock className="w-5 h-5 text-[#D4A373]" />
                 <span>پایش تفکیکی شیفت‌ها و ساعات کاری امروز مزرعه</span>
               </h3>
@@ -561,14 +561,14 @@ export default function AdminFinancePage() {
           </div>
 
           {totalDailyOrders === 0 ? (
-            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+            <div className="p-8 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center space-y-1.5">
               <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در شیفت‌های امروز ثبت نشده است.</p>
               <p className="text-xs text-gray-500">آمار واقعی به محض تسویه سفارش‌های جدید یا تحویل سفارش‌های پرداخت در محل در این جدول نمایش داده می‌شود.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-              <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+              <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
                 <tr>
                   <th className="py-3.5 px-4 font-black">شیفت کاری</th>
                   <th className="py-3.5 px-4 font-black text-center">تعداد سفارشات</th>
@@ -596,7 +596,7 @@ export default function AdminFinancePage() {
                         <span>{shift.shiftName}</span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-center font-bold text-[#2C4A2E]">
+                      <td className="py-3.5 px-4 text-center font-bold text-farm-primary">
                         {toPersianDigits(shift.ordersCount)}
                       </td>
 
@@ -608,7 +608,7 @@ export default function AdminFinancePage() {
                         {shift.totalDiscount > 0 ? `-${formatToman(shift.totalDiscount)}` : '۰ تومان'}
                       </td>
 
-                      <td className="py-3.5 px-4 font-black text-[#2C4A2E] text-sm">
+                      <td className="py-3.5 px-4 font-black text-farm-primary text-sm">
                         {formatToman(shift.netRevenue)}
                       </td>
 
@@ -621,7 +621,7 @@ export default function AdminFinancePage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-[11px] font-bold">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold">
                           {shift.topProduct || 'محصولات عمومی'}
                         </span>
                       </td>
@@ -632,7 +632,7 @@ export default function AdminFinancePage() {
               <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-black text-gray-900 text-xs">
                 <tr>
                   <td className="py-3 px-4">مجموع عملکرد امروز مزرعه:</td>
-                  <td className="py-3 px-4 text-center text-[#2C4A2E]">
+                  <td className="py-3 px-4 text-center text-farm-primary">
                     {toPersianDigits(totalDailyOrders)} سفارش
                   </td>
                   <td className="py-3 px-4 text-gray-800">
@@ -641,13 +641,13 @@ export default function AdminFinancePage() {
                   <td className="py-3 px-4 text-amber-700">
                     -{formatToman(totalDailyDiscount)}
                   </td>
-                  <td className="py-3 px-4 text-[#2C4A2E] text-sm">
+                  <td className="py-3 px-4 text-farm-primary text-sm">
                     {formatToman(totalDailyNet)}
                   </td>
                   <td className="py-3 px-4 text-emerald-800">
                     {formatToman(totalDailyProfit)}
                   </td>
-                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-[11px]">
+                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-xs">
                     تسویه خودکار در حساب‌های شاپرک
                   </td>
                 </tr>
@@ -660,10 +660,10 @@ export default function AdminFinancePage() {
 
       {/* 2. WEEKLY 7-DAY TABLE (Shown when WEEKLY mode is active) */}
       {periodMode === 'WEEKLY' && (
-        <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden p-6 space-y-4 no-print">
+        <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden p-6 space-y-4 no-print">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
             <div>
-              <h3 className="text-base sm:text-lg font-black text-[#2C4A2E] flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-black text-farm-primary flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-[#D4A373]" />
                 <span>جدول صورت و پایش مالی ۷ روز هفته جاری</span>
               </h3>
@@ -678,14 +678,14 @@ export default function AdminFinancePage() {
           </div>
 
           {totalWeeklyOrders === 0 ? (
-            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+            <div className="p-8 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center space-y-1.5">
               <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در هفته جاری ثبت نشده است.</p>
               <p className="text-xs text-gray-500">آمار واقعی روزهای هفته به محض ثبت و پرداخت سفارش‌های جدید نمایش داده می‌شود.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-              <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+              <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
                 <tr>
                   <th className="py-3.5 px-4 font-black">روز هفته</th>
                   <th className="py-3.5 px-4 font-black">تاریخ تقویمی</th>
@@ -720,12 +720,12 @@ export default function AdminFinancePage() {
                         <div className="flex items-center gap-2">
                           <span className="font-black text-gray-900">{w.dayName}</span>
                           {isToday && (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-xs font-bold">
                               امروز
                             </span>
                           )}
                           {isSelected && (
-                            <span className="px-2 py-0.5 rounded-md bg-[#2C4A2E] text-white text-[9px] font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-farm-primary text-white text-xs font-bold">
                               انتخاب‌شده
                             </span>
                           )}
@@ -748,7 +748,7 @@ export default function AdminFinancePage() {
                         {w.totalDiscount > 0 ? `-${formatToman(w.totalDiscount)}` : '۰ تومان'}
                       </td>
 
-                      <td className="py-3 px-4 font-black text-[#2C4A2E] text-sm">
+                      <td className="py-3 px-4 font-black text-farm-primary text-sm">
                         {formatToman(w.netRevenue)}
                       </td>
 
@@ -760,7 +760,7 @@ export default function AdminFinancePage() {
                         {formatToman(w.averageOrderValue)}
                       </td>
 
-                      <td className="py-3 px-4 text-gray-600 text-[11px]">
+                      <td className="py-3 px-4 text-gray-600 text-xs">
                         {w.topGateway || 'شاپرک'}
                       </td>
 
@@ -770,10 +770,10 @@ export default function AdminFinancePage() {
                             e.stopPropagation();
                             setSelectedWeekday(w.dayName);
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-[#2C4A2E] text-white shadow-xs'
-                              : 'bg-white border border-[#E6E1D5] text-[#2C4A2E] hover:bg-emerald-50'
+                              ? 'bg-farm-primary text-white shadow-xs'
+                              : 'bg-white border border-farm-border text-farm-primary hover:bg-emerald-50'
                           }`}
                         >
                           {isSelected ? 'در حال پایش' : 'مشاهده روز'}
@@ -788,7 +788,7 @@ export default function AdminFinancePage() {
                   <td colSpan={2} className="py-3 px-4">
                     مجموع عملکرد ۷ روز هفته جاری:
                   </td>
-                  <td className="py-3 px-4 text-center text-[#2C4A2E]">
+                  <td className="py-3 px-4 text-center text-farm-primary">
                     {toPersianDigits(totalWeeklyOrders)} سفارش
                   </td>
                   <td className="py-3 px-4 text-gray-800">
@@ -797,13 +797,13 @@ export default function AdminFinancePage() {
                   <td className="py-3 px-4 text-amber-700">
                     -{formatToman(totalWeeklyDiscount)}
                   </td>
-                  <td className="py-3 px-4 text-[#2C4A2E] text-sm">
+                  <td className="py-3 px-4 text-farm-primary text-sm">
                     {formatToman(totalWeeklyNet)}
                   </td>
                   <td className="py-3 px-4 text-emerald-800">
                     {formatToman(totalWeeklyProfit)}
                   </td>
-                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-[11px]">
+                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-xs">
                     شاپرک متصل به حساب تجاری
                   </td>
                 </tr>
@@ -816,10 +816,10 @@ export default function AdminFinancePage() {
 
       {/* 3. MONTHLY 12-MONTH TABLE (Shown when MONTHLY mode is active) */}
       {periodMode === 'MONTHLY' && (
-        <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden p-6 space-y-4 no-print">
+        <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden p-6 space-y-4 no-print">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
             <div>
-              <h3 className="text-base sm:text-lg font-black text-[#2C4A2E] flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-black text-farm-primary flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-[#D4A373]" />
                 <span>جدول صورت مالی و مقایسه تفکیکی ماه‌های سال ۱۴۰۵</span>
               </h3>
@@ -834,14 +834,14 @@ export default function AdminFinancePage() {
           </div>
 
           {totalYearlyOrders === 0 ? (
-            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+            <div className="p-8 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center space-y-1.5">
               <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در سال مالی جاری ثبت نشده است.</p>
               <p className="text-xs text-gray-500">آمار واقعی ماهانه پس از تایید پرداخت یا تحویل سفارش‌های پرداخت در محل محاسبه می‌شود.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-              <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+              <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
                 <tr>
                   <th className="py-3.5 px-4 font-black">ردیف</th>
                   <th className="py-3.5 px-4 font-black">ماه مالی</th>
@@ -883,12 +883,12 @@ export default function AdminFinancePage() {
                         <div className="flex items-center gap-2">
                           <span className="font-black text-gray-900">{m.monthName}</span>
                           {isCurrent && (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-xs font-bold">
                               ماه جاری
                             </span>
                           )}
                           {isSelected && (
-                            <span className="px-2 py-0.5 rounded-md bg-[#2C4A2E] text-white text-[9px] font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-farm-primary text-white text-xs font-bold">
                               انتخاب‌شده
                             </span>
                           )}
@@ -907,7 +907,7 @@ export default function AdminFinancePage() {
                         {m.totalDiscount > 0 ? `-${formatToman(m.totalDiscount)}` : hasOrders ? '۰ تومان' : '-'}
                       </td>
 
-                      <td className="py-3 px-4 font-black text-[#2C4A2E] text-sm">
+                      <td className="py-3 px-4 font-black text-farm-primary text-sm">
                         {hasOrders ? formatToman(m.netRevenue) : '-'}
                       </td>
 
@@ -919,7 +919,7 @@ export default function AdminFinancePage() {
                         {hasOrders ? formatToman(m.averageOrderValue) : '-'}
                       </td>
 
-                      <td className="py-3 px-4 text-gray-600 text-[11px]">
+                      <td className="py-3 px-4 text-gray-600 text-xs">
                         {hasOrders ? m.topGateway : 'دوره آینده'}
                       </td>
 
@@ -929,10 +929,10 @@ export default function AdminFinancePage() {
                             e.stopPropagation();
                             setSelectedMonth(m.monthName);
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-[#2C4A2E] text-white shadow-xs'
-                              : 'bg-white border border-[#E6E1D5] text-[#2C4A2E] hover:bg-emerald-50'
+                              ? 'bg-farm-primary text-white shadow-xs'
+                              : 'bg-white border border-farm-border text-farm-primary hover:bg-emerald-50'
                           }`}
                         >
                           {isSelected ? 'در حال پایش' : 'مشاهده جزئیات'}
@@ -947,7 +947,7 @@ export default function AdminFinancePage() {
                   <td colSpan={2} className="py-3 px-4">
                     مجموع عملکرد ۱۲ ماه سال مالی ۱۴۰۵:
                   </td>
-                  <td className="py-3 px-4 text-center text-[#2C4A2E]">
+                  <td className="py-3 px-4 text-center text-farm-primary">
                     {toPersianDigits(totalYearlyOrders)} سفارش
                   </td>
                   <td className="py-3 px-4 text-gray-800">
@@ -956,13 +956,13 @@ export default function AdminFinancePage() {
                   <td className="py-3 px-4 text-amber-700">
                     -{formatToman(totalYearlyDiscount)}
                   </td>
-                  <td className="py-3 px-4 text-[#2C4A2E] text-sm">
+                  <td className="py-3 px-4 text-farm-primary text-sm">
                     {formatToman(totalYearlyNet)}
                   </td>
                   <td className="py-3 px-4 text-emerald-800">
                     {formatToman(totalYearlyProfit)}
                   </td>
-                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-[11px]">
+                  <td colSpan={2} className="py-3 px-4 text-left text-gray-500 text-xs">
                     وصول مستقیم در کلیه درگاه‌های بانکی
                   </td>
                 </tr>
@@ -976,20 +976,20 @@ export default function AdminFinancePage() {
       {/* Breakdown Section: Payment Channels & Subscription Tier Share (Grid 2 cols) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 no-print">
         {/* Payment Gateways Distribution Card */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div>
-              <h3 className="font-bold text-sm text-[#2C4A2E]">
+              <h3 className="font-bold text-sm text-farm-primary">
                 تفکیک کانال‌های پرداخت و درگاه‌ها ({summary.selectedPeriodLabel})
               </h3>
-              <p className="text-[11px] text-gray-400">سهم نقدینگی هر یک از درگاه‌های آنلاین و پوز شیراز</p>
+              <p className="text-xs text-gray-600">سهم نقدینگی هر یک از درگاه‌های آنلاین و پوز شیراز</p>
             </div>
-            <CreditCard className="w-4 h-4 text-[#2C4A2E]" />
+            <CreditCard className="w-4 h-4 text-farm-primary" />
           </div>
 
           <div className="space-y-3.5">
             {(summary.gatewayBreakdown || []).length === 0 ? (
-              <div className="py-6 px-4 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center text-xs text-gray-500">
+              <div className="py-6 px-4 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center text-xs text-gray-500">
                 تراکنش پرداخت‌شده‌ای در این بازه زمانی برای نمایش سهم درگاه‌ها وجود ندارد.
               </div>
             ) : (
@@ -997,7 +997,7 @@ export default function AdminFinancePage() {
                 <div key={gw.gateway} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className="text-gray-800 truncate max-w-[220px]">{gw.label}</span>
-                    <span className="text-[#2C4A2E]">{toPersianDigits(gw.percentage)}٪</span>
+                    <span className="text-farm-primary">{toPersianDigits(gw.percentage)}٪</span>
                   </div>
 
                   <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -1007,7 +1007,7 @@ export default function AdminFinancePage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{formatToman(gw.totalAmount)}</span>
                     <span>{toPersianDigits(gw.count)} تراکنش</span>
                   </div>
@@ -1018,20 +1018,20 @@ export default function AdminFinancePage() {
         </div>
 
         {/* Subscription Tier Share Card */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div>
-              <h3 className="font-bold text-sm text-[#2C4A2E]">
+              <h3 className="font-bold text-sm text-farm-primary">
                 سهم درآمد بر اساس سطح عضویت ({summary.selectedPeriodLabel})
               </h3>
-              <p className="text-[11px] text-gray-400">درآمد حاصل از مشترکین پرو، پلاس و خریداران عادی</p>
+              <p className="text-xs text-gray-600">درآمد حاصل از مشترکین پرو، پلاس و خریداران عادی</p>
             </div>
             <Crown className="w-4 h-4 text-[#D4A373]" />
           </div>
 
           <div className="space-y-3.5">
             {summary.totalOrdersCount === 0 ? (
-              <div className="py-6 px-4 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center text-xs text-gray-500">
+              <div className="py-6 px-4 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center text-xs text-gray-500">
                 سفارش پرداخت‌شده‌ای در این بازه زمانی برای تفکیک سطوح کاربری وجود ندارد.
               </div>
             ) : (
@@ -1043,7 +1043,7 @@ export default function AdminFinancePage() {
                       {t.tier === 'PLUS' && <Zap className="w-3.5 h-3.5 text-emerald-600" />}
                       <span>{t.label}</span>
                     </span>
-                    <span className="text-[#2C4A2E]">{toPersianDigits(t.percentage)}٪</span>
+                    <span className="text-farm-primary">{toPersianDigits(t.percentage)}٪</span>
                   </div>
 
                   <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -1059,7 +1059,7 @@ export default function AdminFinancePage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{formatToman(t.revenue)}</span>
                     <span>{toPersianDigits(t.ordersCount)} سفارش</span>
                   </div>
@@ -1071,10 +1071,10 @@ export default function AdminFinancePage() {
       </div>
 
       {/* Transaction Ledger Table (No Settlement Filter / Toggle / Badge) */}
-      <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden space-y-4 p-6 no-print">
+      <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden space-y-4 p-6 no-print">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
           <div>
-            <h3 className="text-lg font-black text-[#2C4A2E]">
+            <h3 className="text-lg font-black text-farm-primary">
               دفتر کل تراکنش‌های {summary.selectedPeriodLabel}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -1085,13 +1085,13 @@ export default function AdminFinancePage() {
           {/* Search & Tier Filter Bar */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
+              <Search className="w-4 h-4 text-gray-500 absolute right-3 top-3" />
               <input
                 type="text"
                 placeholder="جستجو سفارش، نام، تلفن..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-9 pl-4 py-2 rounded-xl border border-[#E6E1D5] text-xs bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] w-56 sm:w-64"
+                className="pr-9 pl-4 py-2 rounded-xl border border-farm-border text-xs bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary w-56 sm:w-64"
               />
             </div>
 
@@ -1099,7 +1099,7 @@ export default function AdminFinancePage() {
             <select
               value={tierFilter}
               onChange={(e) => setTierFilter(e.target.value as 'ALL' | SubscriptionTier)}
-              className="px-3 py-2 rounded-xl border border-[#E6E1D5] text-xs bg-[#F9F8F5] font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E] cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-farm-border text-xs bg-farm-bg font-bold text-gray-800 focus:outline-none focus:border-farm-primary cursor-pointer"
             >
               <option value="ALL">همه سطوح کاربری</option>
               <option value="PRO">فقط طلایی پرو</option>
@@ -1112,7 +1112,7 @@ export default function AdminFinancePage() {
         {/* Clean Ledger Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs">
-            <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+            <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
               <tr>
                 <th className="py-3.5 px-4 font-black">شماره سفارش</th>
                 <th className="py-3.5 px-4 font-black">تاریخ و زمان ثبت</th>
@@ -1135,13 +1135,13 @@ export default function AdminFinancePage() {
                 filteredRecords.map((rec) => {
                   return (
                     <tr key={rec.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-[#2C4A2E]">
+                      <td className="py-3.5 px-4 font-bold text-farm-primary">
                         {rec.orderNumber}
                       </td>
 
                       <td className="py-3.5 px-4 text-gray-600">
                         {new Date(rec.createdAt).toLocaleDateString('fa-IR')}
-                        <span className="block text-[10px] text-gray-400">
+                        <span className="block text-xs text-gray-600">
                           {new Date(rec.createdAt).toLocaleTimeString('fa-IR', {
                             hour: '2-digit',
                             minute: '2-digit',
@@ -1151,10 +1151,10 @@ export default function AdminFinancePage() {
 
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-gray-900">{rec.customerName}</div>
-                        <div className="text-[10px] text-gray-400">{toPersianDigits(rec.customerPhone)}</div>
+                        <div className="text-xs text-gray-600">{toPersianDigits(rec.customerPhone)}</div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-black text-[#2C4A2E] text-sm">
+                      <td className="py-3.5 px-4 font-black text-farm-primary text-sm">
                         {formatToman(rec.netPayableAmount)}
                       </td>
 
@@ -1164,13 +1164,13 @@ export default function AdminFinancePage() {
 
                       <td className="py-3.5 px-4 text-gray-600">
                         <div className="flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <CreditCard className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                           <span className="truncate max-w-[140px]">{rec.paymentGateway}</span>
                         </div>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="font-mono text-[11px] font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-lg">
+                        <span className="font-mono text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-lg">
                           {rec.settlementRef || `SHP-${rec.orderNumber.replace(/[^0-9]/g, '').slice(-6)}`}
                         </span>
                       </td>
@@ -1201,7 +1201,7 @@ export default function AdminFinancePage() {
 
           <div className="flex items-center gap-4">
             <span className="text-gray-500">مجموع مبالغ لیست فعلی:</span>
-            <span className="text-base font-black text-[#2C4A2E]">
+            <span className="text-base font-black text-farm-primary">
               {formatToman(filteredRecords.reduce((sum, r) => sum + r.netPayableAmount, 0))}
             </span>
           </div>
@@ -1254,7 +1254,7 @@ export default function AdminFinancePage() {
                 {/* Seller Box */}
                 <div className="p-4 rounded-xl border border-gray-300 bg-gray-50/50 space-y-1">
                   <div className="font-black text-gray-900 border-b border-gray-200 pb-1 mb-2 flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                    <Building2 className="w-3.5 h-3.5 text-farm-primary" />
                     <span>مشخصات فروشنده:</span>
                   </div>
                   <div><strong>نام شخص حقوقی:</strong> شرکت کشت و صنعت پروفارم شیراز</div>
@@ -1338,7 +1338,7 @@ export default function AdminFinancePage() {
                       {selectedInvoiceRecord.settlementRef || `SHP-${selectedInvoiceRecord.orderNumber.replace(/[^0-9]/g, '').slice(-6)}`}
                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-500">
+                  <div className="text-xs text-gray-500">
                     * محصولات خام کشاورزی مطابق ماده ۹ قانون مالیات بر ارزش افزوده از مالیات معاف می‌باشند.
                   </div>
                 </div>
@@ -1347,7 +1347,7 @@ export default function AdminFinancePage() {
                   <div className="text-gray-600">
                     جمع کل قابل پرداخت:
                   </div>
-                  <div className="text-xl font-black text-[#2C4A2E]">
+                  <div className="text-xl font-black text-farm-primary">
                     {formatToman(selectedInvoiceRecord.netPayableAmount)}
                   </div>
                 </div>
@@ -1357,12 +1357,12 @@ export default function AdminFinancePage() {
               <div className="grid grid-cols-2 gap-6 pt-6 border-t border-gray-200 text-xs text-center text-gray-600">
                 <div className="h-24 border border-dashed border-gray-300 rounded-xl p-3 flex flex-col justify-between">
                   <span>امضای خریدار / گیرنده مرسوله:</span>
-                  <span className="text-[10px] text-gray-400">صحت سفارش و سلامت فیزیکی بار تایید شد</span>
+                  <span className="text-xs text-gray-600">صحت سفارش و سلامت فیزیکی بار تایید شد</span>
                 </div>
 
                 <div className="h-24 border border-dashed border-gray-300 rounded-xl p-3 flex flex-col justify-between">
                   <span>مهر و امضای امور مالی شرکت پروفارم:</span>
-                  <span className="text-[10px] text-emerald-800 font-bold">✓ تایید تراکنش شاپرک</span>
+                  <span className="text-xs text-emerald-800 font-bold">✓ تایید تراکنش شاپرک</span>
                 </div>
               </div>
             </div>

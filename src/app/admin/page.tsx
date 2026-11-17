@@ -120,7 +120,7 @@ export default function AdminOverviewPage() {
     <div className="space-y-8">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-5 left-5 z-50 bg-[#2C4A2E] text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in">
+        <div className="fixed top-5 left-5 z-50 bg-farm-primary text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
           <span>{toastMessage}</span>
         </div>
@@ -128,7 +128,7 @@ export default function AdminOverviewPage() {
 
       {/* Page Title */}
       <div>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[#2C4A2E]">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-farm-primary">
           داشبورد مدیریت و مرکز فرماندهی مزارع شیراز
         </h1>
         <p className="text-xs text-gray-500 mt-1">
@@ -141,7 +141,7 @@ export default function AdminOverviewPage() {
         {/* 1. Returns */}
         <Link
           href="/admin/returns"
-          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-[#E6E1D5] hover:border-[#2C4A2E] hover:shadow-md transition-all group"
+          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-farm-border hover:border-farm-primary hover:shadow-md transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <RotateCcw className="w-5 h-5" />
@@ -150,12 +150,12 @@ export default function AdminOverviewPage() {
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-gray-900 truncate">مرجوعی‌ها</span>
               {pendingReturns > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black">
+                <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-xs font-black">
                   {toPersianDigits(pendingReturns)}
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-gray-400 block truncate">بررسی درخواست‌ها</span>
+            <span className="text-xs text-gray-600 block truncate">بررسی درخواست‌ها</span>
           </div>
         </Link>
 
@@ -168,56 +168,56 @@ export default function AdminOverviewPage() {
             }
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-[#E6E1D5] hover:border-[#2C4A2E] hover:shadow-md transition-all group text-right cursor-pointer"
+          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-farm-border hover:border-farm-primary hover:shadow-md transition-all group text-right cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <Package className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-xs font-bold text-gray-900 truncate block">شارژ موجودی</span>
-            <span className="text-[10px] text-gray-400 block truncate">افزایش انبار کالا</span>
+            <span className="text-xs text-gray-600 block truncate">افزایش انبار کالا</span>
           </div>
         </button>
 
         {/* 3. SMS Hub */}
         <Link
           href="/admin/sms"
-          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-[#E6E1D5] hover:border-[#2C4A2E] hover:shadow-md transition-all group"
+          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-farm-border hover:border-farm-primary hover:shadow-md transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <MessageSquare className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-xs font-bold text-gray-900 truncate block">ارسال پیامک</span>
-            <span className="text-[10px] text-gray-400 block truncate">اطلاع‌رسانی سریع</span>
+            <span className="text-xs text-gray-600 block truncate">اطلاع‌رسانی سریع</span>
           </div>
         </Link>
 
         {/* 4. Finance */}
         <Link
           href="/admin/finance"
-          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-[#E6E1D5] hover:border-[#2C4A2E] hover:shadow-md transition-all group"
+          className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-farm-border hover:border-farm-primary hover:shadow-md transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <CircleDollarSign className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-xs font-bold text-gray-900 truncate block">گزارش مالی</span>
-            <span className="text-[10px] text-gray-400 block truncate">سود و تراکنش‌ها</span>
+            <span className="text-xs text-gray-600 block truncate">سود و تراکنش‌ها</span>
           </div>
         </Link>
 
         {/* 5. Shiraz Manifest */}
         <Link
           href="/admin/manifest"
-          className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#2C4A2E] text-white hover:bg-[#1E3520] hover:shadow-md transition-all group col-span-2 sm:col-span-1"
+          className="flex items-center gap-2.5 p-3 rounded-2xl bg-farm-primary text-white hover:bg-farm-primary-dark hover:shadow-md transition-all group col-span-2 sm:col-span-1"
         >
           <div className="w-10 h-10 rounded-xl bg-white/15 text-[#D4AF37] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <Truck className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-xs font-black text-white truncate block">پیک شیراز</span>
-            <span className="text-[10px] text-emerald-200 block truncate">مانیفست توزیع</span>
+            <span className="text-xs text-emerald-200 block truncate">مانیفست توزیع</span>
           </div>
         </Link>
       </div>
@@ -234,7 +234,7 @@ export default function AdminOverviewPage() {
                 <h3 className="text-sm font-black text-rose-950">
                   هشدار کسری موجودی انبار ({toPersianDigits(lowStockProducts.length)} محصول نیاز به شارژ دارد)
                 </h3>
-                <p className="text-[11px] text-rose-700">
+                <p className="text-xs text-rose-700">
                   محصولات زیر موجودی‌شان به اتمام رسیده یا کمتر از ۵ عدد است. مقدار دلخواه افزایش موجودی را تایین نموده و دکمه شارژ را بزنید.
                 </p>
               </div>
@@ -257,7 +257,7 @@ export default function AdminOverviewPage() {
 
               <Link
                 href="/admin/products"
-                className="text-xs font-bold text-[#2C4A2E] hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-farm-primary hover:underline flex items-center gap-1"
               >
                 <span>مدیریت کامل انبار</span>
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -280,7 +280,7 @@ export default function AdminOverviewPage() {
                       </p>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          className={`text-xs font-black px-2 py-0.5 rounded-md ${
                             (prod.stock || 0) === 0
                               ? 'bg-rose-100 text-rose-800'
                               : 'bg-amber-100 text-amber-800'
@@ -290,14 +290,14 @@ export default function AdminOverviewPage() {
                             ? 'اتمام موجودی'
                             : `موجودی فعلی: ${toPersianDigits(prod.stock || 0)} عدد`}
                         </span>
-                        <span className="text-[10px] text-gray-500">{prod.category}</span>
+                        <span className="text-xs text-gray-500">{prod.category}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Custom Restock Input & Presets */}
                   <div className="pt-2.5 border-t border-gray-100 space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-gray-500 font-bold">
+                    <div className="flex items-center justify-between text-xs text-gray-500 font-bold">
                       <span>مقدار افزایش موجودی:</span>
                       <div className="flex items-center gap-1">
                         {[5, 10, 25, 50].map((preset) => (
@@ -310,9 +310,9 @@ export default function AdminOverviewPage() {
                                 [prod.id]: preset,
                               }))
                             }
-                            className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-colors cursor-pointer ${
+                            className={`px-1.5 py-0.5 rounded-md text-xs font-bold border transition-colors cursor-pointer ${
                               currentInputVal === preset
-                                ? 'bg-[#2C4A2E] text-white border-[#2C4A2E]'
+                                ? 'bg-farm-primary text-white border-farm-primary'
                                 : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                             }`}
                           >
@@ -335,10 +335,10 @@ export default function AdminOverviewPage() {
                               [prod.id]: isNaN(val) ? 0 : Math.max(0, val),
                             }));
                           }}
-                          className="w-full text-center py-1.5 px-2 bg-gray-50 border border-gray-300 rounded-xl text-xs font-black text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2C4A2E]"
+                          className="w-full text-center py-1.5 px-2 bg-gray-50 border border-gray-300 rounded-xl text-xs font-black text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-farm-primary"
                           placeholder="تعداد دلخواه..."
                         />
-                        <span className="absolute left-2 text-[10px] text-gray-400 pointer-events-none">
+                        <span className="absolute left-2 text-xs text-gray-600 pointer-events-none">
                           عدد
                         </span>
                       </div>
@@ -346,16 +346,16 @@ export default function AdminOverviewPage() {
                       <button
                         type="button"
                         onClick={() => handleCustomRestock(prod.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-[11px] font-black flex items-center gap-1 shrink-0 transition-all cursor-pointer shadow-xs active:scale-95"
+                        className="px-3.5 py-1.5 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs font-black flex items-center gap-1 shrink-0 transition-all cursor-pointer shadow-xs active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>شارژ موجودی</span>
                       </button>
                     </div>
 
-                    <div className="text-[10px] text-gray-400 flex items-center justify-between">
+                    <div className="text-xs text-gray-600 flex items-center justify-between">
                       <span>موجودی پس از شارژ:</span>
-                      <span className="font-bold text-[#2C4A2E]">
+                      <span className="font-bold text-farm-primary">
                         {toPersianDigits((prod.stock || 0) + (currentInputVal || 0))} عدد
                       </span>
                     </div>
@@ -370,22 +370,22 @@ export default function AdminOverviewPage() {
       {/* Metrics Grid (Including Revenue, Profit Margin, Accounts, and Visits) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Metric 1: Total Revenue */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3">
-          <div className="flex items-center justify-between text-[#2C4A2E]">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3">
+          <div className="flex items-center justify-between text-farm-primary">
             <span className="text-xs font-bold text-gray-500">فروش کل ثبت‌شده</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl font-black text-[#2C4A2E]">{formatToman(totalRevenue)}</div>
-          <span className="text-[11px] text-emerald-700 font-medium">
+          <div className="text-2xl font-black text-farm-primary">{formatToman(totalRevenue)}</div>
+          <span className="text-xs text-emerald-700 font-medium">
             تراکنش‌های تایید شده با شاپرک/زرین‌پال
           </span>
         </div>
 
         {/* Metric 2: Gross Profit & Margin */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3">
-          <div className="flex items-center justify-between text-[#2C4A2E]">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3">
+          <div className="flex items-center justify-between text-farm-primary">
             <span className="text-xs font-bold text-gray-500">سود ناخالص مزارع (تخمینی)</span>
             <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
               <Percent className="w-5 h-5" />
@@ -394,39 +394,39 @@ export default function AdminOverviewPage() {
           <div className="text-2xl font-black text-amber-900">
             {formatToman(finSummary?.grossProfit ?? 0)}
           </div>
-          <span className="text-[11px] text-amber-800 font-medium">
+          <span className="text-xs text-amber-800 font-medium">
             حاشیه سود واقعی: {toPersianDigits(finSummary?.profitMarginPercent ?? 0)}٪ از {toPersianDigits(paidOrders.length)} سفارش تاییدشده
           </span>
         </div>
 
         {/* Metric 3: Total User Accounts */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3">
-          <div className="flex items-center justify-between text-[#2C4A2E]">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3">
+          <div className="flex items-center justify-between text-farm-primary">
             <span className="text-xs font-bold text-gray-500">کاربران و باشگاه مشتریان</span>
             <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-purple-800">
               <Users className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl font-black text-[#2C4A2E]">
+          <div className="text-2xl font-black text-farm-primary">
             {toPersianDigits(users.length)} حساب کاربری
           </div>
-          <span className="text-[11px] text-purple-700 font-medium">
+          <span className="text-xs text-purple-700 font-medium">
             {toPersianDigits(proUsersCount)} مشترک پرو | {toPersianDigits(plusUsersCount)} مشترک پلاس
           </span>
         </div>
 
         {/* Metric 4: Shiraz Active Orders & Traffic */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3">
-          <div className="flex items-center justify-between text-[#2C4A2E]">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3">
+          <div className="flex items-center justify-between text-farm-primary">
             <span className="text-xs font-bold text-gray-500">سفارش‌های جاری شیراز</span>
             <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-800">
               <Truck className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl font-black text-[#2C4A2E]">
+          <div className="text-2xl font-black text-farm-primary">
             {toPersianDigits(processingCount + outForDeliveryCount)} سفارش
           </div>
-          <span className="text-[11px] text-blue-700 font-medium">
+          <span className="text-xs text-blue-700 font-medium">
             بازدید امروز: {toPersianDigits(visits.daily)} مراجعه‌کننده
           </span>
         </div>
@@ -436,7 +436,7 @@ export default function AdminOverviewPage() {
       <SalesChart data={salesData} />
 
       {/* Financial Health & Excel Export Banner */}
-      <div className="bg-gradient-to-l from-[#2C4A2E] to-[#1E3520] rounded-3xl p-6 text-white shadow-farm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-l from-farm-primary to-farm-primary-dark rounded-3xl p-6 text-white shadow-farm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-bold border border-white/10">
             <CircleDollarSign className="w-4 h-4 text-[#D4A373]" />
@@ -454,7 +454,7 @@ export default function AdminOverviewPage() {
 
         <Link
           href="/admin/finance"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#D4A373] text-[#1E3520] font-black text-xs hover:bg-[#F3E5AB] transition-all shrink-0 shadow-lg cursor-pointer"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#D4A373] text-farm-primary-dark font-black text-xs hover:bg-[#F3E5AB] transition-all shrink-0 shadow-lg cursor-pointer"
         >
           <FileSpreadsheet className="w-4 h-4" />
           <span>ورود به بخش مالی و دانلود اکسل</span>
@@ -463,15 +463,15 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Recent Orders Overview */}
-      <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5">
+      <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-[#2C4A2E]" />
-            <h3 className="font-bold text-base text-[#2C4A2E]">آخرین سفارشات ثبت‌شده</h3>
+            <ShoppingBag className="w-5 h-5 text-farm-primary" />
+            <h3 className="font-bold text-base text-farm-primary">آخرین سفارشات ثبت‌شده</h3>
           </div>
           <Link
             href="/admin/orders"
-            className="text-xs text-[#2C4A2E] hover:underline font-semibold flex items-center gap-1"
+            className="text-xs text-farm-primary hover:underline font-semibold flex items-center gap-1"
           >
             <span>مدیریت تمام سفارشات و چاپ فاکتور</span>
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -489,7 +489,7 @@ export default function AdminOverviewPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono font-bold text-farm-primary">{order.orderNumber}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusMeta.badgeClass}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${statusMeta.badgeClass}`}>
                     {statusMeta.shortLabel}
                   </span>
                 </div>
@@ -530,12 +530,12 @@ export default function AdminOverviewPage() {
             <tbody className="divide-y divide-gray-100">
               {orders.slice(0, 5).map((order) => (
                 <tr key={order.id} className="hover:bg-gray-50/80 transition-colors">
-                  <td className="py-3.5 px-3 font-mono font-bold text-[#2C4A2E]">
+                  <td className="py-3.5 px-3 font-mono font-bold text-farm-primary">
                     {order.orderNumber}
                   </td>
                   <td className="py-3.5 px-3">
                     <div className="font-bold text-gray-800">{order.address?.recipientName}</div>
-                    <div className="text-[11px] text-gray-400 font-mono">
+                    <div className="text-xs text-gray-600 font-mono">
                       {order.address?.phone}
                     </div>
                   </td>
@@ -549,7 +549,7 @@ export default function AdminOverviewPage() {
                       ? 'عضویت دیجیتال مشترک'
                       : 'سفارش عمده / باربری'}
                   </td>
-                  <td className="py-3.5 px-3 font-bold text-[#2C4A2E]">
+                  <td className="py-3.5 px-3 font-bold text-farm-primary">
                     {formatToman(order.totalAmount)}
                   </td>
                   <td className="py-3.5 px-3">
@@ -587,7 +587,7 @@ export default function AdminOverviewPage() {
                 <select
                   value={selectedModalProductId}
                   onChange={(e) => setSelectedModalProductId(e.target.value)}
-                  className="w-full py-2.5 px-3 bg-gray-50 border border-gray-300 rounded-2xl font-bold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2C4A2E]"
+                  className="w-full py-2.5 px-3 bg-gray-50 border border-gray-300 rounded-2xl font-bold text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-farm-primary"
                 >
                   {allProducts.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -618,8 +618,8 @@ export default function AdminOverviewPage() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-amber-200 font-black">
-                      <span className="text-[#2C4A2E]">موجودی کل پس از شارژ:</span>
-                      <span className="text-sm text-[#2C4A2E]">{toPersianDigits(afterStock)} عدد</span>
+                      <span className="text-farm-primary">موجودی کل پس از شارژ:</span>
+                      <span className="text-sm text-farm-primary">{toPersianDigits(afterStock)} عدد</span>
                     </div>
                   </div>
                 );
@@ -636,9 +636,9 @@ export default function AdminOverviewPage() {
                         key={preset}
                         type="button"
                         onClick={() => setModalAmount(preset)}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                        className={`px-2 py-0.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
                           modalAmount === preset
-                            ? 'bg-[#2C4A2E] text-white border-[#2C4A2E]'
+                            ? 'bg-farm-primary text-white border-farm-primary'
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
@@ -659,9 +659,9 @@ export default function AdminOverviewPage() {
                     }}
                     required
                     placeholder="مثلاً: 25"
-                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-300 rounded-2xl font-black text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2C4A2E]"
+                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-300 rounded-2xl font-black text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-farm-primary"
                   />
-                  <span className="absolute left-3.5 top-2.5 text-xs text-gray-400 pointer-events-none">
+                  <span className="absolute left-3.5 top-2.5 text-xs text-gray-600 pointer-events-none">
                     عدد بسته
                   </span>
                 </div>
@@ -677,7 +677,7 @@ export default function AdminOverviewPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white font-black flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white font-black flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
                   <span>تایید و ثبت افزایش موجودی</span>

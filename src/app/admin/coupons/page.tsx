@@ -234,7 +234,7 @@ export default function AdminCouponsPage() {
     <div className="space-y-8">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-[#2C4A2E] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 left-6 z-50 bg-farm-primary text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-3">
           <CheckCircle2 className="w-4 h-4 text-emerald-300" />
           <span>{toastMessage}</span>
         </div>
@@ -244,7 +244,7 @@ export default function AdminCouponsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+            <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
               مدیریت کدهای تخفیف و جشنواره‌ها
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
@@ -258,7 +258,7 @@ export default function AdminCouponsPage() {
 
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold shadow-md hover:bg-[#1E3520] transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-farm-primary text-white text-xs font-bold shadow-md hover:bg-farm-primary-dark transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>+ ایجاد کد تخفیف جدید</span>
@@ -267,18 +267,18 @@ export default function AdminCouponsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-gray-500">
             <span className="text-xs font-bold">کل کدهای تخفیف</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#2C4A2E] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-farm-primary flex items-center justify-center">
               <TicketPercent className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-[#2C4A2E]">{toPersianDigits(totalCoupons)}</div>
-          <span className="text-[11px] text-gray-400">شامل تمامی جشنواره‌ها و پروموشن‌ها</span>
+          <div className="text-2xl font-black text-farm-primary">{toPersianDigits(totalCoupons)}</div>
+          <span className="text-xs text-gray-600">شامل تمامی جشنواره‌ها و پروموشن‌ها</span>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-gray-500">
             <span className="text-xs font-bold">کدهای فعال و آماده استفاده</span>
             <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
@@ -286,10 +286,10 @@ export default function AdminCouponsPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-blue-800">{toPersianDigits(activeCouponsCount)}</div>
-          <span className="text-[11px] text-blue-600">قابل اعمال توسط خریداران در تسویه‌حساب</span>
+          <span className="text-xs text-blue-600">قابل اعمال توسط خریداران در تسویه‌حساب</span>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-gray-500">
             <span className="text-xs font-bold">دفعات استفاده موفق</span>
             <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
@@ -297,10 +297,10 @@ export default function AdminCouponsPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-purple-800">{toPersianDigits(totalRedemptions)} بار</div>
-          <span className="text-[11px] text-purple-600">ثبت‌شده در فاکتورهای نهایی مشتریان</span>
+          <span className="text-xs text-purple-600">ثبت‌شده در فاکتورهای نهایی مشتریان</span>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-2">
           <div className="flex items-center justify-between text-gray-500">
             <span className="text-xs font-bold">تخفیفات حمل و نقل</span>
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
@@ -308,19 +308,19 @@ export default function AdminCouponsPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-amber-800">{toPersianDigits(shippingCouponsCount)} کد</div>
-          <span className="text-[11px] text-amber-600">ارسال رایگان یا تخفیف پیک پروفارم شیراز</span>
+          <span className="text-xs text-amber-600">ارسال رایگان یا تخفیف پیک پروفارم شیراز</span>
         </div>
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="bg-white rounded-3xl p-4 border border-[#E6E1D5] shadow-farm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-4 border border-farm-border shadow-farm flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Target Type Filter Tabs */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('ALL')}
             className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'ALL'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -330,7 +330,7 @@ export default function AdminCouponsPage() {
             onClick={() => setActiveTab('ALL_PRODUCTS')}
             className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'ALL_PRODUCTS'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -341,7 +341,7 @@ export default function AdminCouponsPage() {
             onClick={() => setActiveTab('SPECIFIC_PRODUCT')}
             className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'SPECIFIC_PRODUCT'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -352,7 +352,7 @@ export default function AdminCouponsPage() {
             onClick={() => setActiveTab('SHIPPING')}
             className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'SHIPPING'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -374,7 +374,7 @@ export default function AdminCouponsPage() {
           </select>
 
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
               placeholder="جستجوی کد، عنوان..."
@@ -388,12 +388,12 @@ export default function AdminCouponsPage() {
 
       {/* Coupons Grid / Cards */}
       {filteredCoupons.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 border border-[#E6E1D5] text-center space-y-4 shadow-farm">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto text-gray-400">
+        <div className="bg-white rounded-3xl p-12 border border-farm-border text-center space-y-4 shadow-farm">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto text-gray-500">
             <TicketPercent className="w-8 h-8" />
           </div>
           <h3 className="text-base font-bold text-gray-700">کد تخفیفی با این مشخصات یافت نشد</h3>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             می‌توانید فیلترهای بالا را تغییر دهید یا با دکمه «ایجاد کد تخفیف جدید» اقدام به تعریف کد نمایید.
           </p>
         </div>
@@ -411,7 +411,7 @@ export default function AdminCouponsPage() {
               <div
                 key={coupon.id}
                 className={`bg-white rounded-3xl p-6 border transition-all duration-300 relative flex flex-col justify-between shadow-farm hover:shadow-farm-hover ${
-                  coupon.isActive ? 'border-[#E6E1D5]' : 'border-gray-200 opacity-75 bg-gray-50/70'
+                  coupon.isActive ? 'border-farm-border' : 'border-gray-200 opacity-75 bg-gray-50/70'
                 }`}
               >
                 <div className="space-y-4">
@@ -451,10 +451,10 @@ export default function AdminCouponsPage() {
                   </div>
 
                   {/* Coupon Code Banner with 1-click Copy */}
-                  <div className="p-3.5 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#D4A373] flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-farm-bg border border-dashed border-[#D4A373] flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-gray-400 block font-sans">کد کوپن:</span>
-                      <span className="text-base font-black font-mono tracking-wider text-[#2C4A2E]">
+                      <span className="text-xs text-gray-600 block font-sans">کد کوپن:</span>
+                      <span className="text-base font-black font-mono tracking-wider text-farm-primary">
                         {coupon.code}
                       </span>
                     </div>
@@ -467,12 +467,12 @@ export default function AdminCouponsPage() {
                       {copiedCode === coupon.code ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-600 text-[10px]">کپی شد</span>
+                          <span className="text-emerald-600 text-xs">کپی شد</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span className="text-[10px]">کپی</span>
+                          <span className="text-xs">کپی</span>
                         </>
                       )}
                     </button>
@@ -487,7 +487,7 @@ export default function AdminCouponsPage() {
                       </p>
                     )}
                     {isSpecific && coupon.targetProductName && (
-                      <div className="pt-1 text-[11px] font-bold text-purple-700 flex items-center gap-1">
+                      <div className="pt-1 text-xs font-bold text-purple-700 flex items-center gap-1">
                         <Tag className="w-3 h-3" />
                         <span>محصول هدف: {coupon.targetProductName}</span>
                       </div>
@@ -506,14 +506,14 @@ export default function AdminCouponsPage() {
                     </div>
 
                     {coupon.maxDiscountAmount && coupon.discountType === 'PERCENTAGE' && (
-                      <div className="flex items-center justify-between text-[11px] text-gray-600">
+                      <div className="flex items-center justify-between text-xs text-gray-600">
                         <span>سقف تخفیف ریالی:</span>
                         <span className="font-bold">{formatToman(coupon.maxDiscountAmount)}</span>
                       </div>
                     )}
 
                     {coupon.minOrderAmount && coupon.minOrderAmount > 0 && (
-                      <div className="flex items-center justify-between text-[11px] text-gray-600">
+                      <div className="flex items-center justify-between text-xs text-gray-600">
                         <span>حداقل سبد خرید:</span>
                         <span className="font-bold">{formatToman(coupon.minOrderAmount)}</span>
                       </div>
@@ -522,7 +522,7 @@ export default function AdminCouponsPage() {
 
                   {/* Usage Stats & Expiry */}
                   <div className="space-y-1.5 text-xs text-gray-500">
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between text-xs">
                       <span>میزان مصرف:</span>
                       <span className="font-bold text-gray-800">
                         {toPersianDigits(coupon.usageCount)}{' '}
@@ -542,7 +542,7 @@ export default function AdminCouponsPage() {
                     )}
 
                     {coupon.expiresAt && (
-                      <div className="flex items-center gap-1 text-[11px] text-gray-400 pt-1">
+                      <div className="flex items-center gap-1 text-xs text-gray-600 pt-1">
                         <Clock className="w-3 h-3" />
                         <span>انقضا: تا {coupon.expiresAt}</span>
                       </div>
@@ -552,7 +552,7 @@ export default function AdminCouponsPage() {
 
                 {/* Card Actions Footer */}
                 <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-xs text-gray-600">
                     ثبت‌شده در مزارع شیراز
                   </span>
 
@@ -566,7 +566,7 @@ export default function AdminCouponsPage() {
                     </button>
                     <button
                       onClick={(e) => handleDeleteCoupon(coupon.id, coupon.code, e)}
-                      className="p-2 rounded-xl hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      className="p-2 rounded-xl hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition-colors cursor-pointer"
                       title="حذف کد تخفیف"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -601,7 +601,7 @@ export default function AdminCouponsPage() {
                     placeholder="مثال: SHIRAZ1403 یا FREESHIP"
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-mono text-sm tracking-wider text-left uppercase focus:border-[#2C4A2E] outline-none"
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-mono text-sm tracking-wider text-left uppercase focus:border-farm-primary outline-none"
                     dir="ltr"
                   />
                   <button
@@ -628,7 +628,7 @@ export default function AdminCouponsPage() {
                     placeholder="مثال: جشنواره عید فطر"
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-farm-primary outline-none"
                   />
                 </div>
                 <div>
@@ -638,7 +638,7 @@ export default function AdminCouponsPage() {
                     placeholder="مثال: ویژه اولین خرید خریداران شیراز"
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-farm-primary outline-none"
                   />
                 </div>
               </div>
@@ -654,13 +654,13 @@ export default function AdminCouponsPage() {
                     onClick={() => setFormTargetType('ALL_PRODUCTS')}
                     className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer text-center space-y-1.5 ${
                       formTargetType === 'ALL_PRODUCTS'
-                        ? 'border-[#2C4A2E] bg-emerald-50/50 text-[#2C4A2E]'
+                        ? 'border-farm-primary bg-emerald-50/50 text-farm-primary'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <ShoppingBag className="w-5 h-5 mx-auto text-[#2C4A2E]" />
+                    <ShoppingBag className="w-5 h-5 mx-auto text-farm-primary" />
                     <span className="block font-bold text-xs">۱. کل سبد خرید</span>
-                    <span className="block text-[10px] text-gray-500 leading-tight">
+                    <span className="block text-xs text-gray-500 leading-tight">
                       تخفیف روی جمع کل کالاهای سفارش
                     </span>
                   </div>
@@ -676,7 +676,7 @@ export default function AdminCouponsPage() {
                   >
                     <Package className="w-5 h-5 mx-auto text-purple-700" />
                     <span className="block font-bold text-xs">۲. یک کالای خاص</span>
-                    <span className="block text-[10px] text-gray-500 leading-tight">
+                    <span className="block text-xs text-gray-500 leading-tight">
                       تخفیف تنها روی یک محصول مشخص
                     </span>
                   </div>
@@ -692,7 +692,7 @@ export default function AdminCouponsPage() {
                   >
                     <Truck className="w-5 h-5 mx-auto text-amber-700" />
                     <span className="block font-bold text-xs">۳. هزینه حمل و نقل</span>
-                    <span className="block text-[10px] text-gray-500 leading-tight">
+                    <span className="block text-xs text-gray-500 leading-tight">
                       ارسال رایگان یا تخفیف کرایه پیک
                     </span>
                   </div>
@@ -716,7 +716,7 @@ export default function AdminCouponsPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="text-[10px] text-purple-700 block">
+                  <span className="text-xs text-purple-700 block">
                     این کد تنها زمانی اعمال می‌شود که محصول بالا در سبد خرید مشتری وجود داشته باشد.
                   </span>
                 </div>
@@ -734,7 +734,7 @@ export default function AdminCouponsPage() {
                       onClick={() => setFormDiscountType('PERCENTAGE')}
                       className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                         formDiscountType === 'PERCENTAGE'
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white'
+                          ? 'border-farm-primary bg-farm-primary text-white'
                           : 'border-gray-200 bg-gray-50 text-gray-600'
                       }`}
                     >
@@ -746,7 +746,7 @@ export default function AdminCouponsPage() {
                       onClick={() => setFormDiscountType('FIXED_AMOUNT')}
                       className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                         formDiscountType === 'FIXED_AMOUNT'
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white'
+                          ? 'border-farm-primary bg-farm-primary text-white'
                           : 'border-gray-200 bg-gray-50 text-gray-600'
                       }`}
                     >
@@ -771,7 +771,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) =>
                       setFormDiscountValue(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none font-mono text-left"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-farm-primary outline-none font-mono text-left"
                     dir="ltr"
                   />
                 </div>
@@ -789,7 +789,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) =>
                       setFormMinOrderAmount(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none font-mono text-left"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-farm-primary outline-none font-mono text-left"
                     dir="ltr"
                   />
                 </div>
@@ -805,7 +805,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) =>
                       setFormMaxDiscountAmount(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none font-mono text-left disabled:bg-gray-100"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-farm-primary outline-none font-mono text-left disabled:bg-gray-100"
                     dir="ltr"
                   />
                 </div>
@@ -820,7 +820,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) =>
                       setFormUsageLimit(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none font-mono text-left"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-farm-primary outline-none font-mono text-left"
                     dir="ltr"
                   />
                 </div>
@@ -835,7 +835,7 @@ export default function AdminCouponsPage() {
                     placeholder="مثال: ۱۴۰۴-۰۶-۳۱"
                     value={formExpiresAt}
                     onChange={(e) => setFormExpiresAt(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:border-[#2C4A2E] outline-none font-mono text-left"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:border-farm-primary outline-none font-mono text-left"
                     dir="ltr"
                   />
                 </div>
@@ -846,7 +846,7 @@ export default function AdminCouponsPage() {
                     id="formIsActive"
                     checked={formIsActive}
                     onChange={(e) => setFormIsActive(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#2C4A2E] focus:ring-[#2C4A2E] cursor-pointer"
+                    className="w-4 h-4 rounded text-farm-primary focus:ring-farm-primary cursor-pointer"
                   />
                   <label htmlFor="formIsActive" className="text-gray-700 font-bold cursor-pointer">
                     کد تخفیف بلافاصله فعال و آماده استفاده باشد
@@ -865,7 +865,7 @@ export default function AdminCouponsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white font-bold shadow-md transition-all cursor-pointer"
+                  className="px-6 py-2.5 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white font-bold shadow-md transition-all cursor-pointer"
                 >
                   {editingCoupon ? 'ذخیره تغییرات' : 'ایجاد کد تخفیف'}
                 </button>

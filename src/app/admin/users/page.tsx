@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { farmStore } from '@/lib/db-store';
 import { User, SubscriptionTier, UserRole } from '@/types';
 import { toPersianDigits } from '@/lib/formatters';
+import { formatToJalali } from '@/lib/jalali';
 import { useAuth } from '@/hooks/useAuth';
 import { Dialog } from '@/components/ui/Dialog';
 import { useToast, useConfirm } from '@/components/ui/ToastProvider';
@@ -24,6 +25,13 @@ import {
   Zap,
   Mail,
 } from 'lucide-react';
+
+/** Jalali (YYYY/MM/DD) date that is `months` calendar months from today. */
+function jalaliExpiryFromNow(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return formatToJalali(d).shortDate;
+}
 
 export default function AdminUsersPage() {
   const toast = useToast();
@@ -95,7 +103,7 @@ export default function AdminUsersPage() {
     setEditingUser(user);
     const tier: SubscriptionTier = user.subscriptionTier || (user.isProMember ? 'PRO' : user.isPlusMember ? 'PLUS' : 'FREE');
     setSelectedTier(tier);
-    const expiry = tier === 'PRO' ? (user.proExpiresAt || '۱۴۰۵/۱۲/۲۹') : tier === 'PLUS' ? (user.plusExpiresAt || '۱۴۰۵/۱۲/۲۹') : '';
+    const expiry = tier === 'PRO' ? (user.proExpiresAt || jalaliExpiryFromNow(1)) : tier === 'PLUS' ? (user.plusExpiresAt || jalaliExpiryFromNow(1)) : '';
     setCustomExpiry(expiry);
     setUserRole(user.role || 'USER');
     setSaveError(null);
@@ -103,11 +111,8 @@ export default function AdminUsersPage() {
   };
 
   const handleQuickExtend = (months: number) => {
-    // Generates a sample Jalali expiration date based on months
-    if (months === 1) setCustomExpiry('۱۴۰۵/۰۷/۱۵');
-    else if (months === 3) setCustomExpiry('۱۴۰۵/۰۹/۱۵');
-    else if (months === 6) setCustomExpiry('۱۴۰۵/۱۲/۲۹');
-    else if (months === 12) setCustomExpiry('۱۴۰۶/۰۶/۱۵');
+    // Real Jalali expiration date, counted from today
+    setCustomExpiry(jalaliExpiryFromNow(months));
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -214,9 +219,9 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-farm-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
             مدیریت کاربران و اشتراک‌های طلایی (پرو و پلاس)
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
@@ -227,7 +232,7 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Link
             href="/admin/subscriptions"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#2C4A2E] text-white hover:bg-[#1E3520] text-xs font-bold shadow-xs transition-all"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-farm-primary text-white hover:bg-farm-primary-dark text-xs font-bold shadow-xs transition-all"
           >
             <Crown className="w-4 h-4 text-[#D4AF37]" />
             <span>تنظیمات تعرفه و ظرفیت اشتراک‌ها</span>
@@ -268,8 +273,8 @@ export default function AdminUsersPage() {
           onClick={() => setFilterTier('ALL')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             filterTier === 'ALL'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
           }`}
         >
           همه خریداران ({toPersianDigits(users.length)})
@@ -304,7 +309,7 @@ export default function AdminUsersPage() {
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             filterTier === 'FREE'
               ? 'bg-gray-700 text-white shadow-sm'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
           }`}
         >
           کاربران عادی ({toPersianDigits(freeCount)})
@@ -314,7 +319,7 @@ export default function AdminUsersPage() {
       {/* Mobile Users Cards (Mobile only, zero horizontal scrolling) */}
       <div className="md:hidden flex flex-col gap-3.5">
         {filteredUsers.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[#E6E1D5] p-8 text-center text-gray-500 font-medium">
+          <div className="bg-white rounded-2xl border border-farm-border p-8 text-center text-gray-500 font-medium">
             هیچ کاربری در این فیلتر یافت نشد.
           </div>
         ) : (
@@ -324,17 +329,17 @@ export default function AdminUsersPage() {
             return (
               <div
                 key={user.id || user.phone}
-                className="bg-white rounded-2xl border border-[#E6E1D5] p-4 shadow-xs space-y-3"
+                className="bg-white rounded-2xl border border-farm-border p-4 shadow-xs space-y-3"
               >
-                <div className="flex items-center justify-between border-b border-[#F3EFE6] pb-2">
+                <div className="flex items-center justify-between border-b border-farm-bg-warm pb-2">
                   <div>
                     <div className="font-bold text-gray-900 text-sm">{user.name || 'کاربر بدون نام'}</div>
-                    <div className="text-[10px] text-gray-400 font-mono">
+                    <div className="text-xs text-gray-600 font-mono">
                       {user.username ? `@${user.username}` : `شناسه: ${user.id || '-'}`}
                     </div>
                   </div>
                   <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
                       user.role === 'ADMIN'
                         ? 'bg-purple-100 text-purple-800'
                         : 'bg-gray-100 text-gray-700'
@@ -356,32 +361,32 @@ export default function AdminUsersPage() {
                       <span>📞</span>
                     </a>
                   ) : (
-                    <span className="text-gray-400">-</span>
+                    <span className="text-gray-600">-</span>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">سطح عضویت:</span>
                   {isPro ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[11px]">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-xs">
                       <Crown className="w-3 h-3 text-amber-600" />
                       <span>پروفارم پرو</span>
                     </span>
                   ) : isPlus ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold text-[11px]">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold text-xs">
                       <Sparkles className="w-3 h-3 text-emerald-600" />
                       <span>پروفارم پلاس</span>
                     </span>
                   ) : (
-                    <span className="text-gray-400 text-xs">عادی</span>
+                    <span className="text-gray-600 text-xs">عادی</span>
                   )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F3EFE6]">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-farm-bg-warm">
                   <button
                     type="button"
                     onClick={() => handleOpenEditModal(user)}
-                    className="px-3 py-1.5 rounded-xl bg-[#2C4A2E] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
+                    className="px-3 py-1.5 rounded-xl bg-farm-primary text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
                   >
                     <Edit className="w-3.5 h-3.5" />
                     <span>مدیریت و اشتراک</span>
@@ -394,10 +399,10 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Desktop Users Table */}
-      <div className="hidden md:block bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden">
+      <div className="hidden md:block bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs sm:text-sm">
-            <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+            <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
               <tr>
                 <th className="py-3.5 px-5 font-black">کاربر</th>
                 <th className="py-3.5 px-5 font-black">شماره همراه</th>
@@ -408,7 +413,7 @@ export default function AdminUsersPage() {
                 <th className="py-3.5 px-5 font-black">عملیات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E6E1D5]">
+            <tbody className="divide-y divide-farm-border">
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-gray-500 font-medium">
@@ -426,11 +431,11 @@ export default function AdminUsersPage() {
                       <td className="py-4 px-5">
                         <div className="font-bold text-gray-900">{user.name || 'کاربر بدون نام'}</div>
                         {user.email && (
-                          <div className="text-[11px] text-emerald-700 font-mono mt-0.5 dir-ltr text-right">
+                          <div className="text-xs text-emerald-700 font-mono mt-0.5 dir-ltr text-right">
                             {user.email}
                           </div>
                         )}
-                        <div className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                        <div className="text-xs text-gray-600 mt-0.5 font-mono">
                           {user.username ? `@${user.username}` : `شناسه: ${user.id || '-'}`}
                         </div>
                       </td>
@@ -440,11 +445,11 @@ export default function AdminUsersPage() {
                           <span>{user.phone || '-'}</span>
                           {user.phone && (
                             user.isPhoneVerified ? (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                              <span className="px-1.5 py-0.2 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
                                 تاییدشده ✓
                               </span>
                             ) : (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">
+                              <span className="px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-800">
                                 تاییدنشده
                               </span>
                             )
@@ -486,15 +491,15 @@ export default function AdminUsersPage() {
                         {isPro ? (
                           <div className="space-y-0.5 text-gray-700 font-medium">
                             <span className="text-amber-800 font-bold block">✓ ارسال ۶ روزه هفتگی</span>
-                            <span className="text-[11px] text-gray-500 block">۱۰٪ تخفیف + ارسال رایگان بالای ۶۰۰ ت</span>
+                            <span className="text-xs text-gray-500 block">۱۰٪ تخفیف + ارسال رایگان بالای ۶۰۰ ت</span>
                           </div>
                         ) : isPlus ? (
                           <div className="space-y-0.5 text-gray-700 font-medium">
                             <span className="text-emerald-800 font-bold block">✓ ۵٪ تخفیف دائم سبد</span>
-                            <span className="text-[11px] text-gray-500 block">سوپرآفرهای ماهانه اعضا</span>
+                            <span className="text-xs text-gray-500 block">سوپرآفرهای ماهانه اعضا</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs">ارسال ۲ روزه (یکشنبه و چهارشنبه)</span>
+                          <span className="text-gray-600 text-xs">ارسال ۲ روزه (یکشنبه و چهارشنبه)</span>
                         )}
                       </td>
 
@@ -504,7 +509,7 @@ export default function AdminUsersPage() {
                             تا {expiry}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">نامحدود / بدون اشتراک</span>
+                          <span className="text-gray-600 text-xs">نامحدود / بدون اشتراک</span>
                         )}
                       </td>
 
@@ -512,7 +517,7 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleOpenEditModal(user)}
-                            className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                           >
                             <Edit className="w-3.5 h-3.5" />
                             <span>مدیریت</span>
@@ -563,19 +568,19 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => {
                       setSelectedTier('PRO');
-                      if (!customExpiry) setCustomExpiry('۱۴۰۵/۱۲/۲۹');
+                      if (!customExpiry) setCustomExpiry(jalaliExpiryFromNow(1));
                     }}
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'PRO'
                         ? 'bg-amber-500 text-white border-amber-600 shadow-sm ring-2 ring-amber-300'
-                        : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-amber-50/50'
+                        : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-amber-50/50'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
                       <Crown className="w-4 h-4" />
                       <span>پروفارم پرو</span>
                     </div>
-                    <div className={`text-[10px] leading-tight ${selectedTier === 'PRO' ? 'text-amber-100' : 'text-gray-500'}`}>
+                    <div className={`text-xs leading-tight ${selectedTier === 'PRO' ? 'text-amber-100' : 'text-gray-500'}`}>
                       ارسال ۶ روزه، ۱۰٪ تخفیف
                     </div>
                   </button>
@@ -584,19 +589,19 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => {
                       setSelectedTier('PLUS');
-                      if (!customExpiry) setCustomExpiry('۱۴۰۵/۱۲/۲۹');
+                      if (!customExpiry) setCustomExpiry(jalaliExpiryFromNow(1));
                     }}
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'PLUS'
                         ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm ring-2 ring-emerald-300'
-                        : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-emerald-50/50'
+                        : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-emerald-50/50'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
                       <Sparkles className="w-4 h-4" />
                       <span>پروفارم پلاس</span>
                     </div>
-                    <div className={`text-[10px] leading-tight ${selectedTier === 'PLUS' ? 'text-emerald-100' : 'text-gray-500'}`}>
+                    <div className={`text-xs leading-tight ${selectedTier === 'PLUS' ? 'text-emerald-100' : 'text-gray-500'}`}>
                       ۵٪ تخفیف دائمی
                     </div>
                   </button>
@@ -610,14 +615,14 @@ export default function AdminUsersPage() {
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'FREE'
                         ? 'bg-gray-800 text-white border-gray-900 shadow-sm ring-2 ring-gray-300'
-                        : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-gray-100'
+                        : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-gray-100'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
                       <Users className="w-4 h-4" />
                       <span>عادی (رایگان)</span>
                     </div>
-                    <div className={`text-[10px] leading-tight ${selectedTier === 'FREE' ? 'text-gray-300' : 'text-gray-500'}`}>
+                    <div className={`text-xs leading-tight ${selectedTier === 'FREE' ? 'text-gray-300' : 'text-gray-500'}`}>
                       بدون اشتراک ویژه
                     </div>
                   </button>
@@ -632,13 +637,13 @@ export default function AdminUsersPage() {
                       <Calendar className="w-4 h-4 text-amber-700" />
                       <span>تاریخ انقضای اشتراک (شمسی):</span>
                     </label>
-                    <span className="text-[11px] text-amber-800">تمدید سریع:</span>
+                    <span className="text-xs text-amber-800">تمدید سریع:</span>
                   </div>
 
                   <input
                     type="text"
                     required
-                    placeholder="مثال: ۱۴۰۵/۱۲/۲۹"
+                    placeholder={`مثال: ${jalaliExpiryFromNow(3)}`}
                     value={customExpiry}
                     onChange={(e) => setCustomExpiry(e.target.value)}
                     className="w-full px-4 py-2 rounded-xl border border-amber-300 bg-white text-gray-900 font-bold text-xs focus:outline-none focus:border-amber-600"
@@ -648,28 +653,28 @@ export default function AdminUsersPage() {
                     <button
                       type="button"
                       onClick={() => handleQuickExtend(1)}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-[11px] font-bold hover:bg-amber-100 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 cursor-pointer"
                     >
                       + ۱ ماه
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickExtend(3)}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-[11px] font-bold hover:bg-amber-100 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 cursor-pointer"
                     >
                       + ۳ ماه
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickExtend(6)}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-[11px] font-bold hover:bg-amber-100 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 cursor-pointer"
                     >
                       + ۶ ماه
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickExtend(12)}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-[11px] font-bold hover:bg-amber-100 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 cursor-pointer"
                     >
                       + ۱ سال
                     </button>
@@ -686,13 +691,13 @@ export default function AdminUsersPage() {
                   value={userRole}
                   disabled={isRoleLocked}
                   onChange={(e) => setUserRole(e.target.value as UserRole)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-bold text-gray-800 focus:outline-none focus:border-farm-primary disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="USER">کاربر عادی و خریدار محصولات</option>
                   <option value="ADMIN">مدیر ارشد (دسترسی به پنل ادمین)</option>
                 </select>
                 {isRoleLocked && (
-                  <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-medium">
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-medium">
                     {isEditingSelf
                       ? 'برای جلوگیری از قفل شدن پنل مدیریت، امکان کاهش نقش حساب کاربری خودتان غیرفعال است.'
                       : 'این حساب تنها مدیر ارشد فعال سامانه است و امکان کاهش نقش آن وجود ندارد.'}
@@ -719,7 +724,7 @@ export default function AdminUsersPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60"
+                  className="px-6 py-2 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark shadow-md flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60"
                 >
                   <Save className="w-4 h-4 text-[#D4A373]" />
                   <span>{isSaving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}</span>

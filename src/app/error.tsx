@@ -32,7 +32,7 @@ export default function Error({
             متأسفانه هنگام پردازش درخواست مشکلی پیش آمد. نگران نباشید، داده‌های شما محفوظ است.
           </p>
           {error.digest && (
-            <p className="text-[10px] text-gray-400 font-mono">
+            <p className="text-xs text-gray-600 font-mono">
               شناسه خطا: {error.digest}
             </p>
           )}
@@ -42,14 +42,14 @@ export default function Error({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <button
             onClick={() => reset()}
-            className="w-full sm:w-auto px-5 py-3 bg-[#2C4A2E] text-white font-bold text-xs rounded-2xl hover:bg-[#223924] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+            className="w-full sm:w-auto px-5 py-3 bg-farm-primary text-white font-bold text-xs rounded-2xl hover:bg-farm-primary-dark transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
             تلاش مجدد
           </button>
           <Link
             href="/"
-            className="w-full sm:w-auto px-5 py-3 bg-[#F9F8F5] border border-[#E6E1D5] text-gray-700 font-bold text-xs rounded-2xl hover:bg-[#EAE5D9] transition-all flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-5 py-3 bg-farm-bg border border-farm-border text-gray-700 font-bold text-xs rounded-2xl hover:bg-[#EAE5D9] transition-all flex items-center justify-center gap-2"
           >
             <Home className="w-4 h-4" />
             صفحه اصلی

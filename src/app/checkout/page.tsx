@@ -331,12 +331,12 @@ function CheckoutContent() {
           {labelTitle}
         </label>
         {isPhoneVerified ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             شماره تایید شده است ✓
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold border border-amber-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300">
             <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
             نیاز به تایید با کد پیامکی
           </span>
@@ -381,8 +381,8 @@ function CheckoutContent() {
               ? 'border-rose-400 bg-rose-50/30'
               : isPhoneVerified
               ? 'border-emerald-400 bg-emerald-50/20'
-              : 'border-[#E6E1D5] bg-[#F9F8F5]'
-          } focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono font-bold text-base sm:text-sm transition-all`}
+              : 'border-farm-border bg-farm-bg'
+          } focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono font-bold text-base sm:text-sm transition-all`}
           dir="ltr"
         />
 
@@ -391,7 +391,7 @@ function CheckoutContent() {
             type="button"
             onClick={handleSendCheckoutOtp}
             disabled={isSendingOtp || !isValidIranPhone(phone)}
-            className="shrink-0 min-h-[44px] px-3.5 py-2.5 bg-[#2C4A2E] hover:bg-[#1E3520] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="shrink-0 min-h-[44px] px-3.5 py-2.5 bg-farm-primary hover:bg-farm-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
           >
             {isSendingOtp ? (
               <span>در حال ارسال...</span>
@@ -440,7 +440,7 @@ function CheckoutContent() {
               onChange={(e) =>
                 setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 5))
               }
-              className="w-32 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-[#2C4A2E] focus:outline-none focus:border-[#2C4A2E]"
+              className="w-32 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-farm-primary focus:outline-none focus:border-farm-primary"
               dir="ltr"
             />
             <button
@@ -647,7 +647,7 @@ function CheckoutContent() {
   if (!mounted) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 flex items-center justify-center min-h-[50vh]">
-        <div className="w-8 h-8 rounded-full border-2 border-[#2C4A2E] border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-farm-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -655,7 +655,7 @@ function CheckoutContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Page Header */}
-      <div className="pb-4 border-b border-[#E6E1D5]">
+      <div className="pb-4 border-b border-farm-border">
         <div className="flex items-center gap-2 mb-1">
           {isSubscription ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#D4AF37]/15 text-[#996515] border border-[#D4AF37]/30">
@@ -664,7 +664,7 @@ function CheckoutContent() {
             </div>
           ) : null}
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+        <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
           {isSubscription
             ? `تسویه‌حساب و فعال‌سازی ${
                 subscriptionPlan === 'PLUS' ? 'اشتراک نقره‌ای پلاس' : 'اشتراک طلایی پرو'
@@ -715,7 +715,7 @@ function CheckoutContent() {
             href={`/login?redirect=${encodeURIComponent(
               isSubscription ? `/checkout?subscriptionPlan=${subscriptionPlan}` : '/checkout'
             )}`}
-            className="w-full sm:w-auto text-center px-5 py-2.5 bg-[#2C4A2E] text-white text-xs font-bold rounded-xl hover:bg-[#223924] transition-colors shadow-sm"
+            className="w-full sm:w-auto text-center px-5 py-2.5 bg-farm-primary text-white text-xs font-bold rounded-xl hover:bg-farm-primary-dark transition-colors shadow-sm"
           >
             ورود سریع با پیامک / رمز
           </Link>
@@ -728,13 +728,13 @@ function CheckoutContent() {
           <div className="lg:col-span-8 space-y-6">
             {/* Step 1: Address or Subscription Account Details */}
             {isSubscription ? (
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5">
-                <div className="flex items-center gap-3 pb-3 border-b border-[#F3EFE6]">
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
+                <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                     <Crown className="w-5 h-5 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[#2C4A2E]">
+                    <h3 className="text-base font-bold text-farm-primary">
                       ۱. مشخصات دارنده اشتراک و فعال‌سازی
                     </h3>
                     <p className="text-xs text-gray-500">
@@ -753,7 +753,7 @@ function CheckoutContent() {
                       required
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                       placeholder="نام خود را وارد کنید"
                     />
                   </div>
@@ -766,7 +766,7 @@ function CheckoutContent() {
                       type="text"
                       value={province}
                       onChange={(e) => setProvince(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                     />
                   </div>
 
@@ -776,7 +776,7 @@ function CheckoutContent() {
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                     />
                   </div>
                 </div>
@@ -789,13 +789,13 @@ function CheckoutContent() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5">
-                <div className="flex items-center gap-3 pb-3 border-b border-[#F3EFE6]">
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
+                <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[#2C4A2E]">
+                    <h3 className="text-base font-bold text-farm-primary">
                       ۱. آدرس تحویل و موقعیت جغرافیایی
                     </h3>
                     <p className="text-xs text-gray-500">
@@ -822,8 +822,8 @@ function CheckoutContent() {
                         setFieldErrors((prev) => ({ ...prev, recipientName: '' }));
                       }}
                       className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
-                        fieldErrors.recipientName ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
-                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
+                        fieldErrors.recipientName ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
+                      } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
                     {fieldErrors.recipientName && (
                       <p id="checkout-recipient-error" className="text-xs text-rose-700 font-bold mt-1">
@@ -851,7 +851,7 @@ function CheckoutContent() {
                           setCity('');
                         }
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
                     >
                       {IRAN_PROVINCES.map((p) => (
                         <option key={p} value={p}>
@@ -878,8 +878,8 @@ function CheckoutContent() {
                       }}
                       placeholder={province === 'فارس' ? 'شیراز' : 'نام شهر مقصد (سفارش عمده)'}
                       className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
-                        fieldErrors.city ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
-                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
+                        fieldErrors.city ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
+                      } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
                     {fieldErrors.city && (
                       <p className="text-xs text-rose-700 font-bold mt-1">{fieldErrors.city}</p>
@@ -904,8 +904,8 @@ function CheckoutContent() {
                       }}
                       placeholder="مثال: بلوار ارم، کوچه ۶، پلاک ۱۲"
                       className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
-                        fieldErrors.streetAddress ? 'border-rose-400 bg-rose-50/30' : 'border-[#E6E1D5] bg-[#F9F8F5]'
-                      } focus:bg-white focus:outline-none focus:border-[#2C4A2E]`}
+                        fieldErrors.streetAddress ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
+                      } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
                     {fieldErrors.streetAddress && (
                       <p id="checkout-street-error" className="text-xs text-rose-700 font-bold mt-1">
@@ -923,7 +923,7 @@ function CheckoutContent() {
                       type="text"
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
                     />
                   </div>
 
@@ -939,7 +939,7 @@ function CheckoutContent() {
                       maxLength={10}
                       value={postalCode}
                       onChange={(e) => setPostalCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 10))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-base sm:text-sm focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -965,9 +965,9 @@ function CheckoutContent() {
                 isProMember={isPro}
               />
             ) : (
-              <div className="bg-gradient-to-br from-[#2C4A2E]/5 via-[#2C4A2E]/10 to-transparent rounded-3xl p-6 border border-[#2C4A2E]/20 shadow-farm space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-[#E6E1D5]">
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E] text-white flex items-center justify-center shadow-sm">
+              <div className="bg-gradient-to-br from-farm-primary/5 via-farm-primary/10 to-transparent rounded-3xl p-6 border border-farm-primary/20 shadow-farm space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-farm-border">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary text-white flex items-center justify-center shadow-sm">
                     {subscriptionPlan === 'PLUS' ? (
                       <Zap className="w-5 h-5 text-emerald-400" />
                     ) : (
@@ -975,7 +975,7 @@ function CheckoutContent() {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[#2C4A2E]">
+                    <h3 className="text-base font-bold text-farm-primary">
                       {subscriptionPlan === 'PLUS'
                         ? 'مزایای اشتراک اقتصادی پلاس (Plus)'
                         : 'مزایای کامل اشتراک طلایی پرو (Pro)'}
@@ -992,7 +992,7 @@ function CheckoutContent() {
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-gray-900 block">ارسال ۶ روز در هفته:</span>
-                      <span className="text-gray-600 text-[11px]">
+                      <span className="text-gray-600 text-xs">
                         امکان انتخاب روزهای تحویل از شنبه تا پنج‌شنبه در خریدهای آینده شهر شیراز
                       </span>
                     </div>
@@ -1003,7 +1003,7 @@ function CheckoutContent() {
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-gray-900 block">تخفیف تخم‌مرغ محلی:</span>
-                      <span className="text-gray-600 text-[11px]">
+                      <span className="text-gray-600 text-xs">
                         {subscriptionPlan === 'PLUS'
                           ? '۵٪ تخفیف خودکار تخم‌مرغ تا سقف ۲۰۰ عدد در ماه'
                           : '۱۰٪ تخفیف طلایی تخم‌مرغ تا سقف ۶۰۰ عدد در ماه'}
@@ -1017,17 +1017,17 @@ function CheckoutContent() {
                       <Check className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-amber-950 block">تخفیف هزینه پیک:</span>
-                        <span className="text-amber-800 text-[11px]">
+                        <span className="text-amber-800 text-xs">
                           ۲۰٪ تخفیف دائمی و نامحدود روی هزینه پیک اختصاصی پروفارم در شیراز
                         </span>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-start gap-2 bg-gray-50/80 p-3 rounded-2xl border border-gray-200">
-                      <X className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                      <X className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-gray-500 block">تخفیف ارسال با پیک:</span>
-                        <span className="text-gray-500 text-[11px]">
+                        <span className="text-gray-500 text-xs">
                           ندارد (محاسبه با تعرفه عادی پیک؛ ۲۰٪ تخفیف پیک مختص مشترکین پرو است)
                         </span>
                       </div>
@@ -1040,17 +1040,17 @@ function CheckoutContent() {
                       <Check className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-amber-950 block">تخفیف سایر کالاها:</span>
-                        <span className="text-amber-800 text-[11px]">
+                        <span className="text-amber-800 text-xs">
                           ۵٪ تخفیف نامحدود روی عسل، عرقیات، لبنیات، خشکبار و سبزیجات
                         </span>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-start gap-2 bg-gray-50/80 p-3 rounded-2xl border border-gray-200">
-                      <X className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                      <X className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-gray-500 block">تخفیف سایر محصولات:</span>
-                        <span className="text-gray-500 text-[11px]">
+                        <span className="text-gray-500 text-xs">
                           ندارد (محاسبه با قیمت عادی؛ ۵٪ تخفیف روی سایر کالاها مختص پرو است)
                         </span>
                       </div>
@@ -1066,7 +1066,7 @@ function CheckoutContent() {
                           ? 'اولویت VIP در تامین نوبرانه‌ها و ارسال سریع:'
                           : 'پشتیبانی اختصاصی و تامین روزانه مزارع:'}
                       </span>
-                      <span className="text-gray-600 text-[11px]">
+                      <span className="text-gray-600 text-xs">
                         {subscriptionPlan === 'PRO'
                           ? 'رزرو زودهنگام محصولات فصلی کمیاب (عسل وحشی، پنیر کوزه‌ای) و بسته‌بندی نفیس'
                           : 'تامین اقلام تازه با تضمین اصالت و سلامت ارگانیک'}
@@ -1078,13 +1078,13 @@ function CheckoutContent() {
             )}
 
             {/* Step 3: Payment Method Selection (ZarinPal vs SnappPay BNPL) */}
-            <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-[#F3EFE6]">
-                <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+            <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
+                <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#2C4A2E]">
+                  <h3 className="text-base font-bold text-farm-primary">
                     {isSubscription ? '۲. انتخاب شیوه پرداخت اشتراک' : 'مرحله ۳: انتخاب شیوه پرداخت'}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">
@@ -1106,14 +1106,14 @@ function CheckoutContent() {
                   onClick={() => setPaymentMethod('zarinpal')}
                   className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right ${
                     paymentMethod === 'zarinpal'
-                      ? 'border-[#2C4A2E] bg-emerald-50/40 shadow-sm'
+                      ? 'border-farm-primary bg-emerald-50/40 shadow-sm'
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between w-full">
                     <div className="flex items-center gap-2.5">
                       <div
-                        className="w-9 h-9 rounded-xl bg-[#2C4A2E] text-[#FDE68A] flex items-center justify-center shrink-0"
+                        className="w-9 h-9 rounded-xl bg-farm-primary text-[#FDE68A] flex items-center justify-center shrink-0"
                         aria-hidden="true"
                       >
                         <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
@@ -1134,7 +1134,7 @@ function CheckoutContent() {
                     <div
                       className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                         paymentMethod === 'zarinpal'
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E] text-white'
+                          ? 'border-farm-primary bg-farm-primary text-white'
                           : 'border-gray-300'
                       }`}
                     >
@@ -1144,7 +1144,7 @@ function CheckoutContent() {
 
                   <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between w-full">
                     <span>مبلغ پرداخت نقدی:</span>
-                    <span className="font-bold text-[#2C4A2E]">{formatToman(finalAmount)}</span>
+                    <span className="font-bold text-farm-primary">{formatToman(finalAmount)}</span>
                   </div>
                 </button>
 
@@ -1208,7 +1208,7 @@ function CheckoutContent() {
               </div>
 
               {/* Trust Guide Banner */}
-              <div className="p-3 rounded-2xl bg-[#F8F7F4] border border-[#E6E1D5] text-xs text-gray-700 flex items-center gap-2.5">
+              <div className="p-3 rounded-2xl bg-[#F8F7F4] border border-farm-border text-xs text-gray-700 flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                 <span className="font-medium">
                   {paymentSettings.general.guideMessage ||
@@ -1222,21 +1222,21 @@ function CheckoutContent() {
                     <Wallet className="w-4 h-4 text-[#00D170]" />
                     <span>برنامه ۴ قسطه اسنپ‌پی (بدون چک و بدون سود):</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs text-center">
                     <div className="bg-white p-2 rounded-xl border border-emerald-200">
-                      <span className="block text-gray-500 text-[10px]">قسط ۱ (امروز)</span>
+                      <span className="block text-gray-500 text-xs">قسط ۱ (امروز)</span>
                       <strong className="text-emerald-800">{formatToman(Math.ceil(finalAmount / 4))}</strong>
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-[10px]">قسط ۲ (۱ ماه بعد)</span>
+                      <span className="block text-gray-500 text-xs">قسط ۲ (۱ ماه بعد)</span>
                       <strong>{formatToman(Math.ceil(finalAmount / 4))}</strong>
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-[10px]">قسط ۳ (۲ ماه بعد)</span>
+                      <span className="block text-gray-500 text-xs">قسط ۳ (۲ ماه بعد)</span>
                       <strong>{formatToman(Math.ceil(finalAmount / 4))}</strong>
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-[10px]">قسط ۴ (۳ ماه بعد)</span>
+                      <span className="block text-gray-500 text-xs">قسط ۴ (۳ ماه بعد)</span>
                       <strong>{formatToman(finalAmount - Math.ceil(finalAmount / 4) * 3)}</strong>
                     </div>
                   </div>
@@ -1256,10 +1256,10 @@ function CheckoutContent() {
               showSuggestions={false}
             />
 
-            <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5 sticky top-28">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-[#F3EFE6]">
-                <CreditCard className="w-5 h-5 text-[#2C4A2E]" />
-                <h3 className="text-base font-bold text-[#2C4A2E]">
+            <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5 sticky top-28">
+              <div className="flex items-center gap-2.5 pb-3 border-b border-farm-bg-warm">
+                <CreditCard className="w-5 h-5 text-farm-primary" />
+                <h3 className="text-base font-bold text-farm-primary">
                   {isSubscription ? 'پیش‌فاکتور عضویت اشتراک' : 'پیش‌فاکتور نهایی'}
                 </h3>
               </div>
@@ -1269,14 +1269,14 @@ function CheckoutContent() {
                   <>
                     <div className="flex items-center justify-between">
                       <span>نوع اشتراک:</span>
-                      <span className="font-bold text-[#2C4A2E]">
+                      <span className="font-bold text-farm-primary">
                         {subscriptionPlan === 'PLUS' ? 'اشتراک نقره‌ای پلاس' : 'اشتراک طلایی پرو'}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span>مدت اعتبار:</span>
-                      <span className="font-bold text-[#2C4A2E]">۳۰ روز کامل</span>
+                      <span className="font-bold text-farm-primary">۳۰ روز کامل</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -1296,7 +1296,7 @@ function CheckoutContent() {
                       {subscriptionPlan === 'PRO' ? (
                         <span className="font-bold text-amber-700">۲۰٪ تخفیف دائمی</span>
                       ) : (
-                        <span className="font-medium text-gray-400 text-[11px]">ندارد (تعرفه عادی پیک)</span>
+                        <span className="font-medium text-gray-600 text-xs">ندارد (تعرفه عادی پیک)</span>
                       )}
                     </div>
 
@@ -1305,13 +1305,13 @@ function CheckoutContent() {
                       {subscriptionPlan === 'PRO' ? (
                         <span className="font-bold text-amber-700">۵٪ تخفیف نامحدود</span>
                       ) : (
-                        <span className="font-medium text-gray-400 text-[11px]">ندارد (مختص اشتراک پرو)</span>
+                        <span className="font-medium text-gray-600 text-xs">ندارد (مختص اشتراک پرو)</span>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span>هزینه اشتراک ماهانه:</span>
-                      <span className="font-bold text-[#2C4A2E]">{formatToman(subPrice)}</span>
+                      <span className="font-bold text-farm-primary">{formatToman(subPrice)}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -1323,14 +1323,14 @@ function CheckoutContent() {
                   <>
                     <div className="flex items-center justify-between">
                       <span>تعداد پکیج‌ها:</span>
-                      <span className="font-bold text-[#2C4A2E]">
+                      <span className="font-bold text-farm-primary">
                         {toPersianDigits(totalCount)} بسته
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span>ارزش اقلام:</span>
-                      <span className="font-bold text-[#2C4A2E]">{formatToman(discounts.itemsSubtotal)}</span>
+                      <span className="font-bold text-farm-primary">{formatToman(discounts.itemsSubtotal)}</span>
                     </div>
 
                     {discounts.eggDiscount > 0 && (
@@ -1357,10 +1357,10 @@ function CheckoutContent() {
                       <span className="flex items-center gap-1">
                         <span>هزینه ارسال با پیک پروفارم:</span>
                         {discounts.shippingDiscount > 0 && (
-                          <span className="text-[10px] text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
+                          <span className="text-xs text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
                         )}
                       </span>
-                      <span className="font-bold text-[#2C4A2E]">
+                      <span className="font-bold text-farm-primary">
                         {formatToman(discounts.finalShipping)}
                       </span>
                     </div>
@@ -1386,18 +1386,18 @@ function CheckoutContent() {
                 )}
 
                 {!isSubscription && selectedSlot && (
-                  <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-1">
-                    <span className="block font-bold text-[#2C4A2E]">زمان تحویل انتخابی:</span>
-                    <div className="text-[11px] text-gray-700">
+                  <div className="p-3 rounded-2xl bg-farm-bg border border-farm-border space-y-1">
+                    <span className="block font-bold text-farm-primary">زمان تحویل انتخابی:</span>
+                    <div className="text-xs text-gray-700">
                       {selectedSlot.dateStr} | {selectedSlot.timeWindow}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="pt-3 border-t border-[#F3EFE6] flex items-baseline justify-between">
+              <div className="pt-3 border-t border-farm-bg-warm flex items-baseline justify-between">
                 <span className="text-sm font-bold text-gray-800">مبلغ پرداخت:</span>
-                <span className="text-xl font-black text-[#2C4A2E]">
+                <span className="text-xl font-black text-farm-primary">
                   {formatToman(finalAmount)}
                 </span>
               </div>
@@ -1436,7 +1436,7 @@ function CheckoutContent() {
               </Button>
 
               <div className="flex items-center justify-center gap-2 text-xs text-gray-600 pt-1 text-center">
-                <ShieldCheck className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+                <ShieldCheck className="w-4 h-4 text-farm-primary shrink-0" />
                 <span>
                   {isSubscription
                     ? SITE_CONFIG.policies.subscriptionRefundLabel
@@ -1456,7 +1456,7 @@ export default function CheckoutPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-4 py-16 flex items-center justify-center min-h-[50vh]">
-          <div className="w-8 h-8 rounded-full border-2 border-[#2C4A2E] border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-farm-primary border-t-transparent animate-spin" />
         </div>
       }
     >

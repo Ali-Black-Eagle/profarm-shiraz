@@ -484,9 +484,9 @@ export default function AdminProductsPage() {
   return (
     <div className="space-y-7">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-farm-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
             مدیریت محصولات و کنترل موجودی انبار شیراز
           </h1>
           <p className="text-sm text-gray-500 mt-1 leading-relaxed">
@@ -498,7 +498,7 @@ export default function AdminProductsPage() {
           <button
             type="button"
             onClick={() => setIsCategoryModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-[#E6E1D5] hover:bg-[#F3EFE6] text-[#2C4A2E] text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-farm-border hover:bg-farm-bg-warm text-farm-primary text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer shrink-0"
           >
             <FolderTree className="w-4 h-4 text-[#D4A373]" />
             <span>مدیریت دسته‌بندی‌ها ({toPersianDigits(categories.filter((c) => c !== 'همه محصولات').length)})</span>
@@ -506,7 +506,7 @@ export default function AdminProductsPage() {
 
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#2C4A2E] text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#1E3520] transition-all cursor-pointer shrink-0"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-farm-primary text-white text-xs sm:text-sm font-bold shadow-md hover:bg-farm-primary-dark transition-all cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4 text-[#D4A373]" />
             <span>افزودن محصول جدید به انبار</span>
@@ -528,8 +528,8 @@ export default function AdminProductsPage() {
           onClick={() => setStatusFilter('ALL')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             statusFilter === 'ALL'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
           }`}
         >
           همه محصولات ({toPersianDigits(products.length)})
@@ -591,11 +591,11 @@ export default function AdminProductsPage() {
             return (
               <div
                 key={prod.id}
-                className="bg-white rounded-2xl border border-[#E6E1D5] p-4 shadow-xs space-y-3"
+                className="bg-white rounded-2xl border border-farm-border p-4 shadow-xs space-y-3"
               >
                 {/* Header: Thumbnail + Title + Category */}
                 <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#E6E1D5] shrink-0 bg-gray-100">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-farm-border shrink-0 bg-gray-100">
                     <img
                       src={prod.images[0]}
                       alt={prod.title}
@@ -605,18 +605,18 @@ export default function AdminProductsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-gray-900 text-sm truncate">{prod.title}</div>
                     <div className="text-xs text-[#D4A373] font-semibold mt-0.5">{prod.packSize}</div>
-                    <div className="text-[11px] text-gray-500">{prod.category}</div>
+                    <div className="text-xs text-gray-500">{prod.category}</div>
                   </div>
                 </div>
 
                 {/* Pricing & Stock Details */}
-                <div className="grid grid-cols-2 gap-2 bg-[#F9F8F5] p-2.5 rounded-xl text-xs">
+                <div className="grid grid-cols-2 gap-2 bg-farm-bg p-2.5 rounded-xl text-xs">
                   <div>
-                    <span className="text-gray-500 block text-[11px]">قیمت فروش:</span>
-                    <span className="font-black text-[#2C4A2E]">{formatToman(prod.price)}</span>
+                    <span className="text-gray-500 block text-xs">قیمت فروش:</span>
+                    <span className="font-black text-farm-primary">{formatToman(prod.price)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 block text-[11px]">موجودی انبار:</span>
+                    <span className="text-gray-500 block text-xs">موجودی انبار:</span>
                     <span className={`font-bold ${prod.stock < 10 ? 'text-rose-600' : 'text-emerald-700'}`}>
                       {toPersianDigits(prod.stock)} بسته
                     </span>
@@ -624,11 +624,11 @@ export default function AdminProductsPage() {
                 </div>
 
                 {/* Status Switcher & Action Buttons */}
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#F3EFE6]">
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-farm-bg-warm">
                   <select
                     value={currentStatus}
                     onChange={(e) => handleQuickStatusChange(prod.id, e.target.value as ProductStatus)}
-                    className="flex-1 px-2.5 py-1.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-xs font-bold text-[#2C4A2E]"
+                    className="flex-1 px-2.5 py-1.5 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary"
                   >
                     <option value="AVAILABLE">موجود و فعال</option>
                     <option value="OUT_OF_STOCK">ناموجود در مزرعه</option>
@@ -638,7 +638,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenEditModal(prod)}
-                    className="p-2 rounded-xl bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-gray-700 transition-colors"
+                    className="p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
                     title="ویرایش"
                   >
                     <Edit className="w-4 h-4" />
@@ -647,7 +647,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={() => handleClone(prod)}
-                    className="p-2 rounded-xl bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-gray-700 transition-colors"
+                    className="p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
                     title="تکثیر"
                   >
                     <Copy className="w-4 h-4" />
@@ -659,10 +659,10 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Desktop Products Table */}
-      <div className="hidden md:block bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden">
+      <div className="hidden md:block bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
-            <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+            <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
               <tr>
                 <th className="py-4 px-5 font-black">تصویر و پکیج کالا</th>
                 <th className="py-4 px-5 font-black">دسته‌بندی</th>
@@ -675,7 +675,7 @@ export default function AdminProductsPage() {
                 <th className="py-4 px-5 font-black">عملیات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E6E1D5]">
+            <tbody className="divide-y divide-farm-border">
               {products
                 .filter((p) => {
                   if (statusFilter === 'ALL') return true;
@@ -688,14 +688,14 @@ export default function AdminProductsPage() {
                     <tr key={prod.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3.5">
-                          <div className="relative w-14 h-14 rounded-2xl overflow-hidden border border-[#E6E1D5] shrink-0 bg-gray-100 shadow-xs">
+                          <div className="relative w-14 h-14 rounded-2xl overflow-hidden border border-farm-border shrink-0 bg-gray-100 shadow-xs">
                             <img
                               src={prod.images[0]}
                               alt={prod.title}
                               className="w-full h-full object-cover"
                             />
                             {prod.images.length > 1 && (
-                              <span className="absolute bottom-0.5 right-0.5 bg-black/75 text-white text-[9px] font-bold px-1 rounded-sm">
+                              <span className="absolute bottom-0.5 right-0.5 bg-black/75 text-white text-xs font-bold px-1 rounded-sm">
                                 +{toPersianDigits(prod.images.length - 1)}
                               </span>
                             )}
@@ -711,7 +711,7 @@ export default function AdminProductsPage() {
 
                       <td className="py-4 px-5 text-gray-600 font-medium">{prod.category}</td>
 
-                      <td className="py-4 px-5 font-black text-[#2C4A2E]">
+                      <td className="py-4 px-5 font-black text-farm-primary">
                         {formatToman(prod.price)}
                       </td>
 
@@ -719,12 +719,12 @@ export default function AdminProductsPage() {
                         {prod.costPrice ? (
                           <div>
                             <div className="font-bold text-gray-700 text-xs">{formatToman(prod.costPrice)}</div>
-                            <div className="text-[11px] font-semibold text-emerald-700">
+                            <div className="text-xs font-semibold text-emerald-700">
                               سود: {toPersianDigits(Math.max(0, Math.round(((prod.price - prod.costPrice) / prod.price) * 100)))}٪
                             </div>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-[11px]">ثبت‌نشده</span>
+                          <span className="text-gray-600 text-xs">ثبت‌نشده</span>
                         )}
                       </td>
 
@@ -766,7 +766,7 @@ export default function AdminProductsPage() {
                         {prod.weightKg && Number(prod.weightKg) > 0 ? (
                           `${toPersianDigits(prod.weightKg)} کیلوگرم`
                         ) : (
-                          <span className="text-gray-400 text-[11px]">ثبت‌نشده (بدون نمایش)</span>
+                          <span className="text-gray-600 text-xs">ثبت‌نشده (بدون نمایش)</span>
                         )}
                       </td>
 
@@ -786,7 +786,7 @@ export default function AdminProductsPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleOpenEditModal(prod)}
-                        className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                       >
                         <Edit className="w-3.5 h-3.5" />
                         <span>ویرایش</span>
@@ -794,7 +794,7 @@ export default function AdminProductsPage() {
 
                       <button
                         onClick={() => handleClone(prod)}
-                        className="p-2 rounded-xl text-gray-400 hover:text-[#2C4A2E] hover:bg-gray-100 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-gray-600 hover:text-farm-primary hover:bg-gray-100 transition-colors cursor-pointer"
                         title="تکثیر و کپی از محصول"
                       >
                         <Copy className="w-4 h-4" />
@@ -836,7 +836,7 @@ export default function AdminProductsPage() {
                         setSlug(generateSeoSlug(newTitle, products.map((p) => p.slug)));
                       }
                     }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-medium"
                   />
                 </div>
 
@@ -844,14 +844,14 @@ export default function AdminProductsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">نوع پکیج و مشخصات بسته:</label>
-                    <span className="text-[11px] text-gray-400 font-normal">اختیاری</span>
+                    <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
                   <input
                     type="text"
                     placeholder="مثال: بسته ۳۰ عددی یا ۱ کیلوگرمی (اختیاری)"
                     value={packSize}
                     onChange={(e) => setPackSize(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 placeholder:text-gray-400"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
 
@@ -862,7 +862,7 @@ export default function AdminProductsPage() {
                     <button
                       type="button"
                       onClick={() => setIsCategoryModalOpen(true)}
-                      className="text-xs text-[#2C4A2E] hover:text-[#1E3520] font-bold flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-farm-primary hover:text-farm-primary-dark font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5 text-[#D4A373]" />
                       <span>+ دسته جدید</span>
@@ -871,7 +871,7 @@ export default function AdminProductsPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-medium"
                   >
                     {categories
                       .filter((c) => c !== 'همه محصولات')
@@ -891,7 +891,7 @@ export default function AdminProductsPage() {
                     required
                     value={price}
                     onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-bold"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-bold"
                   />
                 </div>
 
@@ -900,7 +900,7 @@ export default function AdminProductsPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">بهای خرید از مزرعه (تومان):</label>
                     {costPrice !== '' && Number(costPrice) > 0 && price > Number(costPrice) && (
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                         حاشیه سود: {toPersianDigits(Math.round(((price - Number(costPrice)) / price) * 100))}٪
                       </span>
                     )}
@@ -910,7 +910,7 @@ export default function AdminProductsPage() {
                     placeholder="اختیاری - برای گزارش سود ناخالص"
                     value={costPrice}
                     onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-bold"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-bold"
                   />
                 </div>
 
@@ -922,12 +922,12 @@ export default function AdminProductsPage() {
                     required
                     value={stock}
                     onChange={(e) => setStock(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-bold"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-bold"
                   />
                 </div>
 
                 {/* Product Status Selector (موجود - ناموجود - به زودی) */}
-                <div className="sm:col-span-2 p-4 rounded-2xl bg-white border border-[#E6E1D5] space-y-2.5 shadow-xs">
+                <div className="sm:col-span-2 p-4 rounded-2xl bg-white border border-farm-border space-y-2.5 shadow-xs">
                   <label className="block text-gray-900 font-black text-xs">
                     وضعیت عرضه و فروش محصول در سایت:
                   </label>
@@ -938,7 +938,7 @@ export default function AdminProductsPage() {
                       className={`py-3 px-4 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
                         status === 'AVAILABLE'
                           ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
-                          : 'bg-[#F9F8F5] text-emerald-900 border-emerald-200 hover:bg-emerald-50'
+                          : 'bg-farm-bg text-emerald-900 border-emerald-200 hover:bg-emerald-50'
                       }`}
                     >
                       <CheckCircle className="w-4 h-4" />
@@ -951,7 +951,7 @@ export default function AdminProductsPage() {
                       className={`py-3 px-4 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
                         status === 'OUT_OF_STOCK'
                           ? 'bg-rose-700 text-white border-rose-800 shadow-sm'
-                          : 'bg-[#F9F8F5] text-rose-900 border-rose-200 hover:bg-rose-50'
+                          : 'bg-farm-bg text-rose-900 border-rose-200 hover:bg-rose-50'
                       }`}
                     >
                       <AlertCircle className="w-4 h-4" />
@@ -964,14 +964,14 @@ export default function AdminProductsPage() {
                       className={`py-3 px-4 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
                         status === 'COMING_SOON'
                           ? 'bg-purple-700 text-white border-purple-800 shadow-sm'
-                          : 'bg-[#F9F8F5] text-purple-900 border-purple-200 hover:bg-purple-50'
+                          : 'bg-farm-bg text-purple-900 border-purple-200 hover:bg-purple-50'
                       }`}
                     >
                       <Clock className="w-4 h-4" />
                       <span>به زودی (فصل برداشت)</span>
                     </button>
                   </div>
-                  <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                  <p className="text-xs text-gray-500 font-medium leading-relaxed">
                     {status === 'AVAILABLE' && '✓ کالا با برچسب سبز در سایت فعال است و مشتریان می‌توانند به سبد خرید اضافه نمایند.'}
                     {status === 'OUT_OF_STOCK' && '✕ کالا با برچسب قرمز «ناموجود» نمایش داده شده و دکمه افزودن به سبد غیرفعال می‌گردد.'}
                     {status === 'COMING_SOON' && '⌛ کالا با برچسب بنفش «به زودی» و متن «به زودی در مزرعه» برای معرفی محصولات فصلی آینده نمایش می‌یابد.'}
@@ -982,7 +982,7 @@ export default function AdminProductsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">وزن تقریبی بسته (کیلوگرم):</label>
-                    <span className="text-[11px] text-gray-400 font-normal">اختیاری</span>
+                    <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
                   <input
                     type="number"
@@ -991,9 +991,9 @@ export default function AdminProductsPage() {
                     placeholder="در صورت خالی بودن، کلاً در سایت نمایش داده نمی‌شود"
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 placeholder:text-gray-400"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 placeholder:text-gray-400"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1 leading-normal">
+                  <p className="text-xs text-gray-600 mt-1 leading-normal">
                     💡 اگر وزن محصول را خالی بگذارید، مشخصه وزن در کارت محصول و صفحه جزئیات کالا کلاً مخفی خواهد بود.
                   </p>
                 </div>
@@ -1002,27 +1002,27 @@ export default function AdminProductsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">ابعاد کارتن (طول×عرض×ارتفاع):</label>
-                    <span className="text-[11px] text-gray-400 font-normal">اختیاری</span>
+                    <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
                   <input
                     type="text"
                     placeholder="در صورت خالی بودن، کلاً در سایت نمایش داده نمی‌شود"
                     value={dimensions}
                     onChange={(e) => setDimensions(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 placeholder:text-gray-400"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 placeholder:text-gray-400"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1 leading-normal">
+                  <p className="text-xs text-gray-600 mt-1 leading-normal">
                     💡 اگر ابعاد محصول را خالی بگذارید، مشخصه ابعاد کارتن در صفحه محصول مخفی خواهد بود.
                   </p>
                 </div>
               </div>
 
               {/* Multi-Image Upload & Gallery Section */}
-              <div className="p-5 rounded-3xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-4">
+              <div className="p-5 rounded-3xl bg-farm-bg border border-farm-border space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-[#2C4A2E]" />
-                    <span className="font-black text-[#2C4A2E]">تصاویر محصول (تصویر اصلی + گالری چندگانه):</span>
+                    <ImageIcon className="w-5 h-5 text-farm-primary" />
+                    <span className="font-black text-farm-primary">تصاویر محصول (تصویر اصلی + گالری چندگانه):</span>
                   </div>
                   <span className="text-xs text-gray-500 font-medium">
                     {toPersianDigits(images.length)} تصویر بارگذاری‌شده
@@ -1032,7 +1032,7 @@ export default function AdminProductsPage() {
                 {/* File Upload Zone */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#2C4A2E]/40 hover:border-[#2C4A2E] rounded-2xl p-6 text-center bg-white cursor-pointer transition-all hover:bg-emerald-50/40 group"
+                  className="border-2 border-dashed border-farm-primary/40 hover:border-farm-primary rounded-2xl p-6 text-center bg-white cursor-pointer transition-all hover:bg-emerald-50/40 group"
                 >
                   <input
                     ref={fileInputRef}
@@ -1042,7 +1042,7 @@ export default function AdminProductsPage() {
                     onChange={handleFileUpload}
                     className="hidden"
                   />
-                  <div className="w-12 h-12 rounded-2xl bg-[#2C4A2E]/10 group-hover:bg-[#2C4A2E]/20 text-[#2C4A2E] flex items-center justify-center mx-auto mb-2 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-farm-primary/10 group-hover:bg-farm-primary/20 text-farm-primary flex items-center justify-center mx-auto mb-2 transition-colors">
                     <UploadCloud className="w-6 h-6" />
                   </div>
                   <div className="font-bold text-gray-800 text-sm">
@@ -1062,26 +1062,26 @@ export default function AdminProductsPage() {
                       placeholder="/images/prod-eggs.jpg یا آدرس تصویر..."
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
-                      className="flex-1 px-3.5 py-2 rounded-xl border border-[#E6E1D5] bg-white text-xs font-mono text-left"
+                      className="flex-1 px-3.5 py-2 rounded-xl border border-farm-border bg-white text-xs font-mono text-left"
                       dir="ltr"
                     />
                     <button
                       type="button"
                       onClick={handleAddImageUrl}
-                      className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-[#2C4A2E] hover:text-white text-gray-800 text-xs font-bold transition-colors shrink-0"
+                      className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-farm-primary hover:text-white text-gray-800 text-xs font-bold transition-colors shrink-0"
                     >
                       افزودن لینک
                     </button>
                   </div>
 
                   <div className="flex items-center gap-2 pt-1">
-                    <span className="text-xs text-gray-400">تصاویر آماده مزرعه:</span>
+                    <span className="text-xs text-gray-600">تصاویر آماده مزرعه:</span>
                     {sampleImages.map((s) => (
                       <button
                         key={s.label}
                         type="button"
                         onClick={() => setImages((prev) => [...prev, s.url])}
-                        className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 hover:border-[#2C4A2E] text-xs text-gray-700 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 hover:border-farm-primary text-xs text-gray-700 transition-colors"
                       >
                         + {s.label}
                       </button>
@@ -1103,7 +1103,7 @@ export default function AdminProductsPage() {
                             key={idx}
                             className={`relative rounded-2xl overflow-hidden border-2 transition-all p-1 bg-white ${
                               isMain
-                                ? 'border-[#2C4A2E] shadow-md ring-2 ring-[#2C4A2E]/20'
+                                ? 'border-farm-primary shadow-md ring-2 ring-farm-primary/20'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
@@ -1116,7 +1116,7 @@ export default function AdminProductsPage() {
                             {/* Main badge or Set-as-main button */}
                             <div className="mt-1.5 flex flex-col gap-1">
                               {isMain ? (
-                                <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded-lg bg-[#2C4A2E] text-white text-[10px] font-bold">
+                                <span className="inline-flex items-center justify-center gap-1 w-full py-1 rounded-lg bg-farm-primary text-white text-xs font-bold">
                                   <Star className="w-3 h-3 text-[#D4AF37] fill-[#D4AF37]" />
                                   <span>تصویر اصلی (کاور)</span>
                                 </span>
@@ -1124,7 +1124,7 @@ export default function AdminProductsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleSetPrimaryImage(idx)}
-                                  className="w-full py-1 rounded-lg bg-gray-100 hover:bg-[#2C4A2E] hover:text-white text-[10px] font-bold text-gray-700 transition-colors cursor-pointer"
+                                  className="w-full py-1 rounded-lg bg-gray-100 hover:bg-farm-primary hover:text-white text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                                 >
                                   انتخاب به عنوان تصویر اصلی
                                 </button>
@@ -1134,7 +1134,7 @@ export default function AdminProductsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleRemoveImage(idx)}
-                                className="w-full py-0.5 rounded-lg text-rose-600 hover:bg-rose-50 text-[10px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                className="w-full py-0.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 <span>حذف تصویر</span>
@@ -1156,18 +1156,18 @@ export default function AdminProductsPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="توضیحات جذاب و جزئیات ارگانیک بودن این محصول را بنویسید..."
-                  className="w-full p-4 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 leading-relaxed font-medium"
+                  className="w-full p-4 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 leading-relaxed font-medium"
                 />
               </div>
 
               {/* SECTION: Dynamic Specifications (مشخصات فنی و شناسنامه محصول) */}
-              <div className="p-5 rounded-2xl border-2 border-dashed border-[#2C4A2E]/20 bg-[#2C4A2E]/5 space-y-4">
+              <div className="p-5 rounded-2xl border-2 border-dashed border-farm-primary/20 bg-farm-primary/5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
-                      <Sliders className="w-4 h-4 text-[#2C4A2E]" />
+                      <Sliders className="w-4 h-4 text-farm-primary" />
                       <span>جدول مشخصات فنی و شناسنامه اختصاصی محصول</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#2C4A2E] text-white font-bold">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-farm-primary text-white font-bold">
                         {toPersianDigits(specifications.length)} مشخصه
                       </span>
                     </div>
@@ -1178,7 +1178,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={() => handleAddSpecificationRow('', '')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-xs font-bold transition-all shadow-sm shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs font-bold transition-all shadow-sm shrink-0 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5 text-[#D4A373]" />
                     <span>+ افزودن ردیف مشخصه جدید</span>
@@ -1202,7 +1202,7 @@ export default function AdminProductsPage() {
                       key={preset}
                       type="button"
                       onClick={() => handleAddSpecificationRow(preset, '')}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-[#2C4A2E]/20 hover:border-[#2C4A2E] hover:bg-[#2C4A2E]/10 text-gray-700 transition-colors cursor-pointer"
+                      className="text-xs px-2.5 py-1 rounded-lg bg-white border border-farm-primary/20 hover:border-farm-primary hover:bg-farm-primary/10 text-gray-700 transition-colors cursor-pointer"
                     >
                       + {preset}
                     </button>
@@ -1211,7 +1211,7 @@ export default function AdminProductsPage() {
 
                 {/* Dynamic Specification Rows */}
                 {specifications.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-gray-400 bg-white/70 rounded-xl border border-gray-200">
+                  <div className="py-6 text-center text-xs text-gray-600 bg-white/70 rounded-xl border border-gray-200">
                     هنوز هیچ مشخصه‌ای اضافه نشده است. با زدن دکمه بالا یا کلیک روی عناوین پیشنهادی، مشخصات دلخواه را اضافه کنید.
                   </div>
                 ) : (
@@ -1219,9 +1219,9 @@ export default function AdminProductsPage() {
                     {specifications.map((spec, sIdx) => (
                       <div
                         key={sIdx}
-                        className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-gray-200 hover:border-[#2C4A2E]/40 transition-colors"
+                        className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-gray-200 hover:border-farm-primary/40 transition-colors"
                       >
-                        <span className="text-xs font-bold text-gray-400 w-5 text-center shrink-0">
+                        <span className="text-xs font-bold text-gray-600 w-5 text-center shrink-0">
                           {toPersianDigits(sIdx + 1)}
                         </span>
                         <input
@@ -1229,7 +1229,7 @@ export default function AdminProductsPage() {
                           placeholder="عنوان مشخصه (مثلاً: محل برداشت)..."
                           value={spec.key}
                           onChange={(e) => handleUpdateSpecification(sIdx, 'key', e.target.value)}
-                          className="w-1/3 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                          className="w-1/3 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 focus:outline-none focus:border-farm-primary"
                         />
                         <span className="text-gray-300">:</span>
                         <input
@@ -1237,7 +1237,7 @@ export default function AdminProductsPage() {
                           placeholder="مقدار مشخصه (مثلاً: باغات دشت‌ارژن شیراز)..."
                           value={spec.value}
                           onChange={(e) => handleUpdateSpecification(sIdx, 'value', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 focus:outline-none focus:border-[#2C4A2E]"
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 focus:outline-none focus:border-farm-primary"
                         />
                         <button
                           type="button"
@@ -1260,14 +1260,14 @@ export default function AdminProductsPage() {
                     <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
                     <span>نکات کلیدی و مزایای ویژه محصول (هر مورد در یک خط):</span>
                   </span>
-                  <span className="text-gray-400 font-normal">نمایش به صورت تیک‌های سبز در بالای صفحه محصول</span>
+                  <span className="text-gray-600 font-normal">نمایش به صورت تیک‌های سبز در بالای صفحه محصول</span>
                 </label>
                 <textarea
                   rows={3}
                   value={highlightsText}
                   onChange={(e) => setHighlightsText(e.target.value)}
                   placeholder="مثال:&#10;۱۰۰٪ طبیعی و ارگانیک بدون سموم شیمیایی&#10;برداشت تازه روز با ارسال اکسپرس در شیراز&#10;سرشار از آنتی‌اکسیدان و مواد مغذی"
-                  className="w-full p-3 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-xs leading-relaxed text-gray-800"
+                  className="w-full p-3 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-xs leading-relaxed text-gray-800"
                 />
               </div>
 
@@ -1280,7 +1280,7 @@ export default function AdminProductsPage() {
                     value={originLocation}
                     onChange={(e) => setOriginLocation(e.target.value)}
                     placeholder="مثلاً: باغات سیب سپیدان، مزارع کوار، کندوهای دشت‌ارژن"
-                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary"
                   />
                 </div>
                 <div>
@@ -1290,7 +1290,7 @@ export default function AdminProductsPage() {
                     value={shelfLife}
                     onChange={(e) => setShelfLife(e.target.value)}
                     placeholder="مثلاً: ۳۰ روز در یخچال، ۲ سال در دمای اتاق"
-                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -1300,7 +1300,7 @@ export default function AdminProductsPage() {
                     value={storageInstructions}
                     onChange={(e) => setStorageInstructions(e.target.value)}
                     placeholder="مثلاً: در دمای ۲ الی ۶ درجه سانتی‌گراد، دور از رطوبت و تابش مستقیم نور خورشید نگهداری شود."
-                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                    className="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary"
                   />
                 </div>
               </div>
@@ -1313,43 +1313,43 @@ export default function AdminProductsPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-600 mb-1">کالری (Kcal):</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">کالری (Kcal):</label>
                     <input
                       type="text"
                       value={calories}
                       onChange={(e) => setCalories(e.target.value)}
                       placeholder="مثلاً: ۷۲"
-                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-farm-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-600 mb-1">پروتئین (گرم):</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">پروتئین (گرم):</label>
                     <input
                       type="text"
                       value={protein}
                       onChange={(e) => setProtein(e.target.value)}
                       placeholder="مثلاً: ۶.۳"
-                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-farm-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-600 mb-1">چربی کل (گرم):</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">چربی کل (گرم):</label>
                     <input
                       type="text"
                       value={fat}
                       onChange={(e) => setFat(e.target.value)}
                       placeholder="مثلاً: ۴.۸"
-                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-farm-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-600 mb-1">کربوهیدرات (گرم):</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">کربوهیدرات (گرم):</label>
                     <input
                       type="text"
                       value={carbs}
                       onChange={(e) => setCarbs(e.target.value)}
                       placeholder="مثلاً: ۰.۵"
-                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-xs font-medium text-center focus:outline-none focus:border-farm-primary"
                     />
                   </div>
                 </div>
@@ -1358,14 +1358,14 @@ export default function AdminProductsPage() {
               {/* SECTION: Dynamic FAQs */}
               <div className="p-4 rounded-2xl bg-emerald-50/40 border border-emerald-200/60 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-[#2C4A2E]">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-farm-primary">
                     <HelpCircle className="w-3.5 h-3.5" />
                     <span>سوالات متداول اختصاصی این کالا ({toPersianDigits(faqs.length)} سوال)</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleAddFaqRow}
-                    className="text-xs font-bold text-[#2C4A2E] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-farm-primary hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                     <span>+ افزودن سوال جدید</span>
@@ -1373,7 +1373,7 @@ export default function AdminProductsPage() {
                 </div>
 
                 {faqs.length === 0 ? (
-                  <p className="text-[11px] text-gray-400">هنوز سوال متداولی برای این کالا تعریف نشده است.</p>
+                  <p className="text-xs text-gray-600">هنوز سوال متداولی برای این کالا تعریف نشده است.</p>
                 ) : (
                   <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
                     {faqs.map((faq, fIdx) => (
@@ -1384,7 +1384,7 @@ export default function AdminProductsPage() {
                             placeholder="پرسش متداول (مثلاً: آیا این عسل حرارت دیده است؟)..."
                             value={faq.question}
                             onChange={(e) => handleUpdateFaq(fIdx, 'question', e.target.value)}
-                            className="flex-1 px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                            className="flex-1 px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 focus:outline-none focus:border-farm-primary"
                           />
                           <button
                             type="button"
@@ -1400,7 +1400,7 @@ export default function AdminProductsPage() {
                           placeholder="پاسخ کوتاه و کامل..."
                           value={faq.answer}
                           onChange={(e) => handleUpdateFaq(fIdx, 'answer', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 focus:outline-none focus:border-[#2C4A2E]"
+                          className="w-full px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 focus:outline-none focus:border-farm-primary"
                         />
                       </div>
                     ))}
@@ -1412,17 +1412,17 @@ export default function AdminProductsPage() {
               <div className="bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-blue-50/40 p-4 rounded-xl border border-emerald-200/80 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#2C4A2E] text-white flex items-center justify-center shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-farm-primary text-white flex items-center justify-center shadow-sm">
                       <Globe className="w-4 h-4" />
                     </div>
                     <div>
                       <h4 className="font-extrabold text-sm text-[#1A2E1B] flex items-center gap-1.5">
                         تنظیمات سئو و نتایج گوگل (Google SEO & Rich Snippets)
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                           تولید خودکار هوشمند
                         </span>
                       </h4>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-xs text-gray-500">
                         در صورت خالی گذاشتن، هوش مصنوعی فروشگاه به صورت ۱۰۰٪ خودکار بهینه‌ترین عنوان، توضیحات، اسکیما و آدرس سئو را می‌سازد.
                       </p>
                     </div>
@@ -1440,8 +1440,8 @@ export default function AdminProductsPage() {
 
                 {/* Google SERP Live Snippet Preview */}
                 <div className="bg-white rounded-xl p-3.5 border border-gray-200/80 shadow-xs space-y-1.5 text-right font-sans" dir="rtl">
-                  <div className="text-[11px] text-gray-500 flex items-center gap-1.5 font-mono dir-ltr justify-end">
-                    <span className="text-gray-400">https://profarm.ir</span>
+                  <div className="text-xs text-gray-500 flex items-center gap-1.5 font-mono dir-ltr justify-end">
+                    <span className="text-gray-600">https://profarm.ir</span>
                     <span className="text-gray-300">›</span>
                     <span className="text-emerald-700 font-semibold">products</span>
                     <span className="text-gray-300">›</span>
@@ -1453,7 +1453,7 @@ export default function AdminProductsPage() {
                   <div className="flex items-center gap-2 text-xs text-gray-500 font-sans">
                     <span className="text-amber-500 font-bold flex items-center">★★★★★</span>
                     <span className="text-xs font-bold text-gray-700">۵٫۰</span>
-                    <span className="text-[11px] text-gray-400">· موجود در انبار شیراز · ارسال همان روز</span>
+                    <span className="text-xs text-gray-600">· موجود در انبار شیراز · ارسال همان روز</span>
                   </div>
                   <p className="text-xs text-[#4d5156] leading-relaxed line-clamp-2">
                     {seoDescription || (title ? generateProductSeoDescription({ title, category, description, originLocation }) : 'محصولات طبیعی و ارگانیک مزارع فارس با ارسال سریع زنجیره سرد در شیراز. خرید اینترنتی با تضمین تازگی و کیفیت روز.')}
@@ -1466,9 +1466,9 @@ export default function AdminProductsPage() {
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
                         <span>نامک آدرس صفحه (URL Slug)</span>
-                        <span className="text-[10px] text-gray-400 font-normal">(انگلیسی یا فارسی استاندارد)</span>
+                        <span className="text-xs text-gray-600 font-normal">(انگلیسی یا فارسی استاندارد)</span>
                       </label>
-                      <span className="text-[10px] text-emerald-700 font-medium font-mono">
+                      <span className="text-xs text-emerald-700 font-medium font-mono">
                         /products/{slug || (title ? generateSeoSlug(title) : '...')}
                       </span>
                     </div>
@@ -1481,9 +1481,9 @@ export default function AdminProductsPage() {
                           setSlug(e.target.value);
                           setIsSlugCustomized(true);
                         }}
-                        className="w-full pl-3 pr-8 py-2 rounded-lg border border-gray-200 text-xs font-mono text-gray-800 focus:outline-none focus:border-[#2C4A2E] bg-white text-left dir-ltr"
+                        className="w-full pl-3 pr-8 py-2 rounded-lg border border-gray-200 text-xs font-mono text-gray-800 focus:outline-none focus:border-farm-primary bg-white text-left dir-ltr"
                       />
-                      <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 pointer-events-none" />
+                      <Search className="w-3.5 h-3.5 text-gray-500 absolute right-2.5 pointer-events-none" />
                     </div>
                   </div>
 
@@ -1493,7 +1493,7 @@ export default function AdminProductsPage() {
                       <label className="text-xs font-bold text-gray-700">
                         عنوان سئو در گوگل (Meta Title)
                       </label>
-                      <span className={`text-[10px] font-mono ${(seoTitle.length > 65 || (seoTitle.length > 0 && seoTitle.length < 30)) ? 'text-amber-600' : 'text-gray-400'}`}>
+                      <span className={`text-xs font-mono ${(seoTitle.length > 65 || (seoTitle.length > 0 && seoTitle.length < 30)) ? 'text-amber-600' : 'text-gray-600'}`}>
                         {seoTitle.length} / ۶۰ کاراکتر {seoTitle.length === 0 ? '(استفاده از خودکار)' : ''}
                       </span>
                     </div>
@@ -1502,7 +1502,7 @@ export default function AdminProductsPage() {
                       placeholder={title ? generateProductSeoTitle({ title, category, originLocation }) : 'عنوان سئو (اختیاری - در صورت خالی بودن خودکار پر می‌شود)'}
                       value={seoTitle}
                       onChange={(e) => setSeoTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E] bg-white"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary bg-white"
                     />
                   </div>
 
@@ -1512,7 +1512,7 @@ export default function AdminProductsPage() {
                       <label className="text-xs font-bold text-gray-700">
                         توضیحات متا در نتایج گوگل (Meta Description)
                       </label>
-                      <span className={`text-[10px] font-mono ${(seoDescription.length > 165 || (seoDescription.length > 0 && seoDescription.length < 100)) ? 'text-amber-600' : 'text-gray-400'}`}>
+                      <span className={`text-xs font-mono ${(seoDescription.length > 165 || (seoDescription.length > 0 && seoDescription.length < 100)) ? 'text-amber-600' : 'text-gray-600'}`}>
                         {seoDescription.length} / ۱۵۵ کاراکتر {seoDescription.length === 0 ? '(استفاده از خودکار)' : ''}
                       </span>
                     </div>
@@ -1521,7 +1521,7 @@ export default function AdminProductsPage() {
                       placeholder={title ? generateProductSeoDescription({ title, category, description, originLocation }) : 'توضیحات کوتاه برای نمایش در موتورهای جستجو...'}
                       value={seoDescription}
                       onChange={(e) => setSeoDescription(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E] bg-white"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary bg-white"
                     />
                   </div>
 
@@ -1535,7 +1535,7 @@ export default function AdminProductsPage() {
                       placeholder={title ? generateProductSeoKeywords({ title, category, originLocation }).join('، ') : 'ارگانیک شیراز، ارسال سریع، محصولات طبیعی فارس'}
                       value={seoKeywordsText}
                       onChange={(e) => setSeoKeywordsText(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E] bg-white"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary bg-white"
                     />
                   </div>
                 </div>
@@ -1548,7 +1548,7 @@ export default function AdminProductsPage() {
                     type="checkbox"
                     checked={isOrganicCertified}
                     onChange={(e) => setIsOrganicCertified(e.target.checked)}
-                    className="w-5 h-5 rounded text-[#2C4A2E] focus:ring-[#2C4A2E]"
+                    className="w-5 h-5 rounded text-farm-primary focus:ring-farm-primary"
                   />
                   <span>دارای تاییدیه ارگانیک مزارع فارس</span>
                 </label>
@@ -1558,7 +1558,7 @@ export default function AdminProductsPage() {
                     type="checkbox"
                     checked={isBulkEligible}
                     onChange={(e) => setIsBulkEligible(e.target.checked)}
-                    className="w-5 h-5 rounded text-[#2C4A2E] focus:ring-[#2C4A2E]"
+                    className="w-5 h-5 rounded text-farm-primary focus:ring-farm-primary"
                   />
                   <span>واجد شرایط خرید عمده (سایر استان‌ها)</span>
                 </label>
@@ -1574,7 +1574,7 @@ export default function AdminProductsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-7 py-2.5 rounded-xl bg-[#2C4A2E] text-white font-bold hover:bg-[#1E3520] shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+                  className="px-7 py-2.5 rounded-xl bg-farm-primary text-white font-bold hover:bg-farm-primary-dark shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
                 >
                   <Save className="w-4 h-4 text-[#D4A373]" />
                   <span>{isEditing ? 'ذخیره تغییرات محصول' : 'ثبت قطعی در انبار شیراز'}</span>
@@ -1595,8 +1595,8 @@ export default function AdminProductsPage() {
         <div className="space-y-6">
 
             {/* Add New Category Form */}
-            <form onSubmit={handleAddCategory} className="space-y-3 bg-[#F9F8F5] p-4 rounded-2xl border border-[#E6E1D5]">
-              <label className="block text-xs font-bold text-[#2C4A2E]">
+            <form onSubmit={handleAddCategory} className="space-y-3 bg-farm-bg p-4 rounded-2xl border border-farm-border">
+              <label className="block text-xs font-bold text-farm-primary">
                 ایجاد دسته‌بندی جدید:
               </label>
               <div className="flex items-center gap-2">
@@ -1605,12 +1605,12 @@ export default function AdminProductsPage() {
                   placeholder="مثال: گیاهان دارویی و دمنوش، ترشیجات محلی..."
                   value={newCategoryInput}
                   onChange={(e) => setNewCategoryInput(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-white focus:outline-none focus:border-[#2C4A2E] text-xs font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-farm-border bg-white focus:outline-none focus:border-farm-primary text-xs font-medium"
                 />
                 <button
                   type="submit"
                   disabled={!newCategoryInput.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                  className="px-5 py-2.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   <Plus className="w-4 h-4 text-[#D4A373]" />
                   <span>افزودن دسته</span>
@@ -1632,7 +1632,7 @@ export default function AdminProductsPage() {
                 </button>
               </div>
 
-              <div className="divide-y divide-gray-100 border border-[#E6E1D5] rounded-2xl overflow-hidden max-h-72 overflow-y-auto">
+              <div className="divide-y divide-gray-100 border border-farm-border rounded-2xl overflow-hidden max-h-72 overflow-y-auto">
                 {categories
                   .filter((c) => c !== 'همه محصولات')
                   .map((cat) => {
@@ -1640,12 +1640,12 @@ export default function AdminProductsPage() {
                     return (
                       <div
                         key={cat}
-                        className="flex items-center justify-between p-3.5 hover:bg-[#F9F8F5] transition-colors text-xs"
+                        className="flex items-center justify-between p-3.5 hover:bg-farm-bg transition-colors text-xs"
                       >
                         <div className="flex items-center gap-2.5">
                           <Tag className="w-4 h-4 text-[#D4A373]" />
                           <span className="font-bold text-gray-800">{cat}</span>
-                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs">
                             {toPersianDigits(prodCount)} محصول
                           </span>
                         </div>
@@ -1654,7 +1654,7 @@ export default function AdminProductsPage() {
                           type="button"
                           onClick={() => handleDeleteCategory(cat)}
                           title="حذف دسته‌بندی"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

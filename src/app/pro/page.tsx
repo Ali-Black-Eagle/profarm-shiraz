@@ -18,9 +18,11 @@ import {
 } from 'lucide-react';
 import { farmStore, DEFAULT_SUBSCRIPTION_SETTINGS, DEFAULT_FAQ_ITEMS, DEFAULT_COMPARISON_ROWS } from '@/lib/db-store';
 import { SubscriptionSettings, SubscriptionStats } from '@/types';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function ProMembershipPage() {
   const router = useRouter();
+  const toast = useToast();
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const [subSettings, setSubSettings] = useState<SubscriptionSettings>({
@@ -73,11 +75,11 @@ export default function ProMembershipPage() {
 
   const handleSelectTier = (tier: 'PLUS' | 'PRO') => {
     if (tier === 'PRO' && stats?.isProFull) {
-      alert('ظرفیت اشتراک طلایی پرو در این دوره تکمیل شده است.');
+      toast.warning('ظرفیت اشتراک طلایی پرو در این دوره تکمیل شده است.');
       return;
     }
     if (tier === 'PLUS' && stats?.isPlusFull) {
-      alert('ظرفیت اشتراک اقتصادی پلاس در این دوره تکمیل شده است.');
+      toast.warning('ظرفیت اشتراک اقتصادی پلاس در این دوره تکمیل شده است.');
       return;
     }
     if (!isUserLoggedIn) {
@@ -91,7 +93,7 @@ export default function ProMembershipPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
       {/* Admin Quick Access Bar */}
       {isUserLoggedIn && user?.role === 'ADMIN' && (
-        <div className="bg-gradient-to-r from-emerald-800 to-[#1E3520] text-white p-3.5 sm:p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/30 animate-in fade-in">
+        <div className="bg-gradient-to-r from-emerald-800 to-farm-primary-dark text-white p-3.5 sm:p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/30 animate-in fade-in">
           <div className="flex items-center gap-2 text-xs font-bold">
             <Sparkles className="w-4 h-4 text-[#D4AF37]" />
             <span>
@@ -110,7 +112,7 @@ export default function ProMembershipPage() {
       )}
 
       {/* Hero Banner */}
-      <div className="bg-gradient-to-br from-[#2C4A2E] via-[#203622] to-[#122314] rounded-3xl p-8 sm:p-14 text-white relative overflow-hidden shadow-2xl border border-[#D4A373]/40">
+      <div className="bg-gradient-to-br from-farm-primary via-[#203622] to-[#122314] rounded-3xl p-8 sm:p-14 text-white relative overflow-hidden shadow-2xl border border-[#D4A373]/40">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -120,7 +122,7 @@ export default function ProMembershipPage() {
             <span>{subSettings.heroBadgeText || 'باشگاه مشترکین ویژه «پروفارم شیراز»'}</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black leading-tight text-white tracking-tight">
+          <h1 className="text-3xl sm:text-5xl font-black leading-tight text-white">
             {subSettings.heroTitle || 'طراوت هر روزه با تحویل ۶ روز هفته و تخفیف‌های ویژه مزارع فارس'}
           </h1>
 
@@ -159,7 +161,7 @@ export default function ProMembershipPage() {
       <div className="space-y-8">
         <div className="text-center space-y-2 max-w-2xl mx-auto">
           <span className="text-xs font-bold text-[#D4A373]">{subSettings.sectionSubheader || 'انتخاب پلن مناسب نیاز شما'}</span>
-          <h2 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+          <h2 className="text-2xl sm:text-3xl font-black text-farm-primary">
             {subSettings.sectionTitle || 'مقایسه و انتخاب اشتراک ماهانه پروفارم'}
           </h2>
           <p className="text-xs sm:text-sm text-gray-600">
@@ -181,7 +183,7 @@ export default function ProMembershipPage() {
 
             <div className="space-y-5 relative z-10">
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-slate-200 to-slate-300/80 text-slate-800 text-[10px] font-bold border border-slate-300">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-slate-200 to-slate-300/80 text-slate-800 text-xs font-bold border border-slate-300">
                   <span>{subSettings.freeSubtitle || 'طرح پایه'}</span>
                 </div>
                 <h3 className="text-xl font-black text-slate-800">{subSettings.freeTitle || 'کاربر عادی'}</h3>
@@ -192,7 +194,7 @@ export default function ProMembershipPage() {
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-black text-slate-900">{subSettings.freePriceLabel || 'رایگان'}</span>
                 </div>
-                <span className="text-[11px] text-slate-500">{subSettings.freePriceSubtext || 'بدون نیاز به پرداخت ماهانه'}</span>
+                <span className="text-xs text-slate-500">{subSettings.freePriceSubtext || 'بدون نیاز به پرداخت ماهانه'}</span>
               </div>
 
               <ul className="space-y-3 text-xs text-slate-700">
@@ -234,7 +236,7 @@ export default function ProMembershipPage() {
 
             <div className="space-y-5 relative z-10">
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-sm">
                   <Zap className="w-3 h-3 text-emerald-100" />
                   <span>{subSettings.plusBadgeText || 'اقتصادی'}</span>
                 </div>
@@ -249,19 +251,19 @@ export default function ProMembershipPage() {
                   </span>
                   <span className="text-xs font-bold text-emerald-800"> / ماهانه</span>
                 </div>
-                <span className="text-[11px] text-emerald-700 font-bold">
+                <span className="text-xs text-emerald-700 font-bold">
                   {subSettings.plusPriceSubtext || 'صرفه‌جویی تضمین‌شده در خرید هفتگی'}
                 </span>
               </div>
 
               {/* Capacity notification badge */}
               {stats?.isPlusFull ? (
-                <div className="p-2.5 rounded-xl bg-rose-100 text-rose-800 text-[11px] font-black flex items-center gap-2 border border-rose-300">
+                <div className="p-2.5 rounded-xl bg-rose-100 text-rose-800 text-xs font-black flex items-center gap-2 border border-rose-300">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                   <span>تکمیل ظرفیت این دوره (امکان ثبت‌نام جدید نیست)</span>
                 </div>
               ) : stats && subSettings.plusMaxCapacity > 0 && stats.plusRemaining !== null && stats.plusRemaining <= 3 && stats.plusRemaining > 0 ? (
-                <div className="p-2 rounded-xl bg-amber-100 text-amber-900 text-[11px] font-black flex items-center gap-2 border border-amber-300 animate-pulse">
+                <div className="p-2 rounded-xl bg-amber-100 text-amber-900 text-xs font-black flex items-center gap-2 border border-amber-300 animate-pulse">
                   <Clock className="w-3.5 h-3.5 shrink-0 text-amber-700" />
                   <span>
                     تنها {toPersianDigits(stats.plusRemaining)} جایگاه باقی‌مانده!
@@ -315,7 +317,7 @@ export default function ProMembershipPage() {
             }`}
           >
             {/* Floating Top Left Ribbon */}
-            <div className="absolute top-4 left-4 bg-gradient-to-r from-amber-600 via-amber-500 to-[#D4AF37] text-white text-[10px] font-black px-3.5 py-1 rounded-full shadow-md z-20">
+            <div className="absolute top-4 left-4 bg-gradient-to-r from-amber-600 via-amber-500 to-[#D4AF37] text-white text-xs font-black px-3.5 py-1 rounded-full shadow-md z-20">
               ★ {subSettings.proTopLabel || 'طلایی'}
             </div>
 
@@ -324,7 +326,7 @@ export default function ProMembershipPage() {
 
             <div className="space-y-5 relative z-10">
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-950 text-[10px] font-bold border border-amber-300">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-950 text-xs font-bold border border-amber-300">
                   <Crown className="w-3 h-3 text-amber-700" />
                   <span>{subSettings.proBadgeText || 'اشتراک طلایی پروفارم پرو'}</span>
                 </div>
@@ -339,7 +341,7 @@ export default function ProMembershipPage() {
                   </span>
                   <span className="text-xs font-bold text-amber-800"> / ماهانه</span>
                 </div>
-                <span className="text-[11px] text-amber-800 font-bold">
+                <span className="text-xs text-amber-800 font-bold">
                   {subSettings.proPriceSubtext ||
                     `${toPersianDigits(subSettings.proEggDiscountPercent)}٪ تخم‌مرغ + ${toPersianDigits(subSettings.proOtherDiscountPercent)}٪ سایر محصولات + ${toPersianDigits(subSettings.proShippingDiscountPercent)}٪ تخفیف ارسال`}
                 </span>
@@ -347,12 +349,12 @@ export default function ProMembershipPage() {
 
               {/* Capacity notification badge */}
               {stats?.isProFull ? (
-                <div className="p-2.5 rounded-xl bg-rose-100 text-rose-800 text-[11px] font-black flex items-center gap-2 border border-rose-300">
+                <div className="p-2.5 rounded-xl bg-rose-100 text-rose-800 text-xs font-black flex items-center gap-2 border border-rose-300">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                   <span>تکمیل ظرفیت این دوره (خرید موقتاً مسدود است)</span>
                 </div>
               ) : stats && subSettings.proMaxCapacity > 0 && stats.proRemaining !== null && stats.proRemaining <= 3 && stats.proRemaining > 0 ? (
-                <div className="p-2 rounded-xl bg-amber-200/90 text-amber-950 text-[11px] font-black flex items-center gap-2 border border-amber-400 animate-pulse">
+                <div className="p-2 rounded-xl bg-amber-200/90 text-amber-950 text-xs font-black flex items-center gap-2 border border-amber-400 animate-pulse">
                   <Clock className="w-3.5 h-3.5 shrink-0 text-amber-700" />
                   <span>
                     تنها {toPersianDigits(stats.proRemaining)} جایگاه باقی‌مانده!
@@ -400,8 +402,8 @@ export default function ProMembershipPage() {
       </div>
 
       {/* Feature Comparison Table */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6">
-        <h3 className="text-xl font-black text-[#2C4A2E]">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6">
+        <h3 className="text-xl font-black text-farm-primary">
           {subSettings.comparisonTitle || 'جدول مقایسه جامع ویژگی‌های پلن‌ها'}
         </h3>
 
@@ -448,13 +450,13 @@ export default function ProMembershipPage() {
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <span className="text-xs font-bold text-[#D4A373]">{subSettings.faqSubheader || 'پرسش‌های متداول'}</span>
-          <h2 className="text-2xl font-black text-[#2C4A2E]">{subSettings.faqTitle || 'سوالاتی که ممکن است داشته باشید'}</h2>
+          <h2 className="text-2xl font-black text-farm-primary">{subSettings.faqTitle || 'سوالاتی که ممکن است داشته باشید'}</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {((subSettings.faqItems && subSettings.faqItems.length > 0) ? subSettings.faqItems : DEFAULT_FAQ_ITEMS).map((faq, idx) => (
-            <div key={faq.id || idx} className="bg-white rounded-2xl p-5 border border-[#E6E1D5] shadow-xs space-y-2">
-              <h4 className="text-sm font-bold text-[#2C4A2E] flex items-center gap-2">
+            <div key={faq.id || idx} className="bg-white rounded-2xl p-5 border border-farm-border shadow-xs space-y-2">
+              <h4 className="text-sm font-bold text-farm-primary flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-[#D4AF37] shrink-0" />
                 <span>{faq.q}</span>
               </h4>

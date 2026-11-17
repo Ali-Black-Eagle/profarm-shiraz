@@ -23,8 +23,10 @@ import {
 } from 'lucide-react';
 import { CouponInputBox } from '@/components/modules/CouponInputBox';
 import { CouponValidationResult } from '@/types';
+import { useConfirm } from '@/components/ui/ToastProvider';
 
 export default function CartPage() {
+  const confirm = useConfirm();
   const [mounted, setMounted] = React.useState(false);
   const {
     items,
@@ -57,7 +59,7 @@ export default function CartPage() {
   if (!mounted) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[50vh] flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-[#2C4A2E] border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-farm-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -65,18 +67,18 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-6">
-        <div className="w-24 h-24 rounded-full bg-[#F3EFE6] border border-[#E6E1D5] flex items-center justify-center mx-auto text-[#2C4A2E]">
-          <ShoppingBag className="w-10 h-10 text-gray-400" />
+        <div className="w-24 h-24 rounded-full bg-farm-bg-warm border border-farm-border flex items-center justify-center mx-auto text-farm-primary">
+          <ShoppingBag className="w-10 h-10 text-gray-500" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-black text-[#2C4A2E]">سبد خرید شما خالی است</h1>
+          <h1 className="text-2xl font-black text-farm-primary">سبد خرید شما خالی است</h1>
           <p className="text-xs sm:text-sm text-gray-500">
             هنوز محصول ارگانیکی به سبد خرید خود اضافه نکرده‌اید.
           </p>
         </div>
         <Link
           href="/products"
-          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold shadow-md hover:bg-[#1E3520] transition-all"
+          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-farm-primary text-white text-sm font-bold shadow-md hover:bg-farm-primary-dark transition-all"
         >
           <span>مشاهده محصولات ارگانیک شیراز</span>
           <ArrowLeft className="w-4 h-4" />
@@ -87,17 +89,26 @@ export default function CartPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      <div className="flex items-center justify-between pb-4 border-b border-[#E6E1D5]">
+      <div className="flex items-center justify-between pb-4 border-b border-farm-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">سبد خرید شما</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">سبد خرید شما</h1>
           <p className="text-xs text-gray-500 mt-1">
             شامل {toPersianDigits(totalCount)} بسته از فرآورده‌های طبیعی مزارع فارس
           </p>
         </div>
 
         <button
-          onClick={clearCart}
-          className="text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1.5 transition-colors"
+          onClick={async () => {
+            const ok = await confirm({
+              title: 'خالی کردن سبد خرید',
+              description: 'همه کالاهای سبد حذف می‌شوند. آیا مطمئن هستید؟',
+              confirmLabel: 'بله، خالی شود',
+              cancelLabel: 'انصراف',
+              variant: 'danger',
+            });
+            if (ok) clearCart();
+          }}
+          className="text-xs min-h-11 text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1.5 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
           <span>خالی کردن سبد</span>
@@ -110,20 +121,20 @@ export default function CartPage() {
           {items.map(({ product, quantity }) => (
             <div
               key={product.id}
-              className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E6E1D5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4"
+              className="bg-white rounded-3xl p-4 sm:p-5 border border-farm-border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4"
             >
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 <img
                   src={product.images[0]}
                   alt={product.title}
-                  className="w-20 h-20 rounded-2xl object-cover border border-[#E6E1D5] shrink-0"
+                  className="w-20 h-20 rounded-2xl object-cover border border-farm-border shrink-0"
                 />
                 <div className="space-y-1">
-                  <span className="text-[11px] text-[#D4A373] font-bold">
+                  <span className="text-xs text-[#D4A373] font-bold">
                     {product.packSize}
                   </span>
                   <Link href={`/products/${product.slug}`}>
-                    <h3 className="text-sm sm:text-base font-bold text-[#2C4A2E] hover:underline line-clamp-1">
+                    <h3 className="text-sm sm:text-base font-bold text-farm-primary hover:underline line-clamp-1">
                       {product.title}
                     </h3>
                   </Link>
@@ -135,20 +146,20 @@ export default function CartPage() {
 
               <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                 {/* Quantity Controls */}
-                <div className="flex items-center gap-2 bg-[#F9F8F5] border border-[#E6E1D5] rounded-xl p-1">
+                <div className="flex items-center gap-2 bg-farm-bg border border-farm-border rounded-xl p-1">
                   <button
                     onClick={() => updateQuantity(product.id, quantity + 1)}
                     disabled={quantity >= product.stock}
-                    className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-[#2C4A2E] hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                    className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-6 text-center text-xs font-black text-[#2C4A2E]">
+                  <span className="w-6 text-center text-xs font-black text-farm-primary">
                     {toPersianDigits(quantity)}
                   </span>
                   <button
                     onClick={() => updateQuantity(product.id, quantity - 1)}
-                    className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                    className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
@@ -156,14 +167,15 @@ export default function CartPage() {
 
                 {/* Total Line Item Price */}
                 <div className="text-left">
-                  <span className="block text-sm sm:text-base font-black text-[#2C4A2E]">
+                  <span className="block text-sm sm:text-base font-black text-farm-primary">
                     {formatToman(product.price * quantity)}
                   </span>
                 </div>
 
                 <button
                   onClick={() => removeItem(product.id)}
-                  className="text-gray-400 hover:text-rose-600 p-1 transition-colors"
+                  aria-label={`حذف ${product.title} از سبد`}
+                  className="text-gray-600 hover:text-rose-600 min-w-11 min-h-11 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
                   title="حذف"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -173,11 +185,11 @@ export default function CartPage() {
           ))}
 
           {/* Wholesale Mode Toggle Card */}
-          <div className="bg-[#F3EFE6] rounded-3xl p-5 border border-[#E6E1D5] space-y-3">
+          <div className="bg-farm-bg-warm rounded-3xl p-5 border border-farm-border space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <Package className="w-5 h-5 text-[#2C4A2E]" />
-                <span className="text-sm font-bold text-[#2C4A2E]">
+                <Package className="w-5 h-5 text-farm-primary" />
+                <span className="text-sm font-bold text-farm-primary">
                   آیا این سفارش برای خارج از شهر شیراز یا به صورت عمده است؟
                 </span>
               </div>
@@ -188,12 +200,12 @@ export default function CartPage() {
                   onChange={(e) => setBulkOrder(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2C4A2E]"></div>
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-farm-primary"></div>
               </label>
             </div>
 
             {isBulkOrder && (
-              <div className="pt-2 text-xs text-gray-700 space-y-2 border-t border-[#E6E1D5]">
+              <div className="pt-2 text-xs text-gray-700 space-y-2 border-t border-farm-border">
                 <p>
                   برای ارسال به شهرستان‌های خارج از شیراز، سفارش باید حداقل شامل ۱۰ بسته یا ۵ میلیون
                   تومان باشد.
@@ -224,22 +236,22 @@ export default function CartPage() {
             onCouponChange={(res) => setCouponResult(res)}
           />
 
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5 sticky top-28">
-            <h3 className="text-base font-bold text-[#2C4A2E] pb-3 border-b border-[#F3EFE6]">
+          <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5 sticky top-28">
+            <h3 className="text-base font-bold text-farm-primary pb-3 border-b border-farm-bg-warm">
               خلاصه فاکتور سفارش
             </h3>
 
             <div className="space-y-3 text-xs text-gray-600">
               <div className="flex items-center justify-between">
                 <span>تعداد کل بسته‌ها:</span>
-                <span className="font-bold text-[#2C4A2E]">
+                <span className="font-bold text-farm-primary">
                   {toPersianDigits(totalCount)} بسته
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span>مجموع ارزش کالاها:</span>
-                <span className="font-bold text-[#2C4A2E]">{formatToman(discounts.itemsSubtotal)}</span>
+                <span className="font-bold text-farm-primary">{formatToman(discounts.itemsSubtotal)}</span>
               </div>
 
               {/* Egg Quota Discount */}
@@ -271,10 +283,10 @@ export default function CartPage() {
                 <span className="flex items-center gap-1">
                   <span>هزینه ارسال با پیک پروفارم:</span>
                   {discounts.shippingDiscount > 0 && (
-                    <span className="text-[10px] text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
+                    <span className="text-xs text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
                   )}
                 </span>
-                <span className="font-bold text-[#2C4A2E]">
+                <span className="font-bold text-farm-primary">
                   {formatToman(discounts.finalShipping)}
                 </span>
               </div>
@@ -306,7 +318,7 @@ export default function CartPage() {
                   <Crown className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>عضویت پرو فعال (۳۲۹,۰۰۰ تومان/ماه)</span>
                 </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
+                <p className="text-xs text-amber-800 leading-relaxed">
                   تحویل ۶ روز در هفته (شنبه تا ۵‌شنبه) + ۱۰٪ تخفیف تخم‌مرغ تا ۶۰۰ عدد + ۵٪ بقیه کالاها + ۲۰٪ تخفیف ارسال
                 </p>
               </div>
@@ -316,41 +328,41 @@ export default function CartPage() {
                   <Zap className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>عضویت پلاس فعال (۱۴۹,۰۰۰ تومان/ماه)</span>
                 </div>
-                <p className="text-[11px] text-emerald-800 leading-relaxed">
+                <p className="text-xs text-emerald-800 leading-relaxed">
                   تحویل ۶ روز در هفته (شنبه تا ۵‌شنبه) + ۵٪ تخفیف خرید تخم‌مرغ تا سقف ۲۰۰ عدد در ماه
                 </p>
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] text-xs text-gray-600 space-y-2">
+              <div className="p-3.5 rounded-2xl bg-farm-bg border border-farm-border text-xs text-gray-600 space-y-2">
                 <div className="flex items-center gap-2 font-medium">
-                  <Truck className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+                  <Truck className="w-4 h-4 text-farm-primary shrink-0" />
                   <span>کاربر عادی: تحویل فقط ۱شنبه و ۴شنبه</span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-[#2C4A2E] font-bold">
+                <div className="flex items-center justify-between text-xs text-farm-primary font-bold">
                   <span>ارسال ۶ روزه + تخفیف تخم‌مرغ و ارسال:</span>
-                  <Link href="/pro" className="underline hover:text-[#1E3520]">
+                  <Link href="/pro" className="underline hover:text-farm-primary-dark">
                     طرح‌های پلاس و پرو
                   </Link>
                 </div>
               </div>
             )}
 
-            <div className="pt-3 border-t border-[#F3EFE6] flex items-baseline justify-between">
+            <div className="pt-3 border-t border-farm-bg-warm flex items-baseline justify-between">
               <span className="text-sm font-bold text-gray-800">مبلغ نهایی قابل پرداخت:</span>
-              <span className="text-xl font-black text-[#2C4A2E]">
+              <span className="text-xl font-black text-farm-primary">
                 {formatToman(finalPayable)}
               </span>
             </div>
 
             <Link
               href="/checkout"
-              className="w-full py-4 px-6 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold shadow-md hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 px-6 rounded-2xl bg-farm-primary text-white text-sm font-bold shadow-md hover:bg-farm-primary-dark active:scale-98 transition-all flex items-center justify-center gap-2"
             >
               <span>ثبت آدرس و زمان‌بندی تحویل</span>
               <ArrowLeft className="w-4 h-4" />
             </Link>
 
-            <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 pt-1">
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-600 pt-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>اتصال مستقیم به درگاه بانکی شاپرک با پروتکل امن</span>
             </div>

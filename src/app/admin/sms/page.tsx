@@ -105,7 +105,7 @@ class SmsPageErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           <div className="pt-2 flex justify-center gap-3">
             <button
               onClick={this.handleReset}
-              className="px-5 py-2.5 rounded-xl bg-[#2C4A2E] text-white font-bold text-xs hover:bg-[#1E3520] transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-farm-primary text-white font-bold text-xs hover:bg-farm-primary-dark transition-colors cursor-pointer"
             >
               بازنشانی داده‌ها به پیش‌فرض و بارگذاری مجدد
             </button>
@@ -437,7 +437,7 @@ function AdminSmsPageContent() {
       if (targetSegment === 'SHIRAZ_BUYERS') {
         const shirazOrders = (farmStore.getOrders() || []).filter((o) => o.address?.isShiraz !== false);
         const uniquePhones = new Set(shirazOrders.map((o) => o.address?.phone).filter(Boolean));
-        return uniquePhones.size || 15;
+        return uniquePhones.size;
       }
       if (targetSegment === 'CUSTOM') {
         return (customNumbersInput || '').split(/[\n,]/).filter((n) => n.trim().length > 0).length;
@@ -455,7 +455,11 @@ function AdminSmsPageContent() {
       return;
     }
 
-    const recipientCount = Math.max(1, getBroadcastRecipientEstimate());
+    const recipientCount = getBroadcastRecipientEstimate();
+    if (recipientCount < 1) {
+      toast.error('مخاطبی برای این بخش یافت نشد؛ لطفاً بخش دیگری را انتخاب کنید.');
+      return;
+    }
     const ok = await confirm({
       title: 'تایید ارسال کمپین پیامکی انبوه',
       description: `آیا از ثبت و ارسال کمپین «${broadcastTitle}» برای حدود ${toPersianDigits(recipientCount)} مخاطب اطمینان دارید؟`,
@@ -634,7 +638,7 @@ function AdminSmsPageContent() {
   if (!mounted) {
     return (
       <div className="min-h-[400px] flex items-center justify-center p-8 text-center text-gray-500 font-bold gap-3">
-        <div className="w-7 h-7 border-3 border-[#2C4A2E] border-t-transparent rounded-full animate-spin" />
+        <div className="w-7 h-7 border-3 border-farm-primary border-t-transparent rounded-full animate-spin" />
         <span>در حال بارگذاری سامانه پیامک و ایمیل...</span>
       </div>
     );
@@ -657,20 +661,20 @@ function AdminSmsPageContent() {
     <div className="space-y-6 pb-12">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-[#2C4A2E] text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in">
+        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-farm-primary text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-[#D4A373] shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-farm-border">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#D4A373]">
-            <Radio className="w-4 h-4 text-[#2C4A2E]" />
+            <Radio className="w-4 h-4 text-farm-primary" />
             <span>سامانه هوشمند پیامک، اعلان‌های خودکار رویدادها، تنظیم API و کمپین‌ها</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary mt-0.5">
             مدیریت پیامک‌ها، وب‌سرویس API و سناریوهای خودکار
           </h1>
           <p className="text-xs text-gray-500 mt-1">
@@ -691,14 +695,14 @@ function AdminSmsPageContent() {
       </div>
 
       {/* 3-Tab Main Navigation Switcher */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white border border-[#E6E1D5] shadow-xs">
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white border border-farm-border shadow-xs">
         <button
           type="button"
           onClick={() => setActiveTab('EVENTS')}
           className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
             activeTab === 'EVENTS'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'text-gray-600 hover:bg-[#F9F8F5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-farm-bg'
           }`}
         >
           <Bell className="w-4 h-4 text-[#D4A373]" />
@@ -710,8 +714,8 @@ function AdminSmsPageContent() {
           onClick={() => setActiveTab('GATEWAY')}
           className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
             activeTab === 'GATEWAY'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'text-gray-600 hover:bg-[#F9F8F5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-farm-bg'
           }`}
         >
           <Key className="w-4 h-4 text-[#D4A373]" />
@@ -723,8 +727,8 @@ function AdminSmsPageContent() {
           onClick={() => setActiveTab('BROADCAST')}
           className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
             activeTab === 'BROADCAST'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'text-gray-600 hover:bg-[#F9F8F5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-farm-bg'
           }`}
         >
           <Send className="w-4 h-4 text-[#D4A373]" />
@@ -736,8 +740,8 @@ function AdminSmsPageContent() {
           onClick={() => setActiveTab('EMAIL')}
           className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
             activeTab === 'EMAIL'
-              ? 'bg-[#2C4A2E] text-white shadow-sm'
-              : 'text-gray-600 hover:bg-[#F9F8F5]'
+              ? 'bg-farm-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-farm-bg'
           }`}
         >
           <Mail className="w-4 h-4 text-[#D4A373]" />
@@ -757,8 +761,8 @@ function AdminSmsPageContent() {
               onClick={() => setEventCategoryFilter('ALL')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 eventCategoryFilter === 'ALL'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
               }`}
             >
               همه سناریوها ({toPersianDigits(eventTemplates.length)})
@@ -820,8 +824,8 @@ function AdminSmsPageContent() {
                       onClick={() => handleSelectEvent(tmpl)}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer text-right relative overflow-hidden ${
                         isSelected
-                          ? 'border-[#2C4A2E] bg-white shadow-md ring-2 ring-[#2C4A2E]/20'
-                          : 'border-[#E6E1D5] bg-white hover:border-gray-400/80 hover:bg-gray-50/50'
+                          ? 'border-farm-primary bg-white shadow-md ring-2 ring-farm-primary/20'
+                          : 'border-farm-border bg-white hover:border-gray-400/80 hover:bg-gray-50/50'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -833,7 +837,7 @@ function AdminSmsPageContent() {
                             <h4 className="font-bold text-xs sm:text-sm text-gray-900 leading-snug">
                               {tmpl.title}
                             </h4>
-                            <span className="text-[10px] text-gray-400 block mt-0.5">
+                            <span className="text-xs text-gray-600 block mt-0.5">
                               کد شناسه: <code className="font-mono text-gray-600">{tmpl.id}</code>
                             </span>
                           </div>
@@ -847,16 +851,16 @@ function AdminSmsPageContent() {
                           className={`p-1 rounded-lg transition-colors cursor-pointer shrink-0 ${
                             tmpl.isEnabled
                               ? 'text-emerald-700 hover:bg-emerald-50'
-                              : 'text-gray-400 hover:bg-gray-100'
+                              : 'text-gray-600 hover:bg-gray-100'
                           }`}
                         >
                           {tmpl.isEnabled ? (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <div className="flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
                               <CheckCircle className="w-3 h-3 text-emerald-600" />
                               <span>فعال</span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                            <div className="flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
                               <span>خاموش</span>
                             </div>
                           )}
@@ -867,9 +871,9 @@ function AdminSmsPageContent() {
                         {tmpl.description}
                       </p>
 
-                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
                         <span>قالب: {toPersianDigits(tmpl.template.length)} نویسه</span>
-                        <span className="text-[#2C4A2E] font-bold group-hover:underline">
+                        <span className="text-farm-primary font-bold group-hover:underline">
                           {isSelected ? 'در حال ویرایش ←' : 'ویرایش قالب'}
                         </span>
                       </div>
@@ -882,12 +886,12 @@ function AdminSmsPageContent() {
             {/* Right: Template Editor & Live Phone Preview (7 Cols) */}
             <div className="lg:col-span-7 space-y-6">
               {selectedEvent && (
-                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#E6E1D5] shadow-farm space-y-6">
+                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-farm-border shadow-farm space-y-6">
                   {/* Editor Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#F3EFE6]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-farm-bg-warm">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-black text-base text-[#2C4A2E]">
+                        <h3 className="font-black text-base text-farm-primary">
                           تنظیم پیامک: {selectedEvent.title}
                         </h3>
                       </div>
@@ -922,13 +926,13 @@ function AdminSmsPageContent() {
 
                   <form onSubmit={handleSaveEventTemplate} className="space-y-5">
                     {/* Available Dynamic Variables */}
-                    <div className="p-3.5 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
+                    <div className="p-3.5 rounded-2xl bg-farm-bg border border-farm-border space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                          <Tag className="w-3.5 h-3.5 text-farm-primary" />
                           <span>متغیرهای پویا (برای درج در متن روی هر کدام کلیک کنید):</span>
                         </span>
-                        <span className="text-[10px] text-gray-400">جایگذاری خودکار اطلاعات خریدار</span>
+                        <span className="text-xs text-gray-600">جایگذاری خودکار اطلاعات خریدار</span>
                       </div>
 
                       <div className="flex flex-wrap gap-1.5">
@@ -937,11 +941,11 @@ function AdminSmsPageContent() {
                             key={v.key}
                             type="button"
                             onClick={() => handleInsertVariable(v.key)}
-                            className="px-2.5 py-1 rounded-lg bg-white border border-[#E6E1D5] hover:border-[#2C4A2E] hover:bg-emerald-50 text-xs text-gray-800 transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                            className="px-2.5 py-1 rounded-lg bg-white border border-farm-border hover:border-farm-primary hover:bg-emerald-50 text-xs text-gray-800 transition-colors flex items-center gap-1 cursor-pointer font-medium"
                             title={`درج ${v.label} در متن پیامک`}
                           >
-                            <span className="font-mono text-[11px] font-bold text-[#2C4A2E]">{v.key}</span>
-                            <span className="text-[11px] text-gray-500">({v.label})</span>
+                            <span className="font-mono text-xs font-bold text-farm-primary">{v.key}</span>
+                            <span className="text-xs text-gray-500">({v.label})</span>
                           </button>
                         ))}
                       </div>
@@ -953,10 +957,10 @@ function AdminSmsPageContent() {
                         <label className="text-gray-700 font-bold text-xs">
                           متن قالب پیامک (پشتیبانی کامل از زبان فارسی و اموجی):
                         </label>
-                        <div className="text-[11px] font-bold text-gray-500">
+                        <div className="text-xs font-bold text-gray-500">
                           <span>{toPersianDigits(templateCharCount)} نویسه</span>
                           <span className="mx-1">|</span>
-                          <span className="text-[#2C4A2E]">{toPersianDigits(templateSmsPages)} پارت پیامک</span>
+                          <span className="text-farm-primary">{toPersianDigits(templateSmsPages)} پارت پیامک</span>
                         </div>
                       </div>
 
@@ -966,7 +970,7 @@ function AdminSmsPageContent() {
                         value={editingTemplateText}
                         onChange={(e) => setEditingTemplateText(e.target.value)}
                         placeholder="متن پیامک رویداد را بنویسید..."
-                        className="w-full p-4 rounded-2xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-xs sm:text-sm text-gray-900 leading-relaxed font-medium"
+                        className="w-full p-4 rounded-2xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-xs sm:text-sm text-gray-900 leading-relaxed font-medium"
                       />
                     </div>
 
@@ -996,7 +1000,7 @@ function AdminSmsPageContent() {
 
                       <button
                         type="submit"
-                        className="px-6 py-2.5 rounded-xl bg-[#2C4A2E] text-white font-bold text-xs sm:text-sm hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+                        className="px-6 py-2.5 rounded-xl bg-farm-primary text-white font-bold text-xs sm:text-sm hover:bg-farm-primary-dark shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
                       >
                         <Save className="w-4 h-4 text-[#D4A373]" />
                         <span>ذخیره تنظیمات قالب پیامک</span>
@@ -1005,20 +1009,20 @@ function AdminSmsPageContent() {
                   </form>
 
                   {/* Live Smartphone Frame Preview */}
-                  <div className="pt-5 border-t border-[#F3EFE6] space-y-3">
+                  <div className="pt-5 border-t border-farm-bg-warm space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-                        <Smartphone className="w-4 h-4 text-[#2C4A2E]" />
+                        <Smartphone className="w-4 h-4 text-farm-primary" />
                         <span>پیش‌نمایش زنده در صفحه گوشی همراه خریدار (با نمونه اطلاعات واقعی):</span>
                       </div>
-                      <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                         شبیه‌سازی زنده
                       </span>
                     </div>
 
                     <div className="max-w-md mx-auto p-4 rounded-3xl bg-gray-900 border-4 border-gray-800 shadow-2xl text-white space-y-3">
                       {/* Phone Top Notch */}
-                      <div className="flex items-center justify-between px-3 text-[10px] text-gray-400">
+                      <div className="flex items-center justify-between px-3 text-xs text-gray-600">
                         <span>09:41</span>
                         <div className="w-16 h-3 bg-black rounded-full" />
                         <span>5G 100%</span>
@@ -1030,7 +1034,7 @@ function AdminSmsPageContent() {
                           PF
                         </div>
                         <div className="text-xs font-bold text-gray-200">PRO FARM SHIRAZ</div>
-                        <div className="text-[10px] text-gray-500">مزارع ارگانیک پروفارم شیراز</div>
+                        <div className="text-xs text-gray-500">مزارع ارگانیک پروفارم شیراز</div>
                       </div>
 
                       {/* SMS Message Bubble */}
@@ -1038,7 +1042,7 @@ function AdminSmsPageContent() {
                         {renderLivePreviewText(editingTemplateText)}
                       </div>
 
-                      <div className="text-center text-[10px] text-gray-500">
+                      <div className="text-center text-xs text-gray-500">
                         ارسال از سرشماره خدماتی اختصاصی پروفارم شیراز
                       </div>
                     </div>
@@ -1057,14 +1061,14 @@ function AdminSmsPageContent() {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Form Column (8 Cols) */}
-            <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-[#F3EFE6]">
+            <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-farm-bg-warm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                     <Key className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-[#2C4A2E]">
+                    <h3 className="text-lg font-black text-farm-primary">
                       تنظیمات وب‌سرویس و درگاه پیامک (API)
                     </h3>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -1110,17 +1114,17 @@ function AdminSmsPageContent() {
                     onClick={() => setGatewaySettings((prev) => ({ ...prev, provider: 'KAVENEGAR' }))}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                       gatewaySettings.provider === 'KAVENEGAR'
-                        ? 'border-[#2C4A2E] bg-emerald-50/50 ring-2 ring-[#2C4A2E]/20 shadow-xs'
-                        : 'border-gray-200 hover:border-gray-300 bg-[#F9F8F5]'
+                        ? 'border-farm-primary bg-emerald-50/50 ring-2 ring-farm-primary/20 shadow-xs'
+                        : 'border-gray-200 hover:border-gray-300 bg-farm-bg'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs text-gray-900">کاوه‌نگار (Kavenegar)</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                      <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
                         پیشنهادی
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                       وب‌سرویس خدماتی بدون بلک‌لیست (Lookup/Pattern) و ارسال مستقیم پیامک‌های OTP و سفارشات
                     </p>
                   </div>
@@ -1130,17 +1134,17 @@ function AdminSmsPageContent() {
                     onClick={() => setGatewaySettings((prev) => ({ ...prev, provider: 'FARAZ_SMS' }))}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                       gatewaySettings.provider === 'FARAZ_SMS'
-                        ? 'border-[#2C4A2E] bg-emerald-50/50 ring-2 ring-[#2C4A2E]/20 shadow-xs'
-                        : 'border-gray-200 hover:border-gray-300 bg-[#F9F8F5]'
+                        ? 'border-farm-primary bg-emerald-50/50 ring-2 ring-farm-primary/20 shadow-xs'
+                        : 'border-gray-200 hover:border-gray-300 bg-farm-bg'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs text-gray-900">فراز اس‌ام‌اس / IPPanel</span>
-                      <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md">
+                      <span className="text-xs bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md">
                         خط خدماتی ۳۰۰۰
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                       پلتفرم یکپارچه نمایندگی‌های IPPanel با کلید دسترسی API Key و پترن پترن‌های شرکتی
                     </p>
                   </div>
@@ -1150,17 +1154,17 @@ function AdminSmsPageContent() {
                     onClick={() => setGatewaySettings((prev) => ({ ...prev, provider: 'MELIPAYAMAK' }))}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                       gatewaySettings.provider === 'MELIPAYAMAK'
-                        ? 'border-[#2C4A2E] bg-emerald-50/50 ring-2 ring-[#2C4A2E]/20 shadow-xs'
-                        : 'border-gray-200 hover:border-gray-300 bg-[#F9F8F5]'
+                        ? 'border-farm-primary bg-emerald-50/50 ring-2 ring-farm-primary/20 shadow-xs'
+                        : 'border-gray-200 hover:border-gray-300 bg-farm-bg'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs text-gray-900">ملی‌پیامک (MeliPayamak)</span>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md">
+                      <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md">
                         وب‌سرویس REST
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                       اتصال با نام کاربری، کلمه عبور و وب‌سرویس خدماتی ملی‌پیامک
                     </p>
                   </div>
@@ -1170,17 +1174,17 @@ function AdminSmsPageContent() {
                     onClick={() => setGatewaySettings((prev) => ({ ...prev, provider: 'CUSTOM' }))}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                       gatewaySettings.provider === 'CUSTOM'
-                        ? 'border-[#2C4A2E] bg-emerald-50/50 ring-2 ring-[#2C4A2E]/20 shadow-xs'
-                        : 'border-gray-200 hover:border-gray-300 bg-[#F9F8F5]'
+                        ? 'border-farm-primary bg-emerald-50/50 ring-2 ring-farm-primary/20 shadow-xs'
+                        : 'border-gray-200 hover:border-gray-300 bg-farm-bg'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs text-gray-900">وب‌سرویس سفارشی (Custom API)</span>
-                      <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-md">
+                      <span className="text-xs bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-md">
                         REST Endpoint
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                       اتصال به سامانه اختصاصی، SMS Gateway محلی یا هر سرور ارسال پیامک دیگر
                     </p>
                   </div>
@@ -1196,7 +1200,7 @@ function AdminSmsPageContent() {
                       کلید دسترسی وب‌سرویس (API Key / Token):
                     </label>
                     <div className="relative">
-                      <Key className="w-4 h-4 text-gray-400 absolute right-3.5 top-3" />
+                      <Key className="w-4 h-4 text-gray-500 absolute right-3.5 top-3" />
                       <input
                         type="text"
                         required
@@ -1205,11 +1209,11 @@ function AdminSmsPageContent() {
                         onChange={(e) =>
                           setGatewaySettings((prev) => ({ ...prev, apiKey: e.target.value }))
                         }
-                        className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left focus:outline-none focus:border-[#2C4A2E]"
+                        className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left focus:outline-none focus:border-farm-primary"
                         dir="ltr"
                       />
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       این کلید را از پنل کاربری سامانه پیامک در منوی «تنظیمات و دسترسی‌های وب‌سرویس» کپی کنید.
                     </p>
                   </div>
@@ -1227,7 +1231,7 @@ function AdminSmsPageContent() {
                         onChange={(e) =>
                           setGatewaySettings((prev) => ({ ...prev, username: e.target.value }))
                         }
-                        className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left"
+                        className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left"
                         dir="ltr"
                       />
                     </div>
@@ -1241,7 +1245,7 @@ function AdminSmsPageContent() {
                         onChange={(e) =>
                           setGatewaySettings((prev) => ({ ...prev, password: e.target.value }))
                         }
-                        className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left"
+                        className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left"
                         dir="ltr"
                       />
                     </div>
@@ -1262,7 +1266,7 @@ function AdminSmsPageContent() {
                       onChange={(e) =>
                         setGatewaySettings((prev) => ({ ...prev, senderNumber: e.target.value }))
                       }
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left"
+                      className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left"
                       dir="ltr"
                     />
                   </div>
@@ -1278,7 +1282,7 @@ function AdminSmsPageContent() {
                       onChange={(e) =>
                         setGatewaySettings((prev) => ({ ...prev, patternCode: e.target.value }))
                       }
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left"
+                      className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left"
                       dir="ltr"
                     />
                   </div>
@@ -1296,7 +1300,7 @@ function AdminSmsPageContent() {
                       onChange={(e) =>
                         setGatewaySettings((prev) => ({ ...prev, apiUrl: e.target.value }))
                       }
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono text-left"
+                      className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono text-left"
                       dir="ltr"
                     />
                   </div>
@@ -1306,7 +1310,7 @@ function AdminSmsPageContent() {
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                   <button
                     type="submit"
-                    className="px-7 py-2.5 rounded-xl bg-[#2C4A2E] text-white font-bold text-xs sm:text-sm hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+                    className="px-7 py-2.5 rounded-xl bg-farm-primary text-white font-bold text-xs sm:text-sm hover:bg-farm-primary-dark shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
                   >
                     <Save className="w-4 h-4 text-[#D4A373]" />
                     <span>ذخیره تنظیمات API پیامک</span>
@@ -1318,10 +1322,10 @@ function AdminSmsPageContent() {
             {/* Test Connection & Provider Documentation (4 Cols) */}
             <div className="lg:col-span-4 space-y-4">
               {/* Test SMS Sender Card */}
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                  <PhoneCall className="w-4 h-4 text-[#2C4A2E]" />
-                  <h3 className="font-bold text-sm text-[#2C4A2E]">تست آنلاین اتصال به وب‌سرویس</h3>
+                  <PhoneCall className="w-4 h-4 text-farm-primary" />
+                  <h3 className="font-bold text-sm text-farm-primary">تست آنلاین اتصال به وب‌سرویس</h3>
                 </div>
 
                 <p className="text-xs text-gray-500 leading-relaxed">
@@ -1335,7 +1339,7 @@ function AdminSmsPageContent() {
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
                     placeholder="09170000000"
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-xs font-mono text-left focus:outline-none focus:border-[#2C4A2E]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-farm-border bg-farm-bg text-xs font-mono text-left focus:outline-none focus:border-farm-primary"
                     dir="ltr"
                   />
                   <button
@@ -1357,12 +1361,12 @@ function AdminSmsPageContent() {
               </div>
 
               {/* Service Line Notice */}
-              <div className="p-5 rounded-3xl bg-[#F3EFE6] border border-[#E6E1D5] space-y-2 text-xs text-gray-600">
-                <div className="flex items-center gap-1.5 font-black text-[#2C4A2E]">
+              <div className="p-5 rounded-3xl bg-farm-bg-warm border border-farm-border space-y-2 text-xs text-gray-600">
+                <div className="flex items-center gap-1.5 font-black text-farm-primary">
                   <ShieldCheck className="w-4 h-4" />
                   <span>خط خدماتی بدون مسدودی بلک‌لیست:</span>
                 </div>
-                <p className="text-[11px] leading-relaxed">
+                <p className="text-xs leading-relaxed">
                   تمامی پیامک‌های مربوط به اطلاع‌رسانی وضعیت سفارش و کد ورود OTP از طریق خطوط خدماتی یا وب‌سرویس پترن (مانند متد VerifyLookup کاوه‌نگار) ارسال می‌شوند و برای ۱۰۰٪ کاربران حتی شماره‌هایی که پیامک تبلیغاتی را مسدود کرده‌اند تحویل داده خواهد شد.
                 </p>
               </div>
@@ -1378,18 +1382,18 @@ function AdminSmsPageContent() {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Composer (7 Cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-7 border border-[#E6E1D5] shadow-farm space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-7 border border-farm-border shadow-farm space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+                  <div className="w-9 h-9 rounded-xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                     <Send className="w-4 h-4" />
                   </div>
-                  <h3 className="font-black text-base text-[#2C4A2E]">
+                  <h3 className="font-black text-base text-farm-primary">
                     ارسال کمپین یا پیامک مناسبتی جدید
                   </h3>
                 </div>
-                <span className="text-xs text-gray-400 font-medium">
-                  تخمین گیرندگان: <strong className="text-[#2C4A2E] font-bold">{toPersianDigits(getBroadcastRecipientEstimate())} شماره</strong>
+                <span className="text-xs text-gray-600 font-medium">
+                  تخمین گیرندگان: <strong className="text-farm-primary font-bold">{toPersianDigits(getBroadcastRecipientEstimate())} شماره</strong>
                 </span>
               </div>
 
@@ -1404,7 +1408,7 @@ function AdminSmsPageContent() {
                     placeholder="مثال: اعلام برداشت عسل کوهستان و نوبرانه گردوی سپیدان"
                     value={broadcastTitle}
                     onChange={(e) => setBroadcastTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-medium"
                   />
                 </div>
 
@@ -1418,14 +1422,14 @@ function AdminSmsPageContent() {
                       onClick={() => setTargetSegment('ALL')}
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex items-center gap-2.5 ${
                         targetSegment === 'ALL'
-                          ? 'bg-[#2C4A2E] text-white border-[#2C4A2E] shadow-xs'
-                          : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-gray-100'
+                          ? 'bg-farm-primary text-white border-farm-primary shadow-xs'
+                          : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
                       <Users className="w-4 h-4 shrink-0" />
                       <div>
                         <div className="font-bold text-xs">همه خریداران سایت</div>
-                        <div className={`text-[10px] ${targetSegment === 'ALL' ? 'text-gray-200' : 'text-gray-500'}`}>
+                        <div className={`text-xs ${targetSegment === 'ALL' ? 'text-gray-200' : 'text-gray-500'}`}>
                           تمام کاربران و اعضای ثبت‌نامی
                         </div>
                       </div>
@@ -1437,13 +1441,13 @@ function AdminSmsPageContent() {
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex items-center gap-2.5 ${
                         targetSegment === 'PRO_MEMBERS'
                           ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                          : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-amber-50/50'
+                          : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-amber-50/50'
                       }`}
                     >
                       <Crown className="w-4 h-4 shrink-0 text-amber-300" />
                       <div>
                         <div className="font-bold text-xs">مشترکین ویژه پرو (طلایی)</div>
-                        <div className={`text-[10px] ${targetSegment === 'PRO_MEMBERS' ? 'text-amber-100' : 'text-gray-500'}`}>
+                        <div className={`text-xs ${targetSegment === 'PRO_MEMBERS' ? 'text-amber-100' : 'text-gray-500'}`}>
                           اعضای تحویل ۶ روزه
                         </div>
                       </div>
@@ -1455,13 +1459,13 @@ function AdminSmsPageContent() {
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex items-center gap-2.5 ${
                         targetSegment === 'PLUS_MEMBERS'
                           ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
-                          : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-emerald-50/50'
+                          : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-emerald-50/50'
                       }`}
                     >
                       <Sparkles className="w-4 h-4 shrink-0 text-emerald-300" />
                       <div>
                         <div className="font-bold text-xs">مشترکین باشگاه پلاس</div>
-                        <div className={`text-[10px] ${targetSegment === 'PLUS_MEMBERS' ? 'text-emerald-100' : 'text-gray-500'}`}>
+                        <div className={`text-xs ${targetSegment === 'PLUS_MEMBERS' ? 'text-emerald-100' : 'text-gray-500'}`}>
                           اعضای تخفیف دائمی
                         </div>
                       </div>
@@ -1473,13 +1477,13 @@ function AdminSmsPageContent() {
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex items-center gap-2.5 ${
                         targetSegment === 'SHIRAZ_BUYERS'
                           ? 'bg-sky-700 text-white border-sky-800 shadow-xs'
-                          : 'bg-[#F9F8F5] text-gray-800 border-gray-200 hover:bg-sky-50/50'
+                          : 'bg-farm-bg text-gray-800 border-gray-200 hover:bg-sky-50/50'
                       }`}
                     >
                       <MapPin className="w-4 h-4 shrink-0 text-sky-300" />
                       <div>
                         <div className="font-bold text-xs">خریداران ساکن شیراز</div>
-                        <div className={`text-[10px] ${targetSegment === 'SHIRAZ_BUYERS' ? 'text-sky-100' : 'text-gray-500'}`}>
+                        <div className={`text-xs ${targetSegment === 'SHIRAZ_BUYERS' ? 'text-sky-100' : 'text-gray-500'}`}>
                           تحویل پیک اختصاصی عصرگاهی
                         </div>
                       </div>
@@ -1497,7 +1501,7 @@ function AdminSmsPageContent() {
                       value={customNumbersInput}
                       onChange={(e) => setCustomNumbersInput(e.target.value)}
                       placeholder="09171234567, 09351234567"
-                      className="w-full p-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-mono"
+                      className="w-full p-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white text-xs font-mono"
                       dir="ltr"
                     />
                   </div>
@@ -1506,10 +1510,10 @@ function AdminSmsPageContent() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">متن پیامک ارسالی:</label>
-                    <div className="text-[11px] font-bold text-gray-500">
+                    <div className="text-xs font-bold text-gray-500">
                       <span>{toPersianDigits(broadcastCharCount)} کاراکتر</span>
                       <span className="mx-1">|</span>
-                      <span className="text-[#2C4A2E]">{toPersianDigits(broadcastSmsPages)} پارت پیامک</span>
+                      <span className="text-farm-primary">{toPersianDigits(broadcastSmsPages)} پارت پیامک</span>
                     </div>
                   </div>
                   <textarea
@@ -1518,7 +1522,7 @@ function AdminSmsPageContent() {
                     value={broadcastMessage}
                     onChange={(e) => setBroadcastMessage(e.target.value)}
                     placeholder="متن پیامک را بنویسید..."
-                    className="w-full p-3.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-gray-900 leading-relaxed font-medium"
+                    className="w-full p-3.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 leading-relaxed font-medium"
                   />
                 </div>
 
@@ -1526,7 +1530,7 @@ function AdminSmsPageContent() {
                   <button
                     type="submit"
                     disabled={isSendingBroadcast || !broadcastMessage.trim()}
-                    className="px-7 py-3 rounded-2xl bg-[#2C4A2E] text-white font-bold text-xs sm:text-sm hover:bg-[#1E3520] shadow-md flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    className="px-7 py-3 rounded-2xl bg-farm-primary text-white font-bold text-xs sm:text-sm hover:bg-farm-primary-dark shadow-md flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                   >
                     <Send className="w-4 h-4 text-[#D4A373]" />
                     <span>{isSendingBroadcast ? 'در حال ارسال به وب‌سرویس...' : 'ارسال قطعی به صف پیامک'}</span>
@@ -1537,10 +1541,10 @@ function AdminSmsPageContent() {
 
             {/* Ready Presets (5 Cols) */}
             <div className="lg:col-span-5 space-y-4">
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                  <FileText className="w-4 h-4 text-[#2C4A2E]" />
-                  <h3 className="font-bold text-sm text-[#2C4A2E]">
+                  <FileText className="w-4 h-4 text-farm-primary" />
+                  <h3 className="font-bold text-sm text-farm-primary">
                     قالب‌های پیشنهادی مزارع شیراز
                   </h3>
                 </div>
@@ -1553,12 +1557,12 @@ function AdminSmsPageContent() {
                       setBroadcastMessage('سلام همراه گرامی مزارع پروفارم؛ محصول عسل خالص کوهستان و گردوی نوبرانه سپیدان هم‌اکنون در سایت موجود شد. سفارش سریع:\nprofarm.ir');
                       setTargetSegment('ALL');
                     }}
-                    className="w-full p-3 rounded-2xl bg-[#F9F8F5] hover:bg-emerald-50/60 border border-gray-200 hover:border-emerald-300 text-right transition-colors cursor-pointer group"
+                    className="w-full p-3 rounded-2xl bg-farm-bg hover:bg-emerald-50/60 border border-gray-200 hover:border-emerald-300 text-right transition-colors cursor-pointer group"
                   >
-                    <div className="font-bold text-xs text-gray-900 group-hover:text-[#2C4A2E]">
+                    <div className="font-bold text-xs text-gray-900 group-hover:text-farm-primary">
                       اعلان محصول جدید و نوبرانه فصلی
                     </div>
-                    <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-2">
                       سلام همراه گرامی مزارع پروفارم؛ محصول عسل خالص کوهستان و گردوی نوبرانه سپیدان هم‌اکنون در سایت موجود شد...
                     </div>
                   </button>
@@ -1570,12 +1574,12 @@ function AdminSmsPageContent() {
                       setBroadcastMessage('کاربر گرامی؛ توزیع سراسری محصولات تازه مزارع شیراز فردا چهارشنبه (۳ عصر الی ۹ شب) انجام می‌شود. ثبت سفارش قبل از تکمیل ظرفیت:\nprofarm.ir');
                       setTargetSegment('SHIRAZ_BUYERS');
                     }}
-                    className="w-full p-3 rounded-2xl bg-[#F9F8F5] hover:bg-sky-50/60 border border-gray-200 hover:border-sky-300 text-right transition-colors cursor-pointer group"
+                    className="w-full p-3 rounded-2xl bg-farm-bg hover:bg-sky-50/60 border border-gray-200 hover:border-sky-300 text-right transition-colors cursor-pointer group"
                   >
                     <div className="font-bold text-xs text-gray-900 group-hover:text-sky-800">
                       یادآوری سفارش روز چهارشنبه (شیراز)
                     </div>
-                    <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-2">
                       توزیع سراسری محصولات تازه مزارع شیراز فردا چهارشنبه (۳ عصر الی ۹ شب) انجام می‌شود...
                     </div>
                   </button>
@@ -1587,12 +1591,12 @@ function AdminSmsPageContent() {
                       setBroadcastMessage('مشترک ارجمند پروفارم پرو؛ سبد ویژه تخم‌مرغ رسمی محلی و عرقیات دوآتشه با ۱۰٪ تخفیف مازاد برای شما فعال گردید:\nprofarm.ir/pro');
                       setTargetSegment('PRO_MEMBERS');
                     }}
-                    className="w-full p-3 rounded-2xl bg-[#F9F8F5] hover:bg-amber-50/60 border border-gray-200 hover:border-amber-300 text-right transition-colors cursor-pointer group"
+                    className="w-full p-3 rounded-2xl bg-farm-bg hover:bg-amber-50/60 border border-gray-200 hover:border-amber-300 text-right transition-colors cursor-pointer group"
                   >
                     <div className="font-bold text-xs text-gray-900 group-hover:text-amber-800">
                       تخفیف ویژه و مازاد مشترکین پرو
                     </div>
-                    <div className="text-[11px] text-gray-500 mt-1 line-clamp-2">
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-2">
                       مشترک ارجمند پروفارم پرو؛ سبد ویژه تخم‌مرغ رسمی محلی و عرقیات دوآتشه با ۱۰٪ تخفیف مازاد...
                     </div>
                   </button>
@@ -1602,11 +1606,11 @@ function AdminSmsPageContent() {
           </div>
 
           {/* History Table */}
-          <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden space-y-4 p-6">
+          <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden space-y-4 p-6">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-[#2C4A2E]" />
-                <h3 className="font-black text-base text-[#2C4A2E]">
+                <History className="w-5 h-5 text-farm-primary" />
+                <h3 className="font-black text-base text-farm-primary">
                   سوابق پیامک‌های ارسالی دستی و گزارش تحویل
                 </h3>
               </div>
@@ -1617,7 +1621,7 @@ function AdminSmsPageContent() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
-                <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
+                <thead className="bg-farm-bg border-b border-farm-border text-farm-primary">
                   <tr>
                     <th className="py-3.5 px-4 font-black">عنوان کمپین</th>
                     <th className="py-3.5 px-4 font-black">گروه دریافت‌کننده</th>
@@ -1642,12 +1646,12 @@ function AdminSmsPageContent() {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
                             {b.targetSegment}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-4 font-black text-[#2C4A2E]">
+                        <td className="py-3.5 px-4 font-black text-farm-primary">
                           {toPersianDigits(b.recipientCount)} شماره
                         </td>
 
@@ -1660,7 +1664,7 @@ function AdminSmsPageContent() {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                             <span>ارسال موفق</span>
                           </span>
@@ -1681,15 +1685,15 @@ function AdminSmsPageContent() {
       {activeTab === 'EMAIL' && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Subtab Navigation Switcher */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-white border border-[#E6E1D5] shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-white border border-farm-border shadow-xs">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setEmailSubTab('COMPOSE')}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   emailSubTab === 'COMPOSE'
-                    ? 'bg-[#2C4A2E] text-white shadow-xs'
-                    : 'text-gray-600 hover:bg-[#F9F8F5]'
+                    ? 'bg-farm-primary text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-farm-bg'
                 }`}
               >
                 <Mail className="w-4 h-4 text-[#D4A373]" />
@@ -1701,8 +1705,8 @@ function AdminSmsPageContent() {
                 onClick={() => setEmailSubTab('SETTINGS')}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   emailSubTab === 'SETTINGS'
-                    ? 'bg-[#2C4A2E] text-white shadow-xs'
-                    : 'text-gray-600 hover:bg-[#F9F8F5]'
+                    ? 'bg-farm-primary text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-farm-bg'
                 }`}
               >
                 <Key className="w-4 h-4 text-[#D4A373]" />
@@ -1710,14 +1714,14 @@ function AdminSmsPageContent() {
                 {emailSettings.smtpPass && emailSettings.smtpUser ? (
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="تنظیمات ذخیره شده" />
                 ) : (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold">نیاز به رمز عبور</span>
+                  <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-800 font-bold">نیاز به رمز عبور</span>
                 )}
               </button>
             </div>
 
             {/* Quick Status Pill */}
             <div className="flex items-center gap-2 text-xs">
-              <span className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 shadow-2xs ${
+              <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 shadow-2xs ${
                 emailSettings.provider === 'SMTP' && emailSettings.smtpHost && emailSettings.smtpUser
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   : 'bg-amber-50 border-amber-200 text-amber-800'
@@ -1737,14 +1741,14 @@ function AdminSmsPageContent() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left: Email Compose Form */}
-                <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-5">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
+                <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-farm-border shadow-xs space-y-5">
+                  <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+                      <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                         <Mail className="w-5 h-5" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-[#2C4A2E]">
+                        <h2 className="text-base font-bold text-farm-primary">
                           نگارش و ارسال ایمیل رسمی
                         </h2>
                         <p className="text-xs text-gray-500">
@@ -1753,7 +1757,7 @@ function AdminSmsPageContent() {
                       </div>
                     </div>
 
-                    <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                    <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
                       سیستم ارسال فعال ✓
                     </span>
                   </div>
@@ -1770,7 +1774,7 @@ function AdminSmsPageContent() {
                           onClick={() => setEmailTarget('ALL')}
                           className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                             emailTarget === 'ALL'
-                              ? 'border-[#2C4A2E] bg-[#2C4A2E]/5 font-bold text-[#2C4A2E]'
+                              ? 'border-farm-primary bg-farm-primary/5 font-bold text-farm-primary'
                               : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                           }`}
                         >
@@ -1781,7 +1785,7 @@ function AdminSmsPageContent() {
                           onClick={() => setEmailTarget('USER')}
                           className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                             emailTarget === 'USER'
-                              ? 'border-[#2C4A2E] bg-[#2C4A2E]/5 font-bold text-[#2C4A2E]'
+                              ? 'border-farm-primary bg-farm-primary/5 font-bold text-farm-primary'
                               : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                           }`}
                         >
@@ -1792,7 +1796,7 @@ function AdminSmsPageContent() {
                           onClick={() => setEmailTarget('CUSTOM')}
                           className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                             emailTarget === 'CUSTOM'
-                              ? 'border-[#2C4A2E] bg-[#2C4A2E]/5 font-bold text-[#2C4A2E]'
+                              ? 'border-farm-primary bg-farm-primary/5 font-bold text-farm-primary'
                               : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                           }`}
                         >
@@ -1810,7 +1814,7 @@ function AdminSmsPageContent() {
                         <select
                           value={selectedUserEmail}
                           onChange={(e) => setSelectedUserEmail(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-medium"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-medium"
                         >
                           {registeredUsersList
                             .filter((u) => u.email)
@@ -1834,7 +1838,7 @@ function AdminSmsPageContent() {
                           placeholder="client@example.com"
                           value={emailRecipientInput}
                           onChange={(e) => setEmailRecipientInput(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                         />
                       </div>
                     )}
@@ -1850,7 +1854,7 @@ function AdminSmsPageContent() {
                         placeholder="مثال: اطلاعیه تحویل سبد هفتگی ارگانیک مزارع شیراز"
                         value={emailSubject}
                         onChange={(e) => setEmailSubject(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-medium"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-medium"
                       />
                     </div>
 
@@ -1865,14 +1869,14 @@ function AdminSmsPageContent() {
                         placeholder="متن پیام خود را اینجا بنویسید. این متن در قالب زیبا و رسمی مزارع پروفارم شیراز جاسازی خواهد شد..."
                         value={emailContent}
                         onChange={(e) => setEmailContent(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-medium leading-relaxed"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-medium leading-relaxed"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isSendingEmail}
-                      className="w-full py-3 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3320] text-white font-bold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer text-sm"
+                      className="w-full py-3 rounded-2xl bg-farm-primary hover:bg-[#1E3320] text-white font-bold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer text-sm"
                     >
                       {isSendingEmail ? (
                         <>
@@ -1890,22 +1894,22 @@ function AdminSmsPageContent() {
                 </div>
 
                 {/* Right: Live Email Visual Preview */}
-                <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
-                    <div className="flex items-center gap-2 text-[#2C4A2E]">
+                <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-farm-border shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
+                    <div className="flex items-center gap-2 text-farm-primary">
                       <Sparkles className="w-4 h-4 text-[#D4A373]" />
                       <h3 className="text-sm font-bold">پیش‌نمایش قالب ایمیل ارسالی</h3>
                     </div>
-                    <span className="text-[11px] text-gray-400">قالب ریسپانسیو HTML</span>
+                    <span className="text-xs text-gray-600">قالب ریسپانسیو HTML</span>
                   </div>
 
                   {/* Mock Email Canvas */}
-                  <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-xs bg-[#F9F8F5] p-3">
+                  <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-xs bg-farm-bg p-3">
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden text-right shadow-2xs">
                       {/* Header */}
-                      <div className="bg-[#2C4A2E] p-4 text-center border-b-2 border-[#D4A373]">
+                      <div className="bg-farm-primary p-4 text-center border-b-2 border-[#D4A373]">
                         <h4 className="text-white font-black text-sm">مزارع ارگانیک پروفارم شیراز</h4>
-                        <p className="text-[10px] text-[#D4A373] mt-0.5 font-bold">توزیع مستقیم فرآورده‌های تازه و سالم مزارع فارس</p>
+                        <p className="text-xs text-[#D4A373] mt-0.5 font-bold">توزیع مستقیم فرآورده‌های تازه و سالم مزارع فارس</p>
                       </div>
 
                       {/* Body */}
@@ -1914,24 +1918,24 @@ function AdminSmsPageContent() {
                           سلام جناب/سرکار {emailTarget === 'USER' ? (registeredUsersList.find(u => u.email === selectedUserEmail)?.name || 'کاربر گرامی') : 'مشتری گرامی'}،
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-gray-50 border-r-3 border-[#2C4A2E] font-bold text-gray-900 text-[11px]">
+                        <div className="p-2.5 rounded-lg bg-gray-50 border-r-3 border-farm-primary font-bold text-gray-900 text-xs">
                           {emailSubject || 'موضوع ایمیل ارسالی در این بخش قرار می‌گیرد'}
                         </div>
 
-                        <div className="text-gray-600 leading-relaxed whitespace-pre-line text-[11px] min-h-[60px]">
+                        <div className="text-gray-600 leading-relaxed whitespace-pre-line text-xs min-h-[60px]">
                           {emailContent || 'متن پیامی که در کادر بالا می‌نویسید، با تایپوگرافی شکیل و چیدمان استاندارد در این قسمت به مخاطب نمایش داده می‌شود.'}
                         </div>
                       </div>
 
                       {/* Footer */}
-                      <div className="bg-[#FAF8F5] p-3 border-t border-gray-100 text-center text-[9px] text-gray-400 space-y-0.5">
+                      <div className="bg-[#FAF8F5] p-3 border-t border-gray-100 text-center text-xs text-gray-600 space-y-0.5">
                         <p>پروفارم شیراز | ارسال با زنجیره سرد پیک اختصاصی درب منزل در شیراز</p>
                         <p>تلفن پشتیبانی: ۰۷۱۳۶۲۸۰۰۰۰</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] flex items-start gap-2">
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <p>
                       قابلیت جایگزینی خودکار (Fallback): در صورت بروز هرگونه اختلال در خطوط پیامکی، سامانه به‌صورت هوشمند پیام را از طریق این قالب ایمیل ارسال می‌کند.
@@ -1941,11 +1945,11 @@ function AdminSmsPageContent() {
           </div>
 
           {/* Email Logs History Table */}
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
+          <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
               <div className="flex items-center gap-2.5">
-                <History className="w-5 h-5 text-[#2C4A2E]" />
-                <h3 className="text-base font-bold text-[#2C4A2E]">
+                <History className="w-5 h-5 text-farm-primary" />
+                <h3 className="text-base font-bold text-farm-primary">
                   تاریخچه و گزارش ایمیل‌های ارسالی سیستم ({toPersianDigits(emailLogs.length)})
                 </h3>
               </div>
@@ -1954,7 +1958,7 @@ function AdminSmsPageContent() {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead>
-                  <tr className="bg-[#FAF8F5] text-gray-600 border-b border-[#E6E1D5]">
+                  <tr className="bg-[#FAF8F5] text-gray-600 border-b border-farm-border">
                     <th className="py-3 px-4 font-bold">گیرنده</th>
                     <th className="py-3 px-4 font-bold">موضوع ایمیل</th>
                     <th className="py-3 px-4 font-bold">متن خلاصه</th>
@@ -1963,10 +1967,10 @@ function AdminSmsPageContent() {
                     <th className="py-3 px-4 font-bold">تاریخ و زمان</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F3EFE6]">
+                <tbody className="divide-y divide-farm-bg-warm">
                   {emailLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">
+                      <td colSpan={6} className="text-center py-8 text-gray-600">
                         تاکنون هیچ ایمیلی در سیستم ثبت نگردیده است.
                       </td>
                     </tr>
@@ -1975,9 +1979,9 @@ function AdminSmsPageContent() {
                       <tr key={log.id} className="hover:bg-[#FAF8F5]/60 transition-colors">
                         <td className="py-3.5 px-4 font-bold text-gray-900">
                           <div>{log.recipientName || 'کاربر'}</div>
-                          <div className="text-[11px] font-mono text-gray-500 dir-ltr text-right">{log.to}</div>
+                          <div className="text-xs font-mono text-gray-500 dir-ltr text-right">{log.to}</div>
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-[#2C4A2E]">
+                        <td className="py-3.5 px-4 font-bold text-farm-primary">
                           {log.subject}
                         </td>
                         <td className="py-3.5 px-4 text-gray-600 max-w-[260px] truncate">
@@ -1985,12 +1989,12 @@ function AdminSmsPageContent() {
                         </td>
                         <td className="py-3.5 px-4">
                           {log.fallbackForSms ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                               <AlertCircle className="w-3 h-3 text-amber-600" />
                               جایگزین خودکار پیامک
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
                               <Mail className="w-3 h-3 text-blue-600" />
                               ارسال مستقیم
                             </span>
@@ -1998,17 +2002,17 @@ function AdminSmsPageContent() {
                         </td>
                         <td className="py-3.5 px-4">
                           {log.status === 'SENT' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               ارسال‌شده
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
                               ناموفق
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-gray-500 font-mono text-[11px]">
+                        <td className="py-3.5 px-4 text-gray-500 font-mono text-xs">
                           {(() => {
                             try {
                               if (!log.createdAt) return '-';
@@ -2035,14 +2039,14 @@ function AdminSmsPageContent() {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: SMTP Configuration Form */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-farm-border shadow-xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                     <Key className="w-5 h-5 text-[#D4A373]" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-[#2C4A2E]">
+                    <h2 className="text-base font-bold text-farm-primary">
                       تنظیمات وب‌سرویس و سرور SMTP ایمیل
                     </h2>
                     <p className="text-xs text-gray-500">
@@ -2059,7 +2063,7 @@ function AdminSmsPageContent() {
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, isEnabled: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2C4A2E]"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-farm-primary"></div>
                   </label>
                   <span className="text-xs font-bold text-gray-700">
                     {emailSettings.isEnabled ? 'سرویس فعال' : 'سرویس غیرفعال'}
@@ -2079,13 +2083,13 @@ function AdminSmsPageContent() {
                       onClick={() => setEmailSettings((prev) => ({ ...prev, provider: 'SMTP' }))}
                       className={`p-3 rounded-2xl border text-right flex items-center justify-between transition-all cursor-pointer ${
                         emailSettings.provider === 'SMTP'
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E]/5 font-bold text-[#2C4A2E]'
+                          ? 'border-farm-primary bg-farm-primary/5 font-bold text-farm-primary'
                           : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                       }`}
                     >
                       <div>
                         <div className="font-black text-xs">سرور SMTP اختصاصی / جیمیل</div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">ارسال واقعی ایمیل به صندوق ورودی مخاطبین</div>
+                        <div className="text-xs text-gray-500 mt-0.5">ارسال واقعی ایمیل به صندوق ورودی مخاطبین</div>
                       </div>
                       <Server className="w-4 h-4 text-[#D4A373] shrink-0" />
                     </button>
@@ -2095,15 +2099,15 @@ function AdminSmsPageContent() {
                       onClick={() => setEmailSettings((prev) => ({ ...prev, provider: 'MOCK' }))}
                       className={`p-3 rounded-2xl border text-right flex items-center justify-between transition-all cursor-pointer ${
                         emailSettings.provider === 'MOCK'
-                          ? 'border-[#2C4A2E] bg-[#2C4A2E]/5 font-bold text-[#2C4A2E]'
+                          ? 'border-farm-primary bg-farm-primary/5 font-bold text-farm-primary'
                           : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                       }`}
                     >
                       <div>
                         <div className="font-black text-xs">حالت شبیه‌ساز (Mock / Local)</div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">ثبت در دیتابیس بدون اتصال اینترنتی به سرور</div>
+                        <div className="text-xs text-gray-500 mt-0.5">ثبت در دیتابیس بدون اتصال اینترنتی به سرور</div>
                       </div>
-                      <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                      <FileText className="w-4 h-4 text-gray-500 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -2111,10 +2115,10 @@ function AdminSmsPageContent() {
                 {/* 1-Click Quick Provider Presets */}
                 <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/70">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                       <span>⚡</span> انتخاب سریع تنظیمات سرور بر اساس سرویس‌دهنده ایمیل شما:
                     </span>
-                    <span className="text-[10px] text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full font-medium">تنظیم ۱-کلیک</span>
+                    <span className="text-xs text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full font-medium">تنظیم ۱-کلیک</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
@@ -2128,7 +2132,7 @@ function AdminSmsPageContent() {
                           smtpSecure: false,
                         }));
                       }}
-                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-[#2C4A2E] hover:bg-[#2C4A2E]/5 text-center transition-all cursor-pointer font-bold text-[11px] text-gray-800 shadow-sm"
+                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-farm-primary hover:bg-farm-primary/5 text-center transition-all cursor-pointer font-bold text-xs text-gray-800 shadow-sm"
                     >
                       📧 Google / Gmail
                     </button>
@@ -2143,7 +2147,7 @@ function AdminSmsPageContent() {
                           smtpSecure: false,
                         }));
                       }}
-                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-[#2C4A2E] hover:bg-[#2C4A2E]/5 text-center transition-all cursor-pointer font-bold text-[11px] text-gray-800 shadow-sm"
+                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-farm-primary hover:bg-farm-primary/5 text-center transition-all cursor-pointer font-bold text-xs text-gray-800 shadow-sm"
                     >
                       📨 Outlook / Live
                     </button>
@@ -2158,7 +2162,7 @@ function AdminSmsPageContent() {
                           smtpSecure: true,
                         }));
                       }}
-                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-[#2C4A2E] hover:bg-[#2C4A2E]/5 text-center transition-all cursor-pointer font-bold text-[11px] text-gray-800 shadow-sm"
+                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-farm-primary hover:bg-farm-primary/5 text-center transition-all cursor-pointer font-bold text-xs text-gray-800 shadow-sm"
                     >
                       📬 Yahoo Mail
                     </button>
@@ -2173,7 +2177,7 @@ function AdminSmsPageContent() {
                           smtpSecure: true,
                         }));
                       }}
-                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-[#2C4A2E] hover:bg-[#2C4A2E]/5 text-center transition-all cursor-pointer font-bold text-[11px] text-gray-800 shadow-sm"
+                      className="py-2 px-2.5 rounded-xl border border-amber-200 bg-white hover:border-farm-primary hover:bg-farm-primary/5 text-center transition-all cursor-pointer font-bold text-xs text-gray-800 shadow-sm"
                     >
                       🌐 هاست اختصاصی / cPanel
                     </button>
@@ -2192,7 +2196,7 @@ function AdminSmsPageContent() {
                       placeholder="smtp.gmail.com یا mail.profarm.ir"
                       value={emailSettings.smtpHost}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, smtpHost: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
                   </div>
 
@@ -2207,9 +2211,9 @@ function AdminSmsPageContent() {
                       placeholder="587 یا 465"
                       value={emailSettings.smtpPort}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, smtpPort: parseInt(e.target.value, 10) || 587 }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">پورت ۵۸۷ برای STARTTLS و پورت ۴۶۵ برای SSL مستقیم</p>
+                    <p className="text-xs text-gray-600 mt-1">پورت ۵۸۷ برای STARTTLS و پورت ۴۶۵ برای SSL مستقیم</p>
                   </div>
                 </div>
 
@@ -2256,7 +2260,7 @@ function AdminSmsPageContent() {
                           };
                         });
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
                   </div>
 
@@ -2269,7 +2273,7 @@ function AdminSmsPageContent() {
                       <button
                         type="button"
                         onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                        className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-[11px] cursor-pointer"
+                        className="text-gray-600 hover:text-gray-600 flex items-center gap-1 text-xs cursor-pointer"
                       >
                         {showSmtpPassword ? (
                           <>
@@ -2289,7 +2293,7 @@ function AdminSmsPageContent() {
                       placeholder="رمز عبور برنامه (۱۶ رقمی برای Gmail)"
                       value={emailSettings.smtpPass}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, smtpPass: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
                   </div>
                 </div>
@@ -2306,7 +2310,7 @@ function AdminSmsPageContent() {
                       placeholder="مزارع ارگانیک پروفارم شیراز"
                       value={emailSettings.fromName}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, fromName: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-medium"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-medium"
                     />
                   </div>
 
@@ -2316,7 +2320,7 @@ function AdminSmsPageContent() {
                       <label className="block text-gray-700 font-bold">
                         آدرس ایمیل فرستنده اصلی (From Email):
                       </label>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                         فرستنده کلیه پیام‌های مشتریان
                       </span>
                     </div>
@@ -2325,19 +2329,19 @@ function AdminSmsPageContent() {
                       placeholder="info@profarm-shiraz.ir یا ایمیل اختصاصی شما"
                       value={emailSettings.fromEmail}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, fromEmail: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
-                    <p className="text-[10px] text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       تمامی ایمیل‌های فاکتور سفارش، وضعیت مرسوله، کدهای تایید OTP و پاسخ کاربران با این نشانی ارسال و دریافت خواهند شد.
                     </p>
                   </div>
                 </div>
 
                 {/* SSL / Secure switch */}
-                <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center justify-between">
+                <div className="p-3 rounded-2xl bg-farm-bg border border-farm-border flex items-center justify-between">
                   <div>
                     <span className="font-bold text-gray-800">استفاده از اتصال رمزنگاری مستقیم SSL (پورت ۴۶۵)</span>
-                    <p className="text-[11px] text-gray-500 mt-0.5">در صورت استفاده از پورت ۵۸۷، اتصال به طور خودکار از نوع STARTTLS خواهد بود.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">در صورت استفاده از پورت ۵۸۷، اتصال به طور خودکار از نوع STARTTLS خواهد بود.</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -2346,14 +2350,14 @@ function AdminSmsPageContent() {
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, smtpSecure: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2C4A2E]"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-farm-primary"></div>
                   </label>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSavingEmailSettings}
-                  className="w-full py-3 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3320] text-white font-bold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer text-sm"
+                  className="w-full py-3 rounded-2xl bg-farm-primary hover:bg-[#1E3320] text-white font-bold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer text-sm"
                 >
                   {isSavingEmailSettings ? (
                     <>
@@ -2373,16 +2377,16 @@ function AdminSmsPageContent() {
             {/* Right: Live Test & Step-by-Step Setup Guide */}
             <div className="lg:col-span-5 space-y-6">
               {/* Live Test Connection Card */}
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-[#F3EFE6]">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-xs space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                     <Zap className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#2C4A2E]">
+                    <h3 className="text-sm font-bold text-farm-primary">
                       تست اتصال و ارسال ایمیل زنده
                     </h3>
-                    <p className="text-[11px] text-gray-500">
+                    <p className="text-xs text-gray-500">
                       ارسال یک ایمیل تستی برای اطمینان از عملکرد صحیح پروتکل SMTP
                     </p>
                   </div>
@@ -2398,7 +2402,7 @@ function AdminSmsPageContent() {
                       placeholder="your-personal@email.com"
                       value={testEmailRecipient}
                       onChange={(e) => setTestEmailRecipient(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] font-mono dir-ltr text-right"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-mono dir-ltr text-right"
                     />
                   </div>
 
@@ -2435,25 +2439,25 @@ function AdminSmsPageContent() {
                         )}
                         <span>{emailTestLog.success ? 'اتصال موفقیت‌آمیز بود ✓' : 'خطا در برقراری اتصال'}</span>
                       </div>
-                      <p className="text-[11px] mt-1">{emailTestLog.message}</p>
+                      <p className="text-xs mt-1">{emailTestLog.message}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Gmail & Hosting Instructions Guide */}
-              <div className="bg-[#FAF8F5] rounded-3xl p-6 border border-[#E6E1D5] shadow-xs space-y-4 text-xs">
-                <div className="flex items-center gap-2.5 text-[#2C4A2E] font-black text-sm pb-2 border-b border-[#E6E1D5]">
+              <div className="bg-[#FAF8F5] rounded-3xl p-6 border border-farm-border shadow-xs space-y-4 text-xs">
+                <div className="flex items-center gap-2.5 text-farm-primary font-black text-sm pb-2 border-b border-farm-border">
                   <HelpCircle className="w-4 h-4 text-[#D4A373]" />
                   <span>راهنمای راه‌اندازی سریع با Gmail (رایگان)</span>
                 </div>
 
                 <div className="space-y-3 text-gray-700 leading-relaxed">
-                  <p className="text-[11px]">
+                  <p className="text-xs">
                     گوگل به دلایل امنیتی اجازه استفاده از رمز ورود عادی اکانت را نمی‌دهد. برای اتصال جیمیل به سامانه، کافی است در کمتر از ۱ دقیقه یک <strong>App Password</strong> بسازید:
                   </p>
 
-                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] font-medium text-gray-800 bg-white p-3.5 rounded-xl border border-[#E6E1D5]">
+                  <ol className="list-decimal list-inside space-y-1.5 text-xs font-medium text-gray-800 bg-white p-3.5 rounded-xl border border-farm-border">
                     <li>به حساب گوگل خود در <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-blue-600 underline inline-flex items-center gap-0.5">صفحه امنیت گوگل <ExternalLink className="w-2.5 h-2.5" /></a> مراجعه فرمایید.</li>
                     <li>مطمئن شوید گزینه <strong>2-Step Verification</strong> (تایید دو مرحله‌ای) روشن است.</li>
                     <li>در کادر جستجوی بالای صفحه حساب گوگل، عبارت <strong>App passwords</strong> را جستجو و باز کنید.</li>
@@ -2462,7 +2466,7 @@ function AdminSmsPageContent() {
                     <li>هاست را <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">smtp.gmail.com</code> و پورت را <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">587</code> وارد نمایید.</li>
                   </ol>
 
-                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-[11px] flex items-start gap-2">
+                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-2">
                     <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div>
                       <strong>استفاده از ایمیل وب‌میل هاست خودتان:</strong>

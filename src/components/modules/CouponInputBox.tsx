@@ -95,17 +95,17 @@ export function CouponInputBox({
   ];
 
   return (
-    <div className={`bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-3.5 ${className}`}>
+    <div className={`bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-3.5 ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-emerald-100 text-[#2C4A2E] flex items-center justify-center">
+          <div className="w-7 h-7 rounded-xl bg-emerald-100 text-farm-primary flex items-center justify-center">
             <TicketPercent className="w-4 h-4" />
           </div>
           <span className="text-xs font-bold text-gray-800">کد تخفیف مزارع شیراز</span>
         </div>
 
         {appliedResult && (
-          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
             فعال و اعمال‌شده
           </span>
         )}
@@ -122,7 +122,7 @@ export function CouponInputBox({
                 ({appliedResult.coupon?.title})
               </span>
             </div>
-            <div className="text-[11px] text-emerald-700 font-bold">
+            <div className="text-xs text-emerald-700 font-bold">
               مبلغ کسر شده:{' '}
               <span className="text-sm font-black">
                 {formatToman(appliedResult.discountAmount)} تخفیف
@@ -158,14 +158,14 @@ export function CouponInputBox({
                   handleApply();
                 }
               }}
-              className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-base sm:text-xs font-mono tracking-wider text-left focus:bg-white focus:border-[#2C4A2E] outline-none transition-all"
+              className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-base sm:text-xs font-mono tracking-wider text-left focus:bg-white focus:border-farm-primary outline-none transition-all"
               dir="ltr"
             />
             <button
               type="button"
               onClick={() => handleApply()}
               disabled={isLoading}
-              className="px-5 py-2.5 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] active:scale-95 text-white text-xs font-bold shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-90 disabled:cursor-wait flex items-center justify-center gap-1.5 shrink-0"
+              className="px-5 py-2.5 rounded-xl bg-farm-primary hover:bg-farm-primary-dark active:scale-95 text-white text-xs font-bold shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-90 disabled:cursor-wait flex items-center justify-center gap-1.5 shrink-0"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -176,7 +176,7 @@ export function CouponInputBox({
           </div>
 
           {errorMessage && (
-            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] flex items-center gap-2 animate-in fade-in">
+            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
               <span>{errorMessage}</span>
             </div>
@@ -185,7 +185,7 @@ export function CouponInputBox({
           {/* Quick Clickable Suggestions (Hidden by default, especially on checkout) */}
           {showSuggestions && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-gray-500 font-medium">کدهای تخفیف فعال:</span>
+              <span className="text-xs text-gray-500 font-medium">کدهای تخفیف فعال:</span>
               {sampleCoupons.map((s) => (
                 <button
                   key={s.code}
@@ -194,7 +194,7 @@ export function CouponInputBox({
                     setInputCode(s.code);
                     handleApply(s.code);
                   }}
-                  className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-emerald-50 hover:text-emerald-800 text-gray-600 text-[10px] font-mono transition-colors cursor-pointer border border-transparent hover:border-emerald-200"
+                  className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-emerald-50 hover:text-emerald-800 text-gray-600 text-xs font-mono transition-colors cursor-pointer border border-transparent hover:border-emerald-200"
                 >
                   {s.code} ({s.label})
                 </button>

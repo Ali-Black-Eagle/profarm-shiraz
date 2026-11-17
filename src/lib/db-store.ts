@@ -358,7 +358,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   socialInstagram: 'https://instagram.com/profarm_shiraz',
   socialTelegram: 'https://t.me/profarm_shiraz',
   socialEitaa: 'https://eitaa.com/profarm_shiraz',
-  socialWhatsapp: 'https://wa.me/989170000000',
+  socialWhatsapp: '',
 };
 
 export const INITIAL_COUPONS: Coupon[] = [

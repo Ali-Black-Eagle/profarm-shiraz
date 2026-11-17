@@ -237,12 +237,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1 sm:gap-1.5">
-                    <span className="text-sm min-[380px]:text-base sm:text-xl font-black text-farm-primary tracking-tight">پروفارم</span>
-                    <span className="hidden min-[380px]:inline-block text-[11px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-md bg-farm-primary/10 text-farm-primary">
+                    <span className="text-sm min-[380px]:text-base sm:text-xl font-black text-farm-primary">پروفارم</span>
+                    <span className="hidden min-[380px]:inline-block text-xs sm:text-xs font-semibold px-1.5 py-0.5 rounded-md bg-farm-primary/10 text-farm-primary">
                       شیراز
                     </span>
                   </div>
-                  <span className="text-[11px] text-farm-text-muted font-medium hidden sm:block">
+                  <span className="text-xs text-farm-text-muted font-medium hidden sm:block">
                     محصولات ارگانیک و محلی فارس
                   </span>
                 </div>
@@ -265,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                   >
                     <span>{link.name}</span>
                     {link.badge && (
-                      <span className="text-[11px] px-2 py-0.5 bg-farm-primary/10 text-farm-primary border border-farm-primary/20 rounded-md font-bold">
+                      <span className="text-xs px-2 py-0.5 bg-farm-primary/10 text-farm-primary border border-farm-primary/20 rounded-md font-bold">
                         {link.badge}
                       </span>
                     )}
@@ -309,17 +309,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                   >
                     <UserIcon className="w-4 h-4 shrink-0" />
                     {isPro && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-farm-primary-dark/15 text-farm-gold-ink text-[10px] min-[380px]:text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-farm-primary-dark/15 text-farm-gold-ink text-xs min-[380px]:text-xs font-black">
                         پرو
                       </span>
                     )}
                     {isPlus && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] min-[380px]:text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-xs min-[380px]:text-xs font-black">
                         پلاس
                       </span>
                     )}
                     {isAdmin && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-farm-accent text-farm-gold-ink text-[10px] min-[380px]:text-[11px] font-black">
+                      <span className="px-1.5 py-0.5 rounded-md bg-farm-accent text-farm-gold-ink text-xs min-[380px]:text-xs font-black">
                         مدیر
                       </span>
                     )}
@@ -336,7 +336,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                         <div className="text-xs font-mono text-farm-text-muted mt-0.5">
                           {toPersianDigits(user?.phone || '')}
                         </div>
-                        <div className="text-[11px] font-bold text-emerald-800 mt-1">
+                        <div className="text-xs font-bold text-emerald-800 mt-1">
                           {isAdmin
                             ? 'مدیر ارشد سیستم'
                             : isPro
@@ -425,7 +425,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               >
                 <ShoppingBag className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-farm-accent-warm text-white text-[11px] font-bold flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-farm-accent-warm text-white text-xs font-bold flex items-center justify-center shadow-xs">
                     {toPersianDigits(cartCount)}
                   </span>
                 )}
@@ -476,11 +476,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1">
                         <span className="text-base font-black text-farm-primary">پروفارم</span>
-                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-farm-primary/10 text-farm-primary">
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-farm-primary/10 text-farm-primary">
                           شیراز
                         </span>
                       </div>
-                      <span className="text-[11px] text-farm-text-muted font-medium">
+                      <span className="text-xs text-farm-text-muted font-medium">
                         محصولات ارگانیک مزارع فارس
                       </span>
                     </div>
@@ -507,7 +507,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                         </div>
                         <div>
                           <span className="text-xs font-bold block">حساب کاربری پروفارم</span>
-                          <span className="text-[11px] text-emerald-100 block">ورود یا ثبت‌نام سریع با پیامک</span>
+                          <span className="text-xs text-emerald-100 block">ورود یا ثبت‌نام سریع با پیامک</span>
                         </div>
                       </div>
                       <Link
@@ -530,13 +530,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                             <span className="text-xs font-bold text-gray-900 block truncate max-w-[130px]">
                               {user?.name || 'کاربر گرامی'}
                             </span>
-                            <span className="text-[11px] font-mono text-farm-text-muted block text-right" dir="ltr">
+                            <span className="text-xs font-mono text-farm-text-muted block text-right" dir="ltr">
                               {toPersianDigits(user?.phone || '')}
                             </span>
                           </div>
                         </div>
                         {userTier !== 'FREE' && (
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-200 flex items-center gap-1">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-200 flex items-center gap-1">
                             <Crown className="w-3 h-3 text-farm-gold-text" />
                             <span>{userTier === 'PLUS' ? 'پلاس' : 'پرو'}</span>
                           </span>
@@ -600,7 +600,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                           </div>
                           {link.badge && (
                             <span
-                              className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${
+                              className={`text-xs px-2 py-0.5 rounded-md font-bold ${
                                 isActive
                                   ? 'bg-white/20 text-white'
                                   : 'bg-farm-primary/10 text-farm-primary'

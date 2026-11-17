@@ -135,28 +135,28 @@ function ProductsCatalogContent() {
 
       {/* SEO Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-gray-500">
-        <Link href="/" className="hover:text-[#2C4A2E] transition-colors">
+        <Link href="/" className="hover:text-farm-primary transition-colors">
           خانه
         </Link>
-        <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
+        <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
         <Link
           href="/products"
           onClick={() => handleSelectCategory('همه محصولات')}
-          className={`hover:text-[#2C4A2E] transition-colors ${selectedCategory === 'همه محصولات' ? 'font-bold text-[#2C4A2E]' : ''}`}
+          className={`hover:text-farm-primary transition-colors ${selectedCategory === 'همه محصولات' ? 'font-bold text-farm-primary' : ''}`}
         >
           محصولات
         </Link>
         {selectedCategory !== 'همه محصولات' && (
           <>
-            <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
-            <span className="font-bold text-[#2C4A2E]">{selectedCategory}</span>
+            <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+            <span className="font-bold text-farm-primary">{selectedCategory}</span>
           </>
         )}
       </nav>
 
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+        <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
           {selectedCategory === 'همه محصولات'
             ? 'کاتالوگ فرآورده‌های ارگانیک و بومی شیراز'
             : `خرید اینترنتی ${selectedCategory} ارگانیک مزارع فارس`}
@@ -213,10 +213,10 @@ function ProductsCatalogContent() {
 
             <button
               onClick={() => setBulkOnly(!bulkOnly)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 bulkOnly
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'bg-[#F9F8F5] text-gray-700 hover:bg-[#F3EFE6] border border-[#E6E1D5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'bg-farm-bg text-gray-700 hover:bg-farm-bg-warm border border-farm-border'
               }`}
             >
               <Package className="w-3.5 h-3.5 text-[#D4A373]" />
@@ -241,10 +241,10 @@ function ProductsCatalogContent() {
             <button
               key={cat}
               onClick={() => handleSelectCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'bg-[#F9F8F5] text-gray-600 hover:bg-[#F3EFE6]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'bg-farm-bg text-gray-600 hover:bg-farm-bg-warm'
               }`}
             >
               {cat}
@@ -260,7 +260,7 @@ function ProductsCatalogContent() {
         </div>
 
         {filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-[#E6E1D5] space-y-3">
+          <div className="bg-white rounded-3xl p-12 text-center border border-farm-border space-y-3">
             <Filter className="w-10 h-10 text-gray-300 mx-auto" />
             <h3 className="font-bold text-gray-700">هیچ محصولی با این فیلترها یافت نشد</h3>
             <p className="text-xs text-gray-500">

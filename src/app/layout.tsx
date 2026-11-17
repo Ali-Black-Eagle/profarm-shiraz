@@ -261,7 +261,7 @@ export default function RootLayout({
         <ToastProvider>
           <ScrollToTop />
           <Header />
-          <main id="main-content" className="flex-1 flex flex-col">{children}</main>
+          <main id="main-content" className="flex-1 flex flex-col w-full min-w-0 [&>*]:w-full [&>*]:min-w-0">{children}</main>
           <Footer />
           <CartFloatingPopup />
         </ToastProvider>

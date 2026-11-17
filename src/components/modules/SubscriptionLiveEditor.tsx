@@ -155,7 +155,7 @@ export default function SubscriptionLiveEditor({
   return (
     <div className="space-y-6">
       {/* Sticky Top Control Toolbar */}
-      <div className="sticky top-4 z-40 bg-[#1E3520]/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-emerald-500/30 flex flex-wrap items-center justify-between gap-4">
+      <div className="sticky top-4 z-40 bg-farm-primary-dark/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-emerald-500/30 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-amber-400/20 text-[#D4AF37] border border-amber-400/30">
             <Edit3 className="w-5 h-5" />
@@ -163,11 +163,11 @@ export default function SubscriptionLiveEditor({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-black text-white">ویرایشگر زنده و بصری صفحه اشتراک</h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 Live In-Place Editor
               </span>
             </div>
-            <p className="text-[11px] text-emerald-200/80">
+            <p className="text-xs text-emerald-200/80">
               روی هر متنی در پایین کلیک کنید تا درجا ویرایش شود. پیش‌نمایش به صورت لحظه‌ای بروز می‌شود.
             </p>
           </div>
@@ -265,12 +265,12 @@ export default function SubscriptionLiveEditor({
             : 'w-full'
         }`}
       >
-        <div className="bg-[#F8F6F0] rounded-3xl p-4 sm:p-8 space-y-16 border border-[#E6E1D5] shadow-xs">
+        <div className="bg-[#F8F6F0] rounded-3xl p-4 sm:p-8 space-y-16 border border-farm-border shadow-xs">
           
           {/* ======================================================== */}
           {/* 1. HERO BANNER */}
           {/* ======================================================== */}
-          <div className="bg-gradient-to-br from-[#2C4A2E] via-[#203622] to-[#122314] rounded-3xl p-6 sm:p-12 text-white relative overflow-hidden shadow-2xl border border-[#D4A373]/40">
+          <div className="bg-gradient-to-br from-farm-primary via-[#203622] to-[#122314] rounded-3xl p-6 sm:p-12 text-white relative overflow-hidden shadow-2xl border border-[#D4A373]/40">
             <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -287,7 +287,7 @@ export default function SubscriptionLiveEditor({
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-tight text-white tracking-tight">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-tight text-white">
                 <InlineEditableText
                   value={
                     settings.heroTitle ||
@@ -348,7 +348,7 @@ export default function SubscriptionLiveEditor({
                   label="زیرتیتر بخش اشتراک‌ها"
                 />
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+              <h2 className="text-2xl sm:text-3xl font-black text-farm-primary">
                 <InlineEditableText
                   value={settings.sectionTitle || 'مقایسه و انتخاب اشتراک ماهانه پروفارم'}
                   onChange={(val) => updateSetting('sectionTitle', val)}
@@ -377,7 +377,7 @@ export default function SubscriptionLiveEditor({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
               
               {/* CARD 1: FREE TIER */}
-              <div className="rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-white border border-[#E6E1D5] shadow-xs">
+              <div className="rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-white border border-farm-border shadow-xs">
                 <div className="space-y-5">
                   <div className="space-y-1">
                     <span className="text-xs font-bold text-gray-500">
@@ -388,7 +388,7 @@ export default function SubscriptionLiveEditor({
                         label="برچسب طرح پایه"
                       />
                     </span>
-                    <h3 className="text-xl font-black text-[#2C4A2E]">
+                    <h3 className="text-xl font-black text-farm-primary">
                       <InlineEditableText
                         value={settings.freeTitle || 'کاربر عادی'}
                         onChange={(val) => updateSetting('freeTitle', val)}
@@ -401,7 +401,7 @@ export default function SubscriptionLiveEditor({
 
                   <div className="pt-2 pb-4 border-b border-gray-100">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-[#2C4A2E]">
+                      <span className="text-3xl font-black text-farm-primary">
                         <InlineEditableText
                           value={settings.freePriceLabel || 'رایگان'}
                           onChange={(val) => updateSetting('freePriceLabel', val)}
@@ -410,7 +410,7 @@ export default function SubscriptionLiveEditor({
                         />
                       </span>
                     </div>
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-xs text-gray-600">
                       <InlineEditableText
                         value={settings.freePriceSubtext || 'بدون نیاز به پرداخت ماهانه'}
                         onChange={(val) => updateSetting('freePriceSubtext', val)}
@@ -473,7 +473,7 @@ export default function SubscriptionLiveEditor({
                 </div>
 
                 <div className="pt-8">
-                  <div className="w-full py-3.5 px-4 rounded-2xl text-xs font-bold text-center bg-[#F3EFE6] text-[#2C4A2E]">
+                  <div className="w-full py-3.5 px-4 rounded-2xl text-xs font-bold text-center bg-farm-bg-warm text-farm-primary">
                     <InlineEditableText
                       value={settings.freeButtonText || 'طرح فعلی شما (رایگان) ✓'}
                       onChange={(val) => updateSetting('freeButtonText', val)}
@@ -488,7 +488,7 @@ export default function SubscriptionLiveEditor({
               <div className="rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-white border border-emerald-200 shadow-farm hover:border-emerald-400">
                 <div className="space-y-5">
                   <div className="space-y-1">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold">
                       <Zap className="w-3 h-3 text-emerald-600" />
                       <InlineEditableText
                         value={settings.plusBadgeText || 'اقتصادی'}
@@ -522,7 +522,7 @@ export default function SubscriptionLiveEditor({
                       </span>
                       <span className="text-xs font-bold text-gray-600"> / ماهانه</span>
                     </div>
-                    <span className="text-[11px] text-emerald-700 font-medium">
+                    <span className="text-xs text-emerald-700 font-medium">
                       <InlineEditableText
                         value={settings.plusPriceSubtext || 'صرفه‌جویی تضمین‌شده در خرید هفتگی'}
                         onChange={(val) => updateSetting('plusPriceSubtext', val)}
@@ -603,7 +603,7 @@ export default function SubscriptionLiveEditor({
               {/* CARD 3: PRO TIER (GOLDEN) */}
               <div className="rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden bg-gradient-to-b from-amber-50/70 via-white to-white border-2 border-[#D4AF37] shadow-xl hover:border-amber-600">
                 {/* Ribbon Badge */}
-                <div className="absolute top-4 left-4 bg-gradient-to-r from-amber-600 to-[#D4AF37] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md">
+                <div className="absolute top-4 left-4 bg-gradient-to-r from-amber-600 to-[#D4AF37] text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
                   <InlineEditableText
                     value={settings.proTopLabel || '★ محبوب‌ترین'}
                     onChange={(val) => updateSetting('proTopLabel', val)}
@@ -614,7 +614,7 @@ export default function SubscriptionLiveEditor({
 
                 <div className="space-y-5">
                   <div className="space-y-1">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-xs font-bold">
                       <Crown className="w-3 h-3 text-amber-600" />
                       <InlineEditableText
                         value={settings.proBadgeText || 'اشتراک طلایی پروفارم پرو'}
@@ -643,12 +643,12 @@ export default function SubscriptionLiveEditor({
 
                   <div className="pt-2 pb-4 border-b border-amber-200">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-[#2C4A2E]">
+                      <span className="text-3xl font-black text-farm-primary">
                         {formatToman(settings.proMonthlyPrice)}
                       </span>
                       <span className="text-xs font-bold text-gray-600"> / ماهانه</span>
                     </div>
-                    <span className="text-[11px] text-amber-700 font-bold">
+                    <span className="text-xs text-amber-700 font-bold">
                       <InlineEditableText
                         value={
                           settings.proPriceSubtext ||
@@ -714,7 +714,7 @@ export default function SubscriptionLiveEditor({
                 </div>
 
                 <div className="pt-8">
-                  <div className="w-full py-4 px-4 rounded-2xl text-xs font-black shadow-lg bg-gradient-to-r from-[#2C4A2E] to-[#1E3520] text-white flex items-center justify-center gap-2">
+                  <div className="w-full py-4 px-4 rounded-2xl text-xs font-black shadow-lg bg-gradient-to-r from-farm-primary to-farm-primary-dark text-white flex items-center justify-center gap-2">
                     <Crown className="w-4 h-4 text-[#F3E5AB]" />
                     <InlineEditableText
                       value={
@@ -734,9 +734,9 @@ export default function SubscriptionLiveEditor({
           {/* ======================================================== */}
           {/* 4. COMPARISON TABLE */}
           {/* ======================================================== */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <h3 className="text-xl font-black text-[#2C4A2E]">
+              <h3 className="text-xl font-black text-farm-primary">
                 <InlineEditableText
                   value={settings.comparisonTitle || 'جدول مقایسه جامع ویژگی‌های پلن‌ها'}
                   onChange={(val) => updateSetting('comparisonTitle', val)}
@@ -794,7 +794,7 @@ export default function SubscriptionLiveEditor({
                       />
                     </th>
                     {isEditing && (
-                      <th className="py-3 px-2 text-center font-bold text-gray-400 w-10">
+                      <th className="py-3 px-2 text-center font-bold text-gray-600 w-10">
                         عملیات
                       </th>
                     )}
@@ -851,7 +851,7 @@ export default function SubscriptionLiveEditor({
                   ))}
                   {(!settings.comparisonRows || settings.comparisonRows.length === 0) && (
                     <tr>
-                      <td colSpan={isEditing ? 5 : 4} className="py-6 text-center text-gray-400 text-xs">
+                      <td colSpan={isEditing ? 5 : 4} className="py-6 text-center text-gray-600 text-xs">
                         هیچ ردیفی در جدول تعریف نشده است.
                       </td>
                     </tr>
@@ -875,7 +875,7 @@ export default function SubscriptionLiveEditor({
                     label="زیرتیتر بخش سوالات"
                   />
                 </span>
-                <h2 className="text-2xl font-black text-[#2C4A2E]">
+                <h2 className="text-2xl font-black text-farm-primary">
                   <InlineEditableText
                     value={settings.faqTitle || 'سوالاتی که ممکن است داشته باشید'}
                     onChange={(val) => updateSetting('faqTitle', val)}
@@ -902,10 +902,10 @@ export default function SubscriptionLiveEditor({
               {(settings.faqItems || []).map((faq, idx) => (
                 <div
                   key={faq.id || idx}
-                  className="bg-white rounded-2xl p-5 border border-[#E6E1D5] shadow-xs space-y-2 relative group"
+                  className="bg-white rounded-2xl p-5 border border-farm-border shadow-xs space-y-2 relative group"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-sm font-bold text-[#2C4A2E] flex items-center gap-2 flex-1">
+                    <h4 className="text-sm font-bold text-farm-primary flex items-center gap-2 flex-1">
                       <HelpCircle className="w-4 h-4 text-[#D4A373] shrink-0" />
                       <div className="flex-1">
                         <InlineEditableText
@@ -921,7 +921,7 @@ export default function SubscriptionLiveEditor({
                       <button
                         type="button"
                         onClick={() => handleDeleteFaq(idx)}
-                        className="text-gray-400 hover:text-rose-600 p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
+                        className="text-gray-600 hover:text-rose-600 p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
                         title="حذف این پرسش"
                       >
                         <Trash2 className="w-4 h-4" />

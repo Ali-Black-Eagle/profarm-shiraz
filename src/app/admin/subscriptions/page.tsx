@@ -258,7 +258,7 @@ export default function AdminSubscriptionsPage() {
   if (!mounted) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-[#2C4A2E] border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-farm-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -277,21 +277,21 @@ export default function AdminSubscriptionsPage() {
     <div className="space-y-8 pb-16 max-w-7xl mx-auto">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-[#1E3520] text-white px-5 py-4 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 left-6 z-50 bg-farm-primary-dark text-white px-5 py-4 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span className="text-xs font-bold leading-relaxed">{toastMessage}</span>
         </div>
       )}
 
       {/* Top Header & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E6E1D5] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-farm-border pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1.5 font-bold">
-            <Link href="/admin" className="hover:text-[#2C4A2E]">
+            <Link href="/admin" className="hover:text-farm-primary">
               پنل مدیریت
             </Link>
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span className="text-[#2C4A2E]">مدیریت جامع اشتراک‌ها و باشگاه مشتریان</span>
+            <span className="text-farm-primary">مدیریت جامع اشتراک‌ها و باشگاه مشتریان</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-3">
             <Crown className="w-8 h-8 text-[#D4AF37]" />
@@ -307,7 +307,7 @@ export default function AdminSubscriptionsPage() {
             onClick={() => setActiveTab('live_editor')}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 border shadow-xs cursor-pointer ${
               activeTab === 'live_editor'
-                ? 'bg-gradient-to-r from-emerald-800 via-[#2C4A2E] to-[#1E3520] text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30'
+                ? 'bg-gradient-to-r from-emerald-800 via-farm-primary to-farm-primary-dark text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30'
                 : 'bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100'
             }`}
           >
@@ -319,7 +319,7 @@ export default function AdminSubscriptionsPage() {
             onClick={() => setActiveTab('preview')}
             className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 border shadow-xs cursor-pointer ${
               activeTab === 'preview'
-                ? 'bg-[#2C4A2E] text-white border-[#2C4A2E]'
+                ? 'bg-farm-primary text-white border-farm-primary'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -338,7 +338,7 @@ export default function AdminSubscriptionsPage() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-[#2C4A2E] to-[#1E3520] hover:brightness-110 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-farm-primary to-farm-primary-dark hover:brightness-110 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4 text-[#D4AF37]" />
             <span>{isSaving ? 'در حال ذخیره‌سازی...' : 'ذخیره و انتشار آنی'}</span>
@@ -347,10 +347,10 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {/* Distinction Guide Card: Real (Functional) vs Visual (Display) */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#1E3520] via-[#2C4A2E] to-[#122315] text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 border border-emerald-500/20">
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-farm-primary-dark via-farm-primary to-[#122315] text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 border border-emerald-500/20">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-gray-900 text-[10px] font-black">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-gray-900 text-xs font-black">
               راهنمای تفکیک کادرها
             </span>
             <h3 className="text-sm font-black text-white">
@@ -375,7 +375,7 @@ export default function AdminSubscriptionsPage() {
               <span className="text-xs font-black text-amber-950">مشترکین طلایی پرو</span>
             </div>
             <span
-              className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              className={`text-xs font-black px-2 py-0.5 rounded-full ${
                 stats?.isProFull
                   ? 'bg-rose-100 text-rose-700'
                   : 'bg-amber-100 text-amber-800'
@@ -408,7 +408,7 @@ export default function AdminSubscriptionsPage() {
                   style={{ width: `${proUsagePercent}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[11px] text-gray-500">
+              <div className="flex justify-between text-xs text-gray-500">
                 <span>{toPersianDigits(proUsagePercent)}٪ پر شده</span>
                 <span>
                   {stats?.proRemaining !== null
@@ -418,7 +418,7 @@ export default function AdminSubscriptionsPage() {
               </div>
             </div>
           ) : (
-            <p className="text-[11px] text-gray-400 mt-2">ثبت‌نام بدون محدودیت ظرفیت فعال است</p>
+            <p className="text-xs text-gray-600 mt-2">ثبت‌نام بدون محدودیت ظرفیت فعال است</p>
           )}
         </div>
 
@@ -430,7 +430,7 @@ export default function AdminSubscriptionsPage() {
               <span className="text-xs font-black text-emerald-950">مشترکین اقتصادی پلاس</span>
             </div>
             <span
-              className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+              className={`text-xs font-black px-2 py-0.5 rounded-full ${
                 stats?.isPlusFull
                   ? 'bg-rose-100 text-rose-700'
                   : 'bg-emerald-100 text-emerald-800'
@@ -463,7 +463,7 @@ export default function AdminSubscriptionsPage() {
                   style={{ width: `${plusUsagePercent}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[11px] text-gray-500">
+              <div className="flex justify-between text-xs text-gray-500">
                 <span>{toPersianDigits(plusUsagePercent)}٪ پر شده</span>
                 <span>
                   {stats?.plusRemaining !== null
@@ -473,7 +473,7 @@ export default function AdminSubscriptionsPage() {
               </div>
             </div>
           ) : (
-            <p className="text-[11px] text-gray-400 mt-2">ثبت‌نام بدون محدودیت ظرفیت فعال است</p>
+            <p className="text-xs text-gray-600 mt-2">ثبت‌نام بدون محدودیت ظرفیت فعال است</p>
           )}
         </div>
 
@@ -484,7 +484,7 @@ export default function AdminSubscriptionsPage() {
               <Users className="w-5 h-5 text-gray-500" />
               <span className="text-xs font-black text-gray-800">کاربران عادی (رایگان)</span>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
               پایه
             </span>
           </div>
@@ -492,7 +492,7 @@ export default function AdminSubscriptionsPage() {
             {toPersianDigits(stats?.freeCount || 0)}{' '}
             <span className="text-xs font-normal text-gray-500">کاربر</span>
           </div>
-          <p className="text-[11px] text-gray-500 mt-3">
+          <p className="text-xs text-gray-500 mt-3">
             خریداران بدون حق عضویت ویژه با ارسال عادی
           </p>
         </div>
@@ -501,10 +501,10 @@ export default function AdminSubscriptionsPage() {
         <div className="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-[#2C4A2E]" />
-              <span className="text-xs font-black text-[#2C4A2E]">کل پایگاه کاربران</span>
+              <ShieldCheck className="w-5 h-5 text-farm-primary" />
+              <span className="text-xs font-black text-farm-primary">کل پایگاه کاربران</span>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800">
               تایید شده
             </span>
           </div>
@@ -512,7 +512,7 @@ export default function AdminSubscriptionsPage() {
             {toPersianDigits(stats?.totalUsers || 0)}{' '}
             <span className="text-xs font-normal text-gray-500">کل اعضا</span>
           </div>
-          <p className="text-[11px] text-gray-500 mt-3">
+          <p className="text-xs text-gray-500 mt-3">
             مجموع کاربران پرو، پلاس و اعضای عادی ثبت‌شده
           </p>
         </div>
@@ -524,7 +524,7 @@ export default function AdminSubscriptionsPage() {
           onClick={() => setActiveTab('live_editor')}
           className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer shrink-0 ${
             activeTab === 'live_editor'
-              ? 'bg-gradient-to-r from-emerald-800 via-[#2C4A2E] to-[#1E3520] text-white shadow-md'
+              ? 'bg-gradient-to-r from-emerald-800 via-farm-primary to-farm-primary-dark text-white shadow-md'
               : 'text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300/80'
           }`}
         >
@@ -572,8 +572,8 @@ export default function AdminSubscriptionsPage() {
           onClick={() => setActiveTab('preview')}
           className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer shrink-0 ${
             activeTab === 'preview'
-              ? 'bg-[#2C4A2E] text-white shadow-md'
-              : 'text-[#2C4A2E] hover:bg-emerald-50 font-black'
+              ? 'bg-farm-primary text-white shadow-md'
+              : 'text-farm-primary hover:bg-emerald-50 font-black'
           }`}
         >
           <Eye className="w-4 h-4 text-[#D4AF37]" />
@@ -605,7 +605,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-emerald-50/20 rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-emerald-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black w-fit shadow-xs">
                   <Sliders className="w-3.5 h-3.5" />
                   <span>خصوصیت واقعی (اعمال سیستمی در درگاه پرداخت، سبد خرید و قوانین سفارش)</span>
                 </div>
@@ -628,7 +628,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     بهای اشتراک ماهانه در درگاه:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -643,11 +643,11 @@ export default function AdminSubscriptionsPage() {
                         proMonthlyPrice: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">تومان</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">تومان</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   مبلغ پرداخت درگاه: <strong>{formatToman(settings.proMonthlyPrice)}</strong>
                 </span>
               </div>
@@ -658,7 +658,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     سقف ظرفیت پذیرش اعضا:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -673,12 +673,12 @@ export default function AdminSubscriptionsPage() {
                         proMaxCapacity: Math.max(0, Number(e.target.value)),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                     placeholder="0 برای نامحدود"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">نفر</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">نفر</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   {settings.proMaxCapacity > 0
                     ? `محدود به ${toPersianDigits(settings.proMaxCapacity)} نفر (اعضا: ${toPersianDigits(stats?.proCount || 0)})`
                     : '۰ به معنای ظرفیت نامحدود است'}
@@ -691,7 +691,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     درصد تخفیف تخم‌مرغ محلی:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -707,11 +707,11 @@ export default function AdminSubscriptionsPage() {
                         proEggDiscountPercent: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">٪</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">٪</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   اعمال خودکار روی سبد خرید مشترک
                 </span>
               </div>
@@ -722,7 +722,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     سقف سهمیه ماهانه تخم‌مرغ:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -737,11 +737,11 @@ export default function AdminSubscriptionsPage() {
                         proEggMaxQuota: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">عدد</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">عدد</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   معادل {toPersianDigits(Math.round(settings.proEggMaxQuota / 30))} شانه ۳۰ عددی
                 </span>
               </div>
@@ -752,7 +752,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     درصد تخفیف سایر کالاها:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -768,11 +768,11 @@ export default function AdminSubscriptionsPage() {
                         proOtherDiscountPercent: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">٪</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">٪</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   تخفیف خودکار روی عسل، عرقیات و لبنیات
                 </span>
               </div>
@@ -783,7 +783,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     تخفیف هزینه ارسال پیک:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -799,11 +799,11 @@ export default function AdminSubscriptionsPage() {
                         proShippingDiscountPercent: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">٪</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">٪</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   کسر از کرایه مصوب پیک در تسویه‌حساب
                 </span>
               </div>
@@ -814,7 +814,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     تعداد روزهای مجاز تحویل:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -829,9 +829,9 @@ export default function AdminSubscriptionsPage() {
                       proDeliveryDaysPerWeek: Number(e.target.value),
                     }))
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                 />
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   شنبه تا پنج‌شنبه ({toPersianDigits(settings.proDeliveryDaysPerWeek)} روز در هفته)
                 </span>
               </div>
@@ -842,7 +842,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-purple-50/20 rounded-3xl p-6 sm:p-8 border-2 border-purple-400/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-xs font-black w-fit shadow-xs">
                   <Eye className="w-3.5 h-3.5" />
                   <span>خصوصیت بصری (صرفاً جهت نمایش ظاهری، معرفی پلن و بازاریابی در سایت)</span>
                 </div>
@@ -865,7 +865,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     عنوان برچسب نشان پلن (Badge):
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                     خصوصیت بصری
                   </span>
                 </div>
@@ -875,9 +875,9 @@ export default function AdminSubscriptionsPage() {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, proBadgeText: e.target.value }))
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
                 />
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   برچسب بالای کارت، مانند: «طلایی»، «پیشنهاد ویژه» یا «محبوب‌ترین»
                 </span>
               </div>
@@ -889,12 +889,12 @@ export default function AdminSubscriptionsPage() {
                     <Sparkles className="w-4 h-4 text-purple-600" />
                     <span>فهرست مزایا و امکانات نمایشی کارت (Bullet Points):</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                     خصوصیت بصری
                   </span>
                 </div>
 
-                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed flex items-start gap-2">
                   <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <span>
                     <strong>راهنمای جلوگیری از تکرار:</strong> مواردی همچون درصد تخفیف تخم‌مرغ محلی ({toPersianDigits(settings.proEggDiscountPercent)}٪)، سقف سهمیه ({toPersianDigits(settings.proEggMaxQuota)} عدد)، تخفیف ارسال، تخفیف سایر کالاها و روزهای تحویل در بالا به عنوان <em>خصوصیت واقعی</em> تعریف شده و به صورت خودکار روی بنرها نمایش داده می‌شوند. بنابراین نیازی به تکرار آن‌ها در این لیست نیست تا موارد ۲ بار در بنر گفته نشوند.
@@ -926,7 +926,7 @@ export default function AdminSubscriptionsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-6 text-xs text-gray-400">
+                    <div className="text-center py-6 text-xs text-gray-600">
                       هنوز مزیتی برای این اشتراک تعریف نشده است.
                     </div>
                   )}
@@ -970,7 +970,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-emerald-50/20 rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-emerald-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black w-fit shadow-xs">
                   <Sliders className="w-3.5 h-3.5" />
                   <span>خصوصیت واقعی (اعمال سیستمی در درگاه پرداخت، سبد خرید و سهمیه‌ها)</span>
                 </div>
@@ -993,7 +993,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     بهای اشتراک ماهانه در درگاه:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1008,11 +1008,11 @@ export default function AdminSubscriptionsPage() {
                         plusMonthlyPrice: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">تومان</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">تومان</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   مبلغ پرداخت درگاه: <strong>{formatToman(settings.plusMonthlyPrice)}</strong>
                 </span>
               </div>
@@ -1023,7 +1023,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     سقف ظرفیت پذیرش اعضا:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1038,12 +1038,12 @@ export default function AdminSubscriptionsPage() {
                         plusMaxCapacity: Math.max(0, Number(e.target.value)),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                     placeholder="0 برای نامحدود"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">نفر</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">نفر</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   {settings.plusMaxCapacity > 0
                     ? `محدود به ${toPersianDigits(settings.plusMaxCapacity)} نفر (اعضا: ${toPersianDigits(stats?.plusCount || 0)})`
                     : '۰ به معنای ظرفیت نامحدود است'}
@@ -1056,7 +1056,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     درصد تخفیف تخم‌مرغ محلی:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1072,11 +1072,11 @@ export default function AdminSubscriptionsPage() {
                         plusEggDiscountPercent: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">٪</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">٪</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   کسر خودکار در فاکتور سبد خرید
                 </span>
               </div>
@@ -1087,7 +1087,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     سقف سهمیه ماهانه تخم‌مرغ:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1102,11 +1102,11 @@ export default function AdminSubscriptionsPage() {
                         plusEggMaxQuota: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">عدد</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">عدد</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   معادل {toPersianDigits(Math.round(settings.plusEggMaxQuota / 30))} شانه ۳۰ عددی
                 </span>
               </div>
@@ -1117,7 +1117,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     تعداد روزهای مجاز تحویل:
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1132,9 +1132,9 @@ export default function AdminSubscriptionsPage() {
                       plusDeliveryDaysPerWeek: Number(e.target.value),
                     }))
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                 />
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   شنبه تا پنج‌شنبه ({toPersianDigits(settings.plusDeliveryDaysPerWeek)} روز در هفته)
                 </span>
               </div>
@@ -1145,7 +1145,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-purple-50/20 rounded-3xl p-6 sm:p-8 border-2 border-purple-400/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-xs font-black w-fit shadow-xs">
                   <Eye className="w-3.5 h-3.5" />
                   <span>خصوصیت بصری (صرفاً جهت نمایش ظاهری، معرفی پلن و بازاریابی در سایت)</span>
                 </div>
@@ -1168,7 +1168,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     عنوان برچسب نشان پلن (Badge):
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                     خصوصیت بصری
                   </span>
                 </div>
@@ -1178,9 +1178,9 @@ export default function AdminSubscriptionsPage() {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, plusBadgeText: e.target.value }))
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
                 />
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   برچسب بالای کارت، مانند: «اقتصادی» یا «ویژه خانواده‌ها»
                 </span>
               </div>
@@ -1192,12 +1192,12 @@ export default function AdminSubscriptionsPage() {
                     <Sparkles className="w-4 h-4 text-purple-600" />
                     <span>فهرست مزایا و امکانات نمایشی کارت پلاس (Bullet Points):</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                     خصوصیت بصری
                   </span>
                 </div>
 
-                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed flex items-start gap-2">
                   <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <span>
                     <strong>راهنمای جلوگیری از تکرار:</strong> درصد تخفیف تخم‌مرغ محلی ({toPersianDigits(settings.plusEggDiscountPercent)}٪)، سقف سهمیه ({toPersianDigits(settings.plusEggMaxQuota)} عدد) و روزهای تحویل ({toPersianDigits(settings.plusDeliveryDaysPerWeek)} روز) در بخش بالا به صورت خودکار محاسبه و با آیکون به کارت اضافه می‌شوند و نیازی به تایپ مجدد آن‌ها در این بخش نیست.
@@ -1229,7 +1229,7 @@ export default function AdminSubscriptionsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-6 text-xs text-gray-400">
+                    <div className="text-center py-6 text-xs text-gray-600">
                       هنوز مزیتی برای این اشتراک تعریف نشده است.
                     </div>
                   )}
@@ -1273,7 +1273,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-emerald-50/20 rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-emerald-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black w-fit shadow-xs">
                   <Sliders className="w-3.5 h-3.5" />
                   <span>خصوصیت واقعی (اعمال سیستمی در فاکتور سفارشات عادی)</span>
                 </div>
@@ -1295,7 +1295,7 @@ export default function AdminSubscriptionsPage() {
                   <label className="block text-gray-800 font-black">
                     هزینه استاندارد ارسال با پیک (تومان):
                   </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                     خصوصیت واقعی
                   </span>
                 </div>
@@ -1310,11 +1310,11 @@ export default function AdminSubscriptionsPage() {
                         baseShippingFee: Number(e.target.value),
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-emerald-600 font-bold text-gray-900"
                   />
-                  <span className="absolute left-3 top-2.5 text-gray-400">تومان</span>
+                  <span className="absolute left-3 top-2.5 text-gray-600">تومان</span>
                 </div>
-                <span className="text-[11px] text-gray-500 mt-1 block">
+                <span className="text-xs text-gray-500 mt-1 block">
                   مبلغ کرایه پایه در فاکتور: <strong>{formatToman(settings.baseShippingFee)}</strong>
                 </span>
               </div>
@@ -1325,7 +1325,7 @@ export default function AdminSubscriptionsPage() {
           <div className="bg-purple-50/20 rounded-3xl p-6 sm:p-8 border-2 border-purple-400/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-[11px] font-black w-fit shadow-xs">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-700 text-white text-xs font-black w-fit shadow-xs">
                   <Eye className="w-3.5 h-3.5" />
                   <span>خصوصیت بصری (صرفاً جهت نمایش ظاهری در جدول مقایسه پلن‌ها)</span>
                 </div>
@@ -1346,7 +1346,7 @@ export default function AdminSubscriptionsPage() {
                     <label className="block text-gray-800 font-black">
                       عنوان برچسب پلن عادی (Badge):
                     </label>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                       خصوصیت بصری
                     </span>
                   </div>
@@ -1356,7 +1356,7 @@ export default function AdminSubscriptionsPage() {
                     onChange={(e) =>
                       setSettings((prev) => ({ ...prev, freeBadgeText: e.target.value }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
                   />
                 </div>
 
@@ -1366,7 +1366,7 @@ export default function AdminSubscriptionsPage() {
                     <label className="block text-gray-800 font-black">
                       متن نمایشی روزهای تحویل:
                     </label>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                       خصوصیت بصری
                     </span>
                   </div>
@@ -1379,9 +1379,9 @@ export default function AdminSubscriptionsPage() {
                         freeTierDeliveryDaysText: e.target.value,
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-farm-bg focus:bg-white focus:outline-none focus:border-purple-600 font-bold text-gray-900"
                   />
-                  <span className="text-[11px] text-gray-500 mt-1 block">
+                  <span className="text-xs text-gray-500 mt-1 block">
                     مثال: «شنبه، دوشنبه و چهارشنبه»
                   </span>
                 </div>
@@ -1394,7 +1394,7 @@ export default function AdminSubscriptionsPage() {
                     <Sparkles className="w-4 h-4 text-purple-600" />
                     <span>توضیحات و شرایط نمایشی پلن عادی (در جدول مقایسه):</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
                     خصوصیت بصری
                   </span>
                 </div>
@@ -1459,7 +1459,7 @@ export default function AdminSubscriptionsPage() {
       {/* ==================================================== */}
       {activeTab === 'preview' && (
         <div className="space-y-6 animate-in fade-in">
-          <div className="bg-gradient-to-r from-[#2C4A2E] to-[#1E3520] text-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-gradient-to-r from-farm-primary to-farm-primary-dark text-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs text-amber-300 font-black">
                 <Sparkles className="w-4 h-4" />
@@ -1486,13 +1486,13 @@ export default function AdminSubscriptionsPage() {
           </div>
 
           {/* Mode Switcher */}
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-[#E6E1D5] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-farm-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="text-xs font-black text-gray-800 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <span>حالت پیش‌نمایش کارت‌ها:</span>
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 دید خریدار عادی: سقف کل ظرفیت مخفی است و مانده فقط زمانی که ۳ عدد یا کمتر باشد نمایش داده می‌شود.
               </p>
             </div>
@@ -1515,7 +1515,7 @@ export default function AdminSubscriptionsPage() {
                 onClick={() => setPreviewMode('admin')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   previewMode === 'admin'
-                    ? 'bg-[#2C4A2E] text-white shadow-sm'
+                    ? 'bg-farm-primary text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -1528,11 +1528,11 @@ export default function AdminSubscriptionsPage() {
           {/* Live Subscription Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Card 1: Free Tier */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#E6E1D5] shadow-farm flex flex-col justify-between space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-farm-border shadow-farm flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                   <span className="text-xs font-bold text-gray-500">کاربر عادی</span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                     {previewMode === 'admin'
                       ? `${toPersianDigits(stats?.freeCount || 0)} عضو فعال`
                       : settings.freeBadgeText || 'طرح پایه'}
@@ -1542,7 +1542,7 @@ export default function AdminSubscriptionsPage() {
                   <div className="text-2xl font-black text-gray-900">
                     {settings.freePriceLabel || 'رایگان'}
                   </div>
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-xs text-gray-600">
                     {settings.freePriceSubtext || 'بدون نیاز به پرداخت ماهانه'}
                   </span>
                 </div>
@@ -1581,10 +1581,10 @@ export default function AdminSubscriptionsPage() {
                 </div>
 
                 <div>
-                  <div className="text-2xl font-black text-[#2C4A2E]">
+                  <div className="text-2xl font-black text-farm-primary">
                     {formatToman(settings.plusMonthlyPrice)}
                   </div>
-                  <span className="text-[11px] text-emerald-700 font-medium">
+                  <span className="text-xs text-emerald-700 font-medium">
                     {settings.plusPriceSubtext || 'صرفه‌جویی تضمین‌شده در خرید هفتگی'}
                   </span>
                 </div>
@@ -1625,7 +1625,7 @@ export default function AdminSubscriptionsPage() {
                   className={`w-full py-3 px-4 rounded-xl text-center text-xs font-black shadow-sm transition-all ${
                     stats?.isPlusFull
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-[#2C4A2E] hover:bg-[#1E3520] text-white cursor-pointer'
+                      : 'bg-farm-primary hover:bg-farm-primary-dark text-white cursor-pointer'
                   }`}
                 >
                   {stats?.isPlusFull ? 'تکمیل ظرفیت' : settings.plusButtonText || 'خرید و ارتقاء به پلاس'}
@@ -1650,7 +1650,7 @@ export default function AdminSubscriptionsPage() {
                   <div className="text-2xl font-black text-amber-950">
                     {formatToman(settings.proMonthlyPrice)}
                   </div>
-                  <span className="text-[11px] text-amber-700 font-bold">
+                  <span className="text-xs text-amber-700 font-bold">
                     {settings.proPriceSubtext ||
                       `${toPersianDigits(settings.proEggDiscountPercent)}٪ تخم‌مرغ + ${toPersianDigits(settings.proOtherDiscountPercent)}٪ سایر محصولات + ${toPersianDigits(settings.proShippingDiscountPercent)}٪ تخفیف ارسال`}
                   </span>

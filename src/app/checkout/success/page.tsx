@@ -120,9 +120,9 @@ function CheckoutSuccessContent() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-white rounded-3xl p-10 border border-[#E6E1D5] shadow-farm text-center space-y-4">
-          <div className="w-12 h-12 rounded-full border-3 border-[#2C4A2E] border-t-transparent animate-spin mx-auto" />
-          <p className="text-sm font-bold text-[#2C4A2E]">در حال استعلام و تایید نهایی سفارش از سرور...</p>
+        <div className="bg-white rounded-3xl p-10 border border-farm-border shadow-farm text-center space-y-4">
+          <div className="w-12 h-12 rounded-full border-3 border-farm-primary border-t-transparent animate-spin mx-auto" />
+          <p className="text-sm font-bold text-farm-primary">در حال استعلام و تایید نهایی سفارش از سرور...</p>
         </div>
       </div>
     );
@@ -132,7 +132,7 @@ function CheckoutSuccessContent() {
   if (!order || errorReason) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E6E1D5] shadow-farm text-center space-y-6">
+        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-farm-border shadow-farm text-center space-y-6">
           <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-8 h-8" />
           </div>
@@ -160,14 +160,14 @@ function CheckoutSuccessContent() {
                 href={`/login?redirect=${encodeURIComponent(
                   `/checkout/success?orderNumber=${encodeURIComponent(orderNumber)}`
                 )}`}
-                className="w-full sm:w-auto px-6 py-3.5 bg-[#2C4A2E] text-white font-bold text-sm rounded-2xl hover:bg-[#1E3520] transition-all"
+                className="w-full sm:w-auto px-6 py-3.5 bg-farm-primary text-white font-bold text-sm rounded-2xl hover:bg-farm-primary-dark transition-all"
               >
                 ورود به حساب کاربری
               </Link>
             ) : (
               <Link
                 href="/account?tab=orders"
-                className="w-full sm:w-auto px-6 py-3.5 bg-[#2C4A2E] text-white font-bold text-sm rounded-2xl hover:bg-[#1E3520] transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-6 py-3.5 bg-farm-primary text-white font-bold text-sm rounded-2xl hover:bg-farm-primary-dark transition-all flex items-center justify-center gap-2"
               >
                 <FileText className="w-4 h-4" />
                 <span>پیگیری سفارش‌ها در حساب کاربری</span>
@@ -176,7 +176,7 @@ function CheckoutSuccessContent() {
 
             <Link
               href="/checkout"
-              className="w-full sm:w-auto px-6 py-3.5 bg-[#F9F8F5] border border-[#E6E1D5] text-gray-800 font-bold text-sm rounded-2xl hover:bg-[#EAE5D9] transition-all"
+              className="w-full sm:w-auto px-6 py-3.5 bg-farm-bg border border-farm-border text-gray-800 font-bold text-sm rounded-2xl hover:bg-[#EAE5D9] transition-all"
             >
               بازگشت به تسویه‌حساب
             </Link>
@@ -198,7 +198,7 @@ function CheckoutSuccessContent() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
       {/* Top Status Banner */}
-      <div className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E6E1D5] shadow-farm text-center space-y-4 relative overflow-hidden">
+      <div className="bg-white rounded-3xl p-8 sm:p-10 border border-farm-border shadow-farm text-center space-y-4 relative overflow-hidden">
         <div className="w-20 h-20 rounded-3xl bg-emerald-100/80 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
           {!isPaidConfirmed ? (
             <Clock className="w-10 h-10 text-amber-700" />
@@ -224,7 +224,7 @@ function CheckoutSuccessContent() {
               ? 'اشتراک شما با موفقیت فعال شد'
               : 'تراکنش مالی و سفارش تایید شد'}
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
             {!isPaidConfirmed
               ? 'سفارش ثبت شده اما پرداخت هنوز تایید نشده است'
               : isSubscription
@@ -241,22 +241,22 @@ function CheckoutSuccessContent() {
         </div>
 
         {/* Tracking & Ref badges */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[#F3EFE6] max-w-2xl mx-auto text-xs">
-          <div className="bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-farm-bg-warm max-w-2xl mx-auto text-xs">
+          <div className="bg-farm-bg p-3 rounded-2xl border border-farm-border">
             <span className="text-gray-600 block mb-1">شماره فاکتور:</span>
-            <span className="font-black text-[#2C4A2E] text-sm font-mono">
+            <span className="font-black text-farm-primary text-sm font-mono">
               {toPersianDigits(order.orderNumber)}
             </span>
           </div>
-          <div className="bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]">
+          <div className="bg-farm-bg p-3 rounded-2xl border border-farm-border">
             <span className="text-gray-600 block mb-1">کد پیگیری بانکی:</span>
             <span className="font-bold text-gray-800 text-xs break-all font-mono">
               {displayRefId}
             </span>
           </div>
-          <div className="bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]">
+          <div className="bg-farm-bg p-3 rounded-2xl border border-farm-border">
             <span className="text-gray-600 block mb-1">روش پرداخت:</span>
-            <span className="font-bold text-[#2C4A2E] text-xs">{gatewayName}</span>
+            <span className="font-bold text-farm-primary text-xs">{gatewayName}</span>
           </div>
         </div>
       </div>
@@ -264,8 +264,8 @@ function CheckoutSuccessContent() {
       {/* Delivery & Order Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {isSubscription ? (
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-[#F3EFE6] text-[#2C4A2E] font-bold">
+          <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-farm-bg-warm text-farm-primary font-bold">
               <Crown className="w-5 h-5 text-[#8A6218]" />
               <h3>مشخصات عضویت مشترک</h3>
             </div>
@@ -305,8 +305,8 @@ function CheckoutSuccessContent() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-[#F3EFE6] text-[#2C4A2E] font-bold">
+          <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-farm-bg-warm text-farm-primary font-bold">
               <Truck className="w-5 h-5 text-[#8A6218]" />
               <h3>اطلاعات ارسال سفارش</h3>
             </div>
@@ -352,13 +352,13 @@ function CheckoutSuccessContent() {
         )}
 
         {/* Items & Payment Card */}
-        <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-[#F3EFE6] text-[#2C4A2E] font-bold">
+        <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-farm-bg-warm text-farm-primary font-bold">
             <Package className="w-5 h-5 text-[#8A6218]" />
             <h3>اقلام فاکتور ({toPersianDigits(order.items?.length || 0)} مورد)</h3>
           </div>
 
-          <div className="divide-y divide-[#F3EFE6] max-h-48 overflow-y-auto pr-1 space-y-2 text-xs">
+          <div className="divide-y divide-farm-bg-warm max-h-48 overflow-y-auto pr-1 space-y-2 text-xs">
             {order.items?.map((item, idx) => (
               <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -367,12 +367,12 @@ function CheckoutSuccessContent() {
                     {toPersianDigits(item.quantity)} بسته × {formatToman(item.unitPrice)}
                   </p>
                 </div>
-                <span className="font-bold text-[#2C4A2E]">{formatToman(item.totalPrice)}</span>
+                <span className="font-bold text-farm-primary">{formatToman(item.totalPrice)}</span>
               </div>
             ))}
           </div>
 
-          <div className="pt-3 border-t border-[#F3EFE6] flex items-center justify-between text-sm font-black text-[#2C4A2E]">
+          <div className="pt-3 border-t border-farm-bg-warm flex items-center justify-between text-sm font-black text-farm-primary">
             <span>مبلغ نهایی سفارش:</span>
             <span>{formatToman(order.totalAmount)}</span>
           </div>
@@ -383,7 +383,7 @@ function CheckoutSuccessContent() {
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 no-print">
         <Link
           href="/account?tab=orders"
-          className="w-full sm:w-auto px-6 py-3.5 bg-[#2C4A2E] text-white font-bold text-sm rounded-2xl hover:bg-[#1E3520] transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="w-full sm:w-auto px-6 py-3.5 bg-farm-primary text-white font-bold text-sm rounded-2xl hover:bg-farm-primary-dark transition-all flex items-center justify-center gap-2 shadow-sm"
         >
           <FileText className="w-4 h-4" />
           <span>مشاهده در حساب کاربری</span>
@@ -392,7 +392,7 @@ function CheckoutSuccessContent() {
         <button
           type="button"
           onClick={() => window.print()}
-          className="w-full sm:w-auto px-6 py-3.5 bg-white border border-[#E6E1D5] text-[#2C4A2E] font-bold text-sm rounded-2xl hover:bg-[#F9F8F5] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+          className="w-full sm:w-auto px-6 py-3.5 bg-white border border-farm-border text-farm-primary font-bold text-sm rounded-2xl hover:bg-farm-bg transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
         >
           <Printer className="w-4 h-4" />
           <span>چاپ فاکتور سفارش</span>
@@ -400,7 +400,7 @@ function CheckoutSuccessContent() {
 
         <Link
           href="/products"
-          className="w-full sm:w-auto px-6 py-3.5 bg-[#F9F8F5] border border-[#E6E1D5] text-gray-700 font-bold text-sm rounded-2xl hover:bg-[#EAE5D9] transition-all flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-6 py-3.5 bg-farm-bg border border-farm-border text-gray-700 font-bold text-sm rounded-2xl hover:bg-[#EAE5D9] transition-all flex items-center justify-center gap-2"
         >
           <ShoppingBag className="w-4 h-4" />
           <span>خرید محصولات ارگانیک</span>

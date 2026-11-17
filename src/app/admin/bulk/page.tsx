@@ -135,16 +135,16 @@ export default function AdminBulkPage() {
     <div className="space-y-6">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-[#2C4A2E] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 left-6 z-50 bg-farm-primary text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-4 h-4 text-[#D4A373]" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E6E1D5]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-farm-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E]">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
             استعلام‌ها و درخواست‌های خرید عمده (خارج از شیراز)
           </h1>
           <p className="text-xs text-gray-500 mt-1">
@@ -156,7 +156,7 @@ export default function AdminBulkPage() {
           <button
             onClick={loadInquiries}
             disabled={isLoading}
-            className="px-4 py-2 rounded-xl bg-white border border-[#E6E1D5] hover:bg-[#F3EFE6] text-xs font-bold text-[#2C4A2E] transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-white border border-farm-border hover:bg-farm-bg-warm text-xs font-bold text-farm-primary transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>بروزرسانی لیست</span>
@@ -166,9 +166,9 @@ export default function AdminBulkPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] shadow-xs">
+        <div className="bg-white p-4 rounded-2xl border border-farm-border shadow-xs">
           <div className="text-xs text-gray-500">کل درخواست‌ها</div>
-          <div className="text-xl sm:text-2xl font-black text-[#2C4A2E] mt-1">
+          <div className="text-xl sm:text-2xl font-black text-farm-primary mt-1">
             {toPersianDigits(inquiries.length)}
           </div>
         </div>
@@ -210,8 +210,8 @@ export default function AdminBulkPage() {
           onClick={() => setFilterStatus('ALL')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
             filterStatus === 'ALL'
-              ? 'bg-[#2C4A2E] text-white'
-              : 'bg-white text-gray-600 border border-[#E6E1D5] hover:bg-gray-50'
+              ? 'bg-farm-primary text-white'
+              : 'bg-white text-gray-600 border border-farm-border hover:bg-gray-50'
           }`}
         >
           همه درخواست‌ها ({toPersianDigits(inquiries.length)})
@@ -221,7 +221,7 @@ export default function AdminBulkPage() {
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
             filterStatus === 'PENDING'
               ? 'bg-amber-600 text-white'
-              : 'bg-white text-gray-600 border border-[#E6E1D5] hover:bg-gray-50'
+              : 'bg-white text-gray-600 border border-farm-border hover:bg-gray-50'
           }`}
         >
           در انتظار تماس ({toPersianDigits(pendingCount)})
@@ -231,7 +231,7 @@ export default function AdminBulkPage() {
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
             filterStatus === 'REVIEWED'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-600 border border-[#E6E1D5] hover:bg-gray-50'
+              : 'bg-white text-gray-600 border border-farm-border hover:bg-gray-50'
           }`}
         >
           بررسی و تماس گرفته شد ({toPersianDigits(reviewedCount)})
@@ -241,7 +241,7 @@ export default function AdminBulkPage() {
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
             filterStatus === 'COMPLETED'
               ? 'bg-emerald-600 text-white'
-              : 'bg-white text-gray-600 border border-[#E6E1D5] hover:bg-gray-50'
+              : 'bg-white text-gray-600 border border-farm-border hover:bg-gray-50'
           }`}
         >
           تکمیل شده ({toPersianDigits(completedCount)})
@@ -251,7 +251,7 @@ export default function AdminBulkPage() {
       {/* List */}
       <div className="grid grid-cols-1 gap-4">
         {filteredInquiries.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-[#E6E1D5] space-y-3">
+          <div className="bg-white rounded-3xl p-12 text-center border border-farm-border space-y-3">
             <Package className="w-12 h-12 text-gray-300 mx-auto" />
             <h3 className="font-bold text-gray-700">هیچ درخواست استعلامی در این بخش وجود ندارد</h3>
             <p className="text-xs text-gray-500">
@@ -264,32 +264,32 @@ export default function AdminBulkPage() {
             return (
               <div
                 key={inq.id || `inq-${idx}`}
-                className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4 transition-all hover:border-[#2C4A2E]/40"
+                className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4 transition-all hover:border-farm-primary/40"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[#D4A373]/20 flex items-center justify-center text-[#D4A373] shrink-0">
-                      <Package className="w-5 h-5 text-[#2C4A2E]" />
+                      <Package className="w-5 h-5 text-farm-primary" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-sm text-[#2C4A2E]">{inq.name}</h3>
+                        <h3 className="font-bold text-sm text-farm-primary">{inq.name}</h3>
                         {inq.createdAt && (
-                          <span className="text-[10px] text-gray-400 flex items-center gap-1" dir="ltr">
+                          <span className="text-xs text-gray-600 flex items-center gap-1" dir="ltr">
                             <Calendar className="w-3 h-3" />
                             {new Date(inq.createdAt).toLocaleDateString('fa-IR')}
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-0.5">
                         {inq.companyName && (
                           <span className="flex items-center gap-1">
-                            <Building className="w-3.5 h-3.5 text-gray-400" />
+                            <Building className="w-3.5 h-3.5 text-gray-500" />
                             <span>{inq.companyName}</span>
                           </span>
                         )}
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                          <MapPin className="w-3.5 h-3.5 text-gray-500" />
                           <span>مقصد: {inq.city}</span>
                         </span>
                       </div>
@@ -299,7 +299,7 @@ export default function AdminBulkPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <a
                       href={`tel:${inq.phone}`}
-                      className="px-3.5 py-2 rounded-xl bg-[#F3EFE6] text-[#2C4A2E] hover:bg-[#E6E1D5] text-xs font-mono font-bold flex items-center gap-1.5 transition-colors"
+                      className="px-3.5 py-2 rounded-xl bg-farm-bg-warm text-farm-primary hover:bg-farm-border text-xs font-mono font-bold flex items-center gap-1.5 transition-colors"
                       dir="ltr"
                     >
                       <Phone className="w-3.5 h-3.5" />
@@ -308,19 +308,19 @@ export default function AdminBulkPage() {
 
                     {/* Status Badge */}
                     {currentStatus === 'PENDING' && (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         <span>در انتظار تماس</span>
                       </span>
                     )}
                     {currentStatus === 'REVIEWED' && (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">
                         <Phone className="w-3 h-3" />
                         <span>تماس گرفته شد</span>
                       </span>
                     )}
                     {currentStatus === 'COMPLETED' && (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
                         <CheckCheck className="w-3 h-3" />
                         <span>تکمیل و ثبت باربری</span>
                       </span>
@@ -330,15 +330,15 @@ export default function AdminBulkPage() {
                     <button
                       onClick={() => handleDelete(inq.id)}
                       title="حذف استعلام"
-                      className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      className="p-2 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] text-xs text-gray-700 leading-relaxed">
-                  <span className="font-bold text-[#2C4A2E] block mb-1">
+                <div className="p-4 rounded-2xl bg-farm-bg border border-farm-border text-xs text-gray-700 leading-relaxed">
+                  <span className="font-bold text-farm-primary block mb-1">
                     شرح اقلام و نیازمندی متقاضی:
                   </span>
                   {inq.message}
@@ -346,11 +346,11 @@ export default function AdminBulkPage() {
 
                 {/* Status Switcher Toolbar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100 text-xs">
-                  <span className="text-[11px] text-gray-500 font-medium">تغییر وضعیت استعلام:</span>
+                  <span className="text-xs text-gray-500 font-medium">تغییر وضعیت استعلام:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleStatusChange(inq.id, 'PENDING')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                         currentStatus === 'PENDING'
                           ? 'bg-amber-600 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -360,7 +360,7 @@ export default function AdminBulkPage() {
                     </button>
                     <button
                       onClick={() => handleStatusChange(inq.id, 'REVIEWED')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                         currentStatus === 'REVIEWED'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -370,7 +370,7 @@ export default function AdminBulkPage() {
                     </button>
                     <button
                       onClick={() => handleStatusChange(inq.id, 'COMPLETED')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                         currentStatus === 'COMPLETED'
                           ? 'bg-emerald-600 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

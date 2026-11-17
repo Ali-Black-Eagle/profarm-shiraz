@@ -400,10 +400,10 @@ function LoginFormContent() {
       {/* Static Ambient Organic Glows (Zero GPU Load) */}
       <div className="absolute top-1/4 -right-28 w-96 h-96 bg-emerald-600/10 rounded-full blur-[90px] pointer-events-none" />
       <div className="absolute bottom-1/4 -left-28 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[90px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-[#2C4A2E]/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-farm-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Floating Interactive Decorative Badges (Desktop & Tablet) */}
-      <div className="hidden lg:flex absolute top-20 right-12 xl:right-24 items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/90 border border-[#E6E1D5] shadow-farm text-xs font-bold text-[#2C4A2E] pointer-events-none z-0">
+      <div className="hidden lg:flex absolute top-20 right-12 xl:right-24 items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/90 border border-farm-border shadow-farm text-xs font-bold text-farm-primary pointer-events-none z-0">
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
         <Leaf className="w-4 h-4 text-emerald-600" />
         <span>محصولات تازه مزارع فارس</span>
@@ -415,21 +415,21 @@ function LoginFormContent() {
       </div>
 
       {/* Main Solid Card (Flicker-Free, No Backdrop Filter Jitter) */}
-      <div className="relative z-10 max-w-md w-full bg-white rounded-[32px] p-6 sm:p-8 border border-[#E6E1D5] shadow-[0_20px_50px_-12px_rgba(44,74,46,0.12)] space-y-6">
+      <div className="relative z-10 max-w-md w-full bg-white rounded-[32px] p-6 sm:p-8 border border-farm-border shadow-[0_20px_50px_-12px_rgba(44,74,46,0.12)] space-y-6">
         
         {/* Brand Header */}
         <div className="text-center space-y-3">
           <div className="relative inline-block group">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2C4A2E] via-[#243c26] to-[#1E3520] text-white flex items-center justify-center mx-auto shadow-xl shadow-[#2C4A2E]/25 border border-emerald-500/30 transition-transform duration-300 group-hover:scale-105">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-farm-primary via-[#243c26] to-farm-primary-dark text-white flex items-center justify-center mx-auto shadow-xl shadow-[#2C4A2E]/25 border border-emerald-500/30 transition-transform duration-300 group-hover:scale-105">
               <Leaf className="w-8 h-8 text-emerald-300 transition-transform duration-300 group-hover:rotate-12" />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-amber-500 to-[#D4AF37] text-white flex items-center justify-center text-[11px] shadow-md font-black">
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-amber-500 to-[#D4AF37] text-white flex items-center justify-center text-xs shadow-md font-black">
               ✦
             </div>
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-black text-[#2C4A2E] tracking-tight transition-opacity duration-200">
+            <h1 className="text-xl sm:text-2xl font-black text-farm-primary transition-opacity duration-200">
               {authMode === 'LOGIN' ? 'ورود به حساب کاربری' : 'ساخت حساب کاربری جدید'}
             </h1>
             <p className="text-xs text-gray-500 font-medium transition-opacity duration-200">
@@ -444,7 +444,7 @@ function LoginFormContent() {
         <div className="relative p-1 rounded-2xl bg-[#ECE7DC] border border-[#DFD8CA] shadow-inner grid grid-cols-2 text-xs font-bold select-none">
           {/* Animated Gliding Pill Background */}
           <div
-            className="absolute top-1 bottom-1 right-1 w-[calc(50%-4px)] rounded-xl bg-gradient-to-r from-[#2C4A2E] via-[#243c26] to-[#1E3520] shadow-md transition-transform duration-200 ease-out pointer-events-none"
+            className="absolute top-1 bottom-1 right-1 w-[calc(50%-4px)] rounded-xl bg-gradient-to-r from-farm-primary via-[#243c26] to-farm-primary-dark shadow-md transition-transform duration-200 ease-out pointer-events-none"
             style={{
               transform: authMode === 'LOGIN' ? 'translate3d(0, 0, 0)' : 'translate3d(-100%, 0, 0)',
             }}
@@ -500,7 +500,7 @@ function LoginFormContent() {
         </div>
 
         {/* Method Sub-Tabs (OTP vs PASSWORD) */}
-        <div className="flex items-center justify-center gap-2 text-[11px] font-bold border-b border-gray-100 pb-2">
+        <div className="flex items-center justify-center gap-2 text-xs font-bold border-b border-gray-100 pb-2">
           <button
             type="button"
             onClick={() => {
@@ -572,9 +572,9 @@ function LoginFormContent() {
                         placeholder="مانند: علی رضایی"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full pr-10 pl-4 py-3 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 font-medium text-sm transition-colors"
+                        className="w-full pr-10 pl-4 py-3 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 font-medium text-sm transition-colors"
                       />
-                      <User className="w-4 h-4 text-gray-400 absolute right-3.5 top-3.5" />
+                      <User className="w-4 h-4 text-gray-500 absolute right-3.5 top-3.5" />
                     </div>
                   </div>
                 )}
@@ -582,7 +582,7 @@ function LoginFormContent() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-gray-700 font-bold">شماره تلفن همراه:</label>
-                    <span className="text-[11px] text-gray-400">کد ۵ رقمی ارسال می‌شود</span>
+                    <span className="text-xs text-gray-600">کد ۵ رقمی ارسال می‌شود</span>
                   </div>
                   <div className="relative">
                     <input
@@ -593,10 +593,10 @@ function LoginFormContent() {
                       placeholder="۰۹۱۷۱۲۳۴۵۶۷"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full pl-14 pr-4 py-3.5 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 text-left font-mono font-bold text-sm tracking-wider transition-all"
+                      className="w-full pl-14 pr-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 text-left font-mono font-bold text-sm tracking-wider transition-all"
                       dir="ltr"
                     />
-                    <div className="absolute left-3 top-3 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gray-100 border border-gray-200 text-[11px] font-mono text-gray-600 pointer-events-none">
+                    <div className="absolute left-3 top-3 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-mono text-gray-600 pointer-events-none">
                       <span>🇮🇷</span>
                       <span>+۹۸</span>
                     </div>
@@ -619,7 +619,7 @@ function LoginFormContent() {
                     <label className="text-gray-800 font-bold block">
                       کد تایید ۵ رقمی پیامک‌شده را وارد نمایید:
                     </label>
-                    <p className="text-[11px] text-gray-500">
+                    <p className="text-xs text-gray-500">
                       ارسال‌شده به شماره{' '}
                       <strong className="font-mono text-gray-800 dir-ltr inline-block">
                         {toPersianDigits(phone)}
@@ -643,7 +643,7 @@ function LoginFormContent() {
                         onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
                         onPaste={(e) => handleOtpPaste(idx, e)}
                         onKeyDown={(e) => handleKeyDown(idx, e)}
-                        className="w-12 h-14 rounded-2xl border-2 border-[#E6E1D5] bg-[#FAF8F5] text-center font-mono font-black text-2xl text-[#2C4A2E] focus:border-[#2C4A2E] focus:bg-white focus:ring-4 focus:ring-[#2C4A2E]/10 focus:outline-none transition-all shadow-xs"
+                        className="w-12 h-14 rounded-2xl border-2 border-farm-border bg-[#FAF8F5] text-center font-mono font-black text-2xl text-farm-primary focus:border-farm-primary focus:bg-white focus:ring-4 focus:ring-farm-primary/10 focus:outline-none transition-all shadow-xs"
                       />
                     ))}
                   </div>
@@ -656,7 +656,7 @@ function LoginFormContent() {
                       setOtpStep('PHONE');
                       setErrorMessage(null);
                     }}
-                    className="text-gray-500 hover:text-[#2C4A2E] font-medium transition-colors cursor-pointer"
+                    className="text-gray-500 hover:text-farm-primary font-medium transition-colors cursor-pointer"
                   >
                     ← ویرایش شماره
                   </button>
@@ -665,7 +665,7 @@ function LoginFormContent() {
                     {timerSeconds > 0 ? (
                       <span className="text-gray-500 font-medium">
                         ارسال مجدد تا{' '}
-                        <strong className="font-mono text-[#2C4A2E]">
+                        <strong className="font-mono text-farm-primary">
                           {formatTimer(timerSeconds)}
                         </strong>
                       </span>
@@ -673,7 +673,7 @@ function LoginFormContent() {
                       <button
                         type="button"
                         onClick={() => handleSendOtp()}
-                        className="text-[#2C4A2E] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-farm-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>ارسال دوباره کد</span>
@@ -716,9 +716,9 @@ function LoginFormContent() {
                     placeholder="مانند: علی رضایی"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pr-10 pl-4 py-3 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 font-medium text-sm transition-colors"
+                    className="w-full pr-10 pl-4 py-3 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 font-medium text-sm transition-colors"
                   />
-                  <User className="w-4 h-4 text-gray-400 absolute right-3.5 top-3.5" />
+                  <User className="w-4 h-4 text-gray-500 absolute right-3.5 top-3.5" />
                 </div>
               </div>
             )}
@@ -737,12 +737,12 @@ function LoginFormContent() {
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 text-left font-mono text-sm transition-all"
+                    className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 text-left font-mono text-sm transition-all"
                     dir="ltr"
                   />
-                  <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+                  <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
                 </div>
-                <p className="mt-1.5 text-[11px] text-gray-500 leading-relaxed">
+                <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
                   ایمیل شما به عنوان شناسه ورود اختصاصی ثبت می‌شود. شماره همراه در مرحله تسویه حساب دریافت و با پیامک تایید خواهد شد.
                 </p>
               </div>
@@ -762,7 +762,7 @@ function LoginFormContent() {
                     placeholder="example@gmail.com یا ۰۹۱۷xxxxxxx"
                     value={passwordIdentifier}
                     onChange={(e) => setPasswordIdentifier(e.target.value)}
-                    className="w-full px-4 py-3.5 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 text-left font-mono font-medium transition-all"
+                    className="w-full px-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 text-left font-mono font-medium transition-all"
                     dir="ltr"
                   />
                 </div>
@@ -783,7 +783,7 @@ function LoginFormContent() {
                       setOtpStep('PHONE');
                       setErrorMessage(null);
                     }}
-                    className="text-[11px] text-[#2C4A2E] font-bold hover:underline cursor-pointer"
+                    className="text-xs text-farm-primary font-bold hover:underline cursor-pointer"
                   >
                     فراموشی رمز؟ (ورود با پیامک)
                   </button>
@@ -798,7 +798,7 @@ function LoginFormContent() {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-[#E6E1D5] bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-[#2C4A2E] focus:ring-4 focus:ring-[#2C4A2E]/10 text-left font-mono text-sm transition-all"
+                  className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 text-left font-mono text-sm transition-all"
                   dir="ltr"
                 />
                 <button
@@ -816,7 +816,7 @@ function LoginFormContent() {
               type="submit"
               size="lg"
               isLoading={isLoading}
-              className="w-full bg-[#2C4A2E] hover:bg-[#1E3520] text-white shadow-md font-bold"
+              className="w-full bg-farm-primary hover:bg-farm-primary-dark text-white shadow-md font-bold"
             >
               {authMode === 'LOGIN' ? (
                 <>
@@ -835,7 +835,7 @@ function LoginFormContent() {
 
         {/* Benefits & Trust Highlight for Registration */}
         {authMode === 'REGISTER' && (
-          <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1.5 text-[11px] text-emerald-950">
+          <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1.5 text-xs text-emerald-950">
             <div className="flex items-center gap-1.5 font-bold text-emerald-900">
               <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>مزایای عضویت در پروفارم شیراز:</span>
@@ -862,7 +862,7 @@ function LoginFormContent() {
         <div className="pt-2 border-t border-gray-100 flex justify-center text-center">
           <Link
             href="/"
-            className="text-[12px] text-gray-500 hover:text-[#2C4A2E] font-medium transition-colors"
+            className="text-[12px] text-gray-500 hover:text-farm-primary font-medium transition-colors"
           >
             ← بازگشت به صفحه اصلی فروشگاه
           </Link>

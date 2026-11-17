@@ -176,17 +176,17 @@ function AccountContent() {
   if (!isAuthenticated || !user) {
     return (
       <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-6">
-        <div className="w-16 h-16 rounded-3xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E] mx-auto">
+        <div className="w-16 h-16 rounded-3xl bg-farm-primary/10 flex items-center justify-center text-farm-primary mx-auto">
           <UserIcon className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-black text-[#2C4A2E]">ورود به ناحیه کاربری</h1>
+        <h1 className="text-2xl font-black text-farm-primary">ورود به ناحیه کاربری</h1>
         <p className="text-sm text-gray-600 leading-relaxed">
           برای دسترسی به سوابق خرید، پیگیری تحویل سفارش در شیراز، دفترچه نشانی‌ها و سهمیه اشتراک، لطفاً وارد حساب کاربری خود شوید.
         </p>
         <div className="flex items-center justify-center pt-2">
           <Link
             href="/login"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#2C4A2E] text-white font-bold text-sm hover:bg-[#1E3520] transition-colors shadow-md"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-farm-primary text-white font-bold text-sm hover:bg-farm-primary-dark transition-colors shadow-md"
           >
             ورود با شماره موبایل
           </Link>
@@ -340,7 +340,7 @@ function AccountContent() {
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <span>{reorderSuccessMsg}</span>
           </div>
-          <Link href="/cart" className="text-xs bg-[#2C4A2E] text-white px-3 py-1.5 rounded-xl hover:bg-[#1E3520]">
+          <Link href="/cart" className="text-xs bg-farm-primary text-white px-3 py-1.5 rounded-xl hover:bg-farm-primary-dark">
             مشاهده سبد خرید
           </Link>
         </div>
@@ -351,13 +351,13 @@ function AccountContent() {
         {/* Sidebar Nav (4 cols on lg) */}
         <div className="lg:col-span-4 space-y-6">
           {/* User Profile Card */}
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-5">
+          <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-[#2C4A2E] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-[#D4A373]">
+              <div className="w-16 h-16 rounded-2xl bg-farm-primary text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-[#D4A373]">
                 {user.name ? user.name.slice(0, 1) : 'پ'}
               </div>
               <div className="space-y-1 overflow-hidden">
-                <h2 className="text-base font-black text-[#2C4A2E] truncate">
+                <h2 className="text-base font-black text-farm-primary truncate">
                   {user.name || 'کاربر گرامی'}
                 </h2>
                 <p className="text-xs text-gray-500 font-mono" dir="ltr">
@@ -366,22 +366,22 @@ function AccountContent() {
                 {/* Tier Badge */}
                 <div className="pt-0.5">
                   {user.role === 'ADMIN' ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
                       <span>مدیر ارشد مزارع</span>
                     </span>
                   ) : tier === 'PRO' ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                       <Crown className="w-3.5 h-3.5 text-amber-600" />
                       <span>مشترک پرو (تحویل ۶ روزه)</span>
                     </span>
                   ) : tier === 'PLUS' ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
                       <Zap className="w-3.5 h-3.5 text-emerald-600" />
                       <span>مشترک پلاس (تحویل ۶ روزه)</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                       <UserIcon className="w-3.5 h-3.5 text-gray-500" />
                       <span>کاربر عادی (تحویل ۱شنبه/۴شنبه)</span>
                     </span>
@@ -392,13 +392,13 @@ function AccountContent() {
           </div>
 
           {/* Navigation Menu Links */}
-          <div className="bg-white rounded-3xl p-3 border border-[#E6E1D5] shadow-farm space-y-1">
+          <div className="bg-white rounded-3xl p-3 border border-farm-border shadow-farm space-y-1">
             <button
               onClick={() => setActiveTab('overview')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -412,8 +412,8 @@ function AccountContent() {
               onClick={() => setActiveTab('orders')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'orders'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -422,7 +422,7 @@ function AccountContent() {
               </div>
               <div className="flex items-center gap-1.5">
                 {userOrders.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-900 font-black">
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-900 font-black">
                     {toPersianDigits(userOrders.length)}
                   </span>
                 )}
@@ -434,8 +434,8 @@ function AccountContent() {
               onClick={() => setActiveTab('addresses')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'addresses'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -443,7 +443,7 @@ function AccountContent() {
                 <span>دفترچه نشانی‌ها</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 text-gray-800 font-bold">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800 font-bold">
                   {toPersianDigits((user.addresses || []).length)}
                 </span>
                 <ChevronLeft className="w-4 h-4 opacity-70" />
@@ -454,8 +454,8 @@ function AccountContent() {
               onClick={() => setActiveTab('subscription')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'subscription'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -463,7 +463,7 @@ function AccountContent() {
                 <span>باشگاه و اشتراک فعال</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-amber-600 font-bold">
+                <span className="text-xs text-amber-600 font-bold">
                   {tier === 'PRO' ? 'پرو' : tier === 'PLUS' ? 'پلاس' : 'عادی'}
                 </span>
                 <ChevronLeft className="w-4 h-4 opacity-70" />
@@ -474,8 +474,8 @@ function AccountContent() {
               onClick={() => setActiveTab('coupons')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'coupons'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -483,7 +483,7 @@ function AccountContent() {
                 <span>کیف تخفیف‌ها</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-800 font-bold">
                   {toPersianDigits(coupons.length)}
                 </span>
                 <ChevronLeft className="w-4 h-4 opacity-70" />
@@ -494,8 +494,8 @@ function AccountContent() {
               onClick={() => setActiveTab('reviews')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'reviews'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -504,7 +504,7 @@ function AccountContent() {
               </div>
               <div className="flex items-center gap-1.5">
                 {userReviews.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-black">
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-900 font-black">
                     {toPersianDigits(userReviews.length)}
                   </span>
                 )}
@@ -516,8 +516,8 @@ function AccountContent() {
               onClick={() => setActiveTab('settings')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'settings'
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'text-gray-700 hover:bg-[#F9F8F5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-farm-bg'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -561,7 +561,7 @@ function AccountContent() {
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-in fade-in">
               {/* Welcome Banner */}
-              <div className="bg-gradient-to-l from-[#2C4A2E] to-[#1E3520] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-farm">
+              <div className="bg-gradient-to-l from-farm-primary to-farm-primary-dark rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-farm">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4A373]/15 rounded-full blur-2xl pointer-events-none" />
                 <div className="relative z-10 space-y-3">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-bold backdrop-blur-md">
@@ -579,26 +579,26 @@ function AccountContent() {
 
               {/* Stats KPIs Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] shadow-xs space-y-1 text-center">
-                  <span className="text-[11px] text-gray-500 font-bold block">سفارش‌های جاری</span>
-                  <span className="text-2xl font-black text-[#2C4A2E]">
+                <div className="bg-white p-4 rounded-2xl border border-farm-border shadow-xs space-y-1 text-center">
+                  <span className="text-xs text-gray-500 font-bold block">سفارش‌های جاری</span>
+                  <span className="text-2xl font-black text-farm-primary">
                     {toPersianDigits(userOrders.filter((o) => o.status === 'PROCESSING' || o.status === 'OUT_FOR_DELIVERY').length)}
                   </span>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] shadow-xs space-y-1 text-center">
-                  <span className="text-[11px] text-gray-500 font-bold block">کل سفارش‌ها</span>
+                <div className="bg-white p-4 rounded-2xl border border-farm-border shadow-xs space-y-1 text-center">
+                  <span className="text-xs text-gray-500 font-bold block">کل سفارش‌ها</span>
                   <span className="text-2xl font-black text-gray-800">
                     {toPersianDigits(userOrders.length)}
                   </span>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] shadow-xs space-y-1 text-center">
-                  <span className="text-[11px] text-gray-500 font-bold block">کوپن‌های در دسترس</span>
+                <div className="bg-white p-4 rounded-2xl border border-farm-border shadow-xs space-y-1 text-center">
+                  <span className="text-xs text-gray-500 font-bold block">کوپن‌های در دسترس</span>
                   <span className="text-2xl font-black text-rose-600">
                     {toPersianDigits(coupons.length)}
                   </span>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] shadow-xs space-y-1 text-center">
-                  <span className="text-[11px] text-gray-500 font-bold block">آدرس‌های ثبت‌شده</span>
+                <div className="bg-white p-4 rounded-2xl border border-farm-border shadow-xs space-y-1 text-center">
+                  <span className="text-xs text-gray-500 font-bold block">آدرس‌های ثبت‌شده</span>
                   <span className="text-2xl font-black text-emerald-700">
                     {toPersianDigits((user.addresses || []).length)}
                   </span>
@@ -607,12 +607,12 @@ function AccountContent() {
 
               {/* Live Order Tracker (Latest Active or Recent Order) */}
               {activeOrder && (
-                <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#F3EFE6]">
+                <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-farm-bg-warm">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-[#2C4A2E]" />
-                        <h3 className="text-base font-bold text-[#2C4A2E]">
+                        <Truck className="w-5 h-5 text-farm-primary" />
+                        <h3 className="text-base font-bold text-farm-primary">
                           ردیابی و وضعیت آخرین سفارش
                         </h3>
                         <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-lg">
@@ -627,15 +627,15 @@ function AccountContent() {
                     <div className="flex items-center gap-2 flex-wrap">
                       {userOrders.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] text-gray-400 font-bold hidden sm:inline">سفارش انتخابی:</span>
+                          <span className="text-xs text-gray-600 font-bold hidden sm:inline">سفارش انتخابی:</span>
                           {userOrders.map((ord) => (
                             <button
                               key={ord.id}
                               type="button"
                               onClick={() => setSelectedTrackingOrderId(ord.id)}
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                              className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                                 activeOrder.id === ord.id
-                                  ? 'bg-[#2C4A2E] text-white shadow-xs'
+                                  ? 'bg-farm-primary text-white shadow-xs'
                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                               }`}
                             >
@@ -648,7 +648,7 @@ function AccountContent() {
 
                       <button
                         onClick={() => setSelectedInvoiceOrder(activeOrder)}
-                        className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl border border-[#E6E1D5] text-[#2C4A2E] hover:bg-[#F9F8F5] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl border border-farm-border text-farm-primary hover:bg-farm-bg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <FileText className="w-4 h-4 text-emerald-700" />
                         <span>مشاهده فاکتور</span>
@@ -660,7 +660,7 @@ function AccountContent() {
                   {activeOrder.status === 'DELIVERED' && (
                     <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-500/50 flex items-center justify-center gap-3.5 text-emerald-800 shadow-sm animate-in fade-in zoom-in-95">
                       <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-600 shrink-0 stroke-[2.5]" />
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-700 tracking-tight">
+                      <span className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-700">
                         سفارش تکمیل شده است
                       </span>
                     </div>
@@ -754,7 +754,7 @@ function AccountContent() {
                                       ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-100'
                                       : state === 'ACTIVE'
                                       ? 'bg-amber-500 text-white ring-4 ring-amber-200 border-2 border-white shadow-lg shadow-amber-500/35 animate-pulse scale-110'
-                                      : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
+                                      : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
                                   }`}
                                 >
                                   {state === 'COMPLETED' ? (
@@ -772,7 +772,7 @@ function AccountContent() {
                                         ? 'font-black text-amber-950'
                                         : state === 'COMPLETED'
                                         ? 'font-bold text-gray-800'
-                                        : 'font-medium text-gray-400'
+                                        : 'font-medium text-gray-600'
                                     }`}
                                   >
                                     {step.title}
@@ -780,7 +780,7 @@ function AccountContent() {
 
                                   <div>
                                     {state === 'ACTIVE' ? (
-                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs sm:text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
                                         <span className="relative flex h-2 w-2">
                                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
                                           <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
@@ -788,11 +788,11 @@ function AccountContent() {
                                         <span>{step.activeBadge}</span>
                                       </span>
                                     ) : state === 'COMPLETED' ? (
-                                      <span className="text-[10px] sm:text-[11px] text-emerald-700 font-bold">
+                                      <span className="text-xs sm:text-xs text-emerald-700 font-bold">
                                         {step.completedBadge}
                                       </span>
                                     ) : (
-                                      <span className="text-[10px] sm:text-[11px] text-gray-400">
+                                      <span className="text-xs sm:text-xs text-gray-600">
                                         {step.upcomingBadge}
                                       </span>
                                     )}
@@ -814,7 +814,7 @@ function AccountContent() {
                         {activeOrder.items.map((i) => `${i.product.title} (${toPersianDigits(i.quantity)})`).join('، ')}
                       </strong>
                     </div>
-                    <div className="text-sm font-black text-[#2C4A2E]">
+                    <div className="text-sm font-black text-farm-primary">
                       {formatToman(activeOrder.totalAmount)}
                     </div>
                   </div>
@@ -825,34 +825,34 @@ function AccountContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
                   onClick={() => setActiveTab('orders')}
-                  className="bg-white p-5 rounded-3xl border border-[#E6E1D5] hover:border-[#2C4A2E]/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group"
+                  className="bg-white p-5 rounded-3xl border border-farm-border hover:border-farm-primary/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group"
                 >
-                  <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E] group-hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary group-hover:scale-105 transition-transform">
                     <ShoppingBag className="w-5 h-5" />
                   </div>
-                  <h4 className="text-sm font-bold text-[#2C4A2E]">مشاهده تاریخچه سفارشات</h4>
+                  <h4 className="text-sm font-bold text-farm-primary">مشاهده تاریخچه سفارشات</h4>
                   <p className="text-xs text-gray-500">مشاهده فاکتورها و خرید مجدد با ۱ کلیک</p>
                 </button>
 
                 <button
                   onClick={handleOpenAddAddress}
-                  className="bg-white p-5 rounded-3xl border border-[#E6E1D5] hover:border-[#2C4A2E]/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group"
+                  className="bg-white p-5 rounded-3xl border border-farm-border hover:border-farm-primary/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-800 group-hover:scale-105 transition-transform">
                     <MapPin className="w-5 h-5" />
                   </div>
-                  <h4 className="text-sm font-bold text-[#2C4A2E]">ثبت نشانی جدید در شیراز</h4>
+                  <h4 className="text-sm font-bold text-farm-primary">ثبت نشانی جدید در شیراز</h4>
                   <p className="text-xs text-gray-500">افزودن آدرس منزل یا محل کار جهت تحویل سریع</p>
                 </button>
 
                 <Link
                   href="/products"
-                  className="bg-white p-5 rounded-3xl border border-[#E6E1D5] hover:border-[#2C4A2E]/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group block"
+                  className="bg-white p-5 rounded-3xl border border-farm-border hover:border-farm-primary/50 transition-all text-right shadow-xs space-y-2 cursor-pointer group block"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-800 group-hover:scale-105 transition-transform">
                     <Sparkles className="w-5 h-5" />
                   </div>
-                  <h4 className="text-sm font-bold text-[#2C4A2E]">خرید تازه‌های مزرعه</h4>
+                  <h4 className="text-sm font-bold text-farm-primary">خرید تازه‌های مزرعه</h4>
                   <p className="text-xs text-gray-500">عسل وحشی، تخم‌مرغ کامفیروز و سبزیجات شیراز</p>
                 </Link>
               </div>
@@ -864,7 +864,7 @@ function AccountContent() {
             <div className="space-y-6 animate-in fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-[#2C4A2E]">سفارش‌های من</h2>
+                  <h2 className="text-xl font-black text-farm-primary">سفارش‌های من</h2>
                   <p className="text-xs text-gray-500">تاریخچه کامل سفارشات و دسترسی به فاکتورهای رسمی</p>
                 </div>
 
@@ -873,7 +873,7 @@ function AccountContent() {
                   <button
                     onClick={() => setOrderStatusFilter('ALL')}
                     className={`px-3 py-1.5 rounded-xl transition-all ${
-                      orderStatusFilter === 'ALL' ? 'bg-white text-[#2C4A2E] shadow-xs' : 'text-gray-600'
+                      orderStatusFilter === 'ALL' ? 'bg-white text-farm-primary shadow-xs' : 'text-gray-600'
                     }`}
                   >
                     همه ({toPersianDigits(userOrders.length)})
@@ -881,7 +881,7 @@ function AccountContent() {
                   <button
                     onClick={() => setOrderStatusFilter('ACTIVE')}
                     className={`px-3 py-1.5 rounded-xl transition-all ${
-                      orderStatusFilter === 'ACTIVE' ? 'bg-white text-[#2C4A2E] shadow-xs' : 'text-gray-600'
+                      orderStatusFilter === 'ACTIVE' ? 'bg-white text-farm-primary shadow-xs' : 'text-gray-600'
                     }`}
                   >
                     جاری
@@ -889,7 +889,7 @@ function AccountContent() {
                   <button
                     onClick={() => setOrderStatusFilter('DELIVERED')}
                     className={`px-3 py-1.5 rounded-xl transition-all ${
-                      orderStatusFilter === 'DELIVERED' ? 'bg-white text-[#2C4A2E] shadow-xs' : 'text-gray-600'
+                      orderStatusFilter === 'DELIVERED' ? 'bg-white text-farm-primary shadow-xs' : 'text-gray-600'
                     }`}
                   >
                     تحویل‌شده
@@ -898,7 +898,7 @@ function AccountContent() {
               </div>
 
               {filteredOrders.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 border border-[#E6E1D5] text-center space-y-4 shadow-farm">
+                <div className="bg-white rounded-3xl p-12 border border-farm-border text-center space-y-4 shadow-farm">
                   <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
                   <h3 className="text-base font-bold text-gray-800">هیچ سفارشی در این بخش یافت نشد</h3>
                   <p className="text-xs text-gray-500 max-w-sm mx-auto">
@@ -906,7 +906,7 @@ function AccountContent() {
                   </p>
                   <Link
                     href="/products"
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-sm"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark shadow-sm"
                   >
                     <span>مشاهده کاتالوگ محصولات</span>
                     <ArrowRight className="w-4 h-4" />
@@ -917,12 +917,12 @@ function AccountContent() {
                   {filteredOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-4 transition-all hover:border-[#2C4A2E]/40"
+                      className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4 transition-all hover:border-farm-primary/40"
                     >
                       {/* Order Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#F3EFE6]">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-farm-bg-warm">
                         <div className="flex items-center gap-3">
-                          <span className="font-mono text-sm font-black text-[#2C4A2E] bg-[#F9F8F5] px-3 py-1 rounded-xl border border-[#E6E1D5]">
+                          <span className="font-mono text-sm font-black text-farm-primary bg-farm-bg px-3 py-1 rounded-xl border border-farm-border">
                             {order.orderNumber}
                           </span>
                           <span className="text-xs text-gray-500">
@@ -942,7 +942,7 @@ function AccountContent() {
                             );
                           })()}
 
-                          <span className="text-sm font-black text-[#2C4A2E]">
+                          <span className="text-sm font-black text-farm-primary">
                             {formatToman(order.totalAmount)}
                           </span>
                         </div>
@@ -950,7 +950,7 @@ function AccountContent() {
 
                       {/* Delivery Slot info */}
                       {order.deliverySlot && (
-                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-[#F9F8F5] p-3 rounded-2xl border border-[#E6E1D5]/60">
+                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-farm-bg p-3 rounded-2xl border border-farm-border/60">
                           <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
                           <span>زمان تحویل شیراز:</span>
                           <strong className="text-gray-800">
@@ -968,22 +968,22 @@ function AccountContent() {
                                 <img
                                   src={item.product.images[0]}
                                   alt={item.product.title}
-                                  className="w-12 h-12 rounded-xl object-cover border border-[#E6E1D5]"
+                                  className="w-12 h-12 rounded-xl object-cover border border-farm-border"
                                 />
                               ) : (
-                                <div className="w-12 h-12 rounded-xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
+                                <div className="w-12 h-12 rounded-xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
                                   <Package className="w-6 h-6" />
                                 </div>
                               )}
                               <div>
                                 <div className="font-bold text-gray-900">{item.product.title}</div>
                                 {item.product.packSize && (
-                                  <div className="text-[11px] text-gray-500">{item.product.packSize}</div>
+                                  <div className="text-xs text-gray-500">{item.product.packSize}</div>
                                 )}
                                 {order.status === 'DELIVERED' && (
                                   <Link
                                     href={`/products/${item.product.slug}?review=true`}
-                                    className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 transition-colors"
+                                    className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 transition-colors"
                                   >
                                     <Star className="w-3 h-3 text-amber-500 fill-amber-400" />
                                     <span>ثبت نظر و امتیاز برای این کالا</span>
@@ -994,7 +994,7 @@ function AccountContent() {
 
                             <div className="text-left">
                               <span className="text-gray-500 ml-2">تعداد: {toPersianDigits(item.quantity)}</span>
-                              <span className="font-bold font-mono text-[#2C4A2E]">
+                              <span className="font-bold font-mono text-farm-primary">
                                 {formatToman(item.unitPrice * item.quantity)}
                               </span>
                             </div>
@@ -1004,7 +1004,7 @@ function AccountContent() {
 
                       {/* Card Actions */}
                       <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div className="text-gray-500 text-[11px]">
+                        <div className="text-gray-500 text-xs">
                           مقصد: {order.address?.streetAddress || 'شیراز'}
                         </div>
 
@@ -1025,7 +1025,7 @@ function AccountContent() {
                           <button
                             type="button"
                             onClick={() => setSelectedInvoiceOrder(order)}
-                            className="px-3.5 py-1.5 rounded-xl border border-[#E6E1D5] text-[#2C4A2E] hover:bg-[#F9F8F5] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl border border-farm-border text-farm-primary hover:bg-farm-bg font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-emerald-700" />
                             <span>فاکتور الکترونیک</span>
@@ -1034,7 +1034,7 @@ function AccountContent() {
                           <button
                             type="button"
                             onClick={() => handleReorder(order)}
-                            className="px-3.5 py-1.5 rounded-xl bg-[#2C4A2E] text-white hover:bg-[#1E3520] font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                            className="px-3.5 py-1.5 rounded-xl bg-farm-primary text-white hover:bg-farm-primary-dark font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>خرید مجدد این سبد</span>
@@ -1053,13 +1053,13 @@ function AccountContent() {
             <div className="space-y-6 animate-in fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-[#2C4A2E]">دفترچه نشانی‌های شیراز</h2>
+                  <h2 className="text-xl font-black text-farm-primary">دفترچه نشانی‌های شیراز</h2>
                   <p className="text-xs text-gray-500">مدیریت آدرس‌های تحویل پیک پروفارم در مناطق شیراز</p>
                 </div>
 
                 <button
                   onClick={handleOpenAddAddress}
-                  className="px-4 py-2.5 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                  className="px-4 py-2.5 rounded-2xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4 text-[#D4A373]" />
                   <span>+ افزودن نشانی جدید</span>
@@ -1067,7 +1067,7 @@ function AccountContent() {
               </div>
 
               {(user.addresses || []).length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 border border-[#E6E1D5] text-center space-y-4 shadow-farm">
+                <div className="bg-white rounded-3xl p-12 border border-farm-border text-center space-y-4 shadow-farm">
                   <MapPin className="w-12 h-12 text-gray-300 mx-auto" />
                   <h3 className="text-base font-bold text-gray-800">هنوز نشانی در شیراز ثبت نکرده‌اید</h3>
                   <p className="text-xs text-gray-500 max-w-sm mx-auto">
@@ -1075,7 +1075,7 @@ function AccountContent() {
                   </p>
                   <button
                     onClick={handleOpenAddAddress}
-                    className="px-6 py-2.5 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520]"
+                    className="px-6 py-2.5 rounded-2xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark"
                   >
                     افزودن اولین نشانی
                   </button>
@@ -1087,18 +1087,18 @@ function AccountContent() {
                       key={addr.id}
                       className={`bg-white rounded-3xl p-6 border transition-all flex flex-col justify-between gap-4 ${
                         addr.isDefault
-                          ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/20 shadow-md'
-                          : 'border-[#E6E1D5] shadow-farm'
+                          ? 'border-farm-primary ring-2 ring-farm-primary/20 shadow-md'
+                          : 'border-farm-border shadow-farm'
                       }`}
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-sm text-[#2C4A2E] flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-farm-primary flex items-center gap-1.5">
                             <MapPin className="w-4 h-4 text-emerald-700" />
                             {addr.recipientName}
                           </span>
                           {addr.isDefault && (
-                            <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                            <span className="text-xs bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded-full font-bold">
                               آدرس پیش‌فرض
                             </span>
                           )}
@@ -1108,7 +1108,7 @@ function AccountContent() {
                           {addr.streetAddress} {addr.unit ? `- ${addr.unit}` : ''}
                         </p>
 
-                        <div className="text-[11px] text-gray-500 flex items-center justify-between pt-1">
+                        <div className="text-xs text-gray-500 flex items-center justify-between pt-1">
                           <span dir="ltr" className="font-mono">
                             {addr.phone}
                           </span>
@@ -1122,7 +1122,7 @@ function AccountContent() {
                           <button
                             type="button"
                             onClick={() => setDefaultAddress(addr.id)}
-                            className="text-emerald-700 hover:text-emerald-900 font-bold text-[11px] cursor-pointer"
+                            className="text-emerald-700 hover:text-emerald-900 font-bold text-xs cursor-pointer"
                           >
                             انتخاب به عنوان پیش‌فرض
                           </button>
@@ -1159,7 +1159,7 @@ function AccountContent() {
           {activeTab === 'subscription' && (
             <div className="space-y-6 animate-in fade-in">
               <div>
-                <h2 className="text-xl font-black text-[#2C4A2E]">اشتراک و باشگاه مزارع فارس</h2>
+                <h2 className="text-xl font-black text-farm-primary">اشتراک و باشگاه مزارع فارس</h2>
                 <p className="text-xs text-gray-500">مزایا، سهمیه تخفیف تخم‌مرغ محلی و وضعیت ارسال ۶ روزه</p>
               </div>
 
@@ -1167,7 +1167,7 @@ function AccountContent() {
               <div
                 className={`rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl ${
                   tier === 'PRO'
-                    ? 'bg-gradient-to-br from-[#2C4A2E] via-[#243E26] to-[#122314] border-2 border-[#D4A373]'
+                    ? 'bg-gradient-to-br from-farm-primary via-[#243E26] to-[#122314] border-2 border-[#D4A373]'
                     : tier === 'PLUS'
                     ? 'bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-950 border-2 border-emerald-400'
                     : 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700'
@@ -1285,7 +1285,7 @@ function AccountContent() {
                   <div className="pt-2">
                     <Link
                       href="/pro"
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[#D4A373] text-[#2C4A2E] text-xs font-black hover:bg-[#c29263] transition-colors shadow-md"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[#D4A373] text-farm-primary text-xs font-black hover:bg-[#c29263] transition-colors shadow-md"
                     >
                       <span>مشاهده و تمدید پلن‌های اشتراک</span>
                       <ChevronLeft className="w-4 h-4" />
@@ -1300,7 +1300,7 @@ function AccountContent() {
           {activeTab === 'coupons' && (
             <div className="space-y-6 animate-in fade-in">
               <div>
-                <h2 className="text-xl font-black text-[#2C4A2E]">کیف کدهای تخفیف</h2>
+                <h2 className="text-xl font-black text-farm-primary">کیف کدهای تخفیف</h2>
                 <p className="text-xs text-gray-500">کدهای فعال و اختصاصی شما جهت اعمال در سبد خرید</p>
               </div>
 
@@ -1308,12 +1308,12 @@ function AccountContent() {
                 {coupons.map((c) => (
                   <div
                     key={c.id}
-                    className="bg-white rounded-3xl p-5 border border-[#E6E1D5] shadow-farm space-y-3 flex flex-col justify-between"
+                    className="bg-white rounded-3xl p-5 border border-farm-border shadow-farm space-y-3 flex flex-col justify-between"
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-[#2C4A2E]">{c.title}</span>
-                        <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md font-bold">
+                        <span className="font-bold text-sm text-farm-primary">{c.title}</span>
+                        <span className="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md font-bold">
                           {c.targetType === 'SHIPPING'
                             ? 'ارسال رایگان'
                             : c.discountType === 'PERCENTAGE'
@@ -1325,7 +1325,7 @@ function AccountContent() {
                       {c.description && <p className="text-xs text-gray-500">{c.description}</p>}
 
                       {c.minOrderAmount && (
-                        <div className="text-[11px] text-gray-500">
+                        <div className="text-xs text-gray-500">
                           حداقل سفارش: {formatToman(c.minOrderAmount)}
                         </div>
                       )}
@@ -1333,14 +1333,14 @@ function AccountContent() {
 
                     {/* Code Copy Box */}
                     <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-                      <span className="font-mono font-bold text-sm text-[#2C4A2E] bg-[#F9F8F5] px-3 py-1.5 rounded-xl border border-[#E6E1D5]">
+                      <span className="font-mono font-bold text-sm text-farm-primary bg-farm-bg px-3 py-1.5 rounded-xl border border-farm-border">
                         {c.code}
                       </span>
 
                       <button
                         type="button"
                         onClick={() => handleCopyCoupon(c.code)}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        className="px-3.5 py-1.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                       >
                         {copiedCouponCode === c.code ? (
                           <>
@@ -1363,9 +1363,9 @@ function AccountContent() {
 
           {/* TAB 6: SETTINGS */}
           {activeTab === 'settings' && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E6E1D5] shadow-farm space-y-6 animate-in fade-in">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-farm-border shadow-farm space-y-6 animate-in fade-in">
               <div>
-                <h2 className="text-xl font-black text-[#2C4A2E]">اطلاعات فردی و تنظیمات</h2>
+                <h2 className="text-xl font-black text-farm-primary">اطلاعات فردی و تنظیمات</h2>
                 <p className="text-xs text-gray-500">مدیریت اطلاعات هویتی و ترجیحات اعلان پیامکی</p>
               </div>
 
@@ -1392,7 +1392,7 @@ function AccountContent() {
                       required
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                     />
                   </div>
 
@@ -1404,9 +1404,9 @@ function AccountContent() {
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="مانند: ali_rezaei"
                       dir="ltr"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono"
                     />
-                    <span className="text-[10px] text-gray-400 mt-1 block">حروف انگلیسی و اعداد بدون فاصله</span>
+                    <span className="text-xs text-gray-600 mt-1 block">حروف انگلیسی و اعداد بدون فاصله</span>
                   </div>
 
                   <div>
@@ -1418,7 +1418,7 @@ function AccountContent() {
                       dir="ltr"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-mono text-left cursor-not-allowed"
                     />
-                    <span className="text-[10px] text-gray-400 mt-1 block">جهت تغییر شماره تماس با پشتیبانی هماهنگ فرمایید.</span>
+                    <span className="text-xs text-gray-600 mt-1 block">جهت تغییر شماره تماس با پشتیبانی هماهنگ فرمایید.</span>
                   </div>
 
                   <div>
@@ -1430,17 +1430,17 @@ function AccountContent() {
                         onChange={(e) => setNewPasswordInput(e.target.value)}
                         placeholder="حداقل ۴ کاراکتر"
                         dir="ltr"
-                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left font-mono"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute left-2.5 top-2.5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                        className="absolute left-2.5 top-2.5 text-gray-600 hover:text-gray-700 transition-colors cursor-pointer"
                       >
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <span className="text-[10px] text-gray-400 mt-1 block">جهت فعال‌سازی ورود با رمز، کلمه عبور را ثبت کنید.</span>
+                    <span className="text-xs text-gray-600 mt-1 block">جهت فعال‌سازی ورود با رمز، کلمه عبور را ثبت کنید.</span>
                   </div>
 
                   <div>
@@ -1451,7 +1451,7 @@ function AccountContent() {
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="example@domain.com"
                       dir="ltr"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-left"
                     />
                   </div>
 
@@ -1463,7 +1463,7 @@ function AccountContent() {
                       onChange={(e) => setNationalIdInput(e.target.value)}
                       placeholder="۲۲۸xxxxxxx"
                       dir="ltr"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E] text-left"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-left"
                     />
                   </div>
                 </div>
@@ -1476,7 +1476,7 @@ function AccountContent() {
                       type="checkbox"
                       checked={smsNotificationInput}
                       onChange={(e) => setSmsNotificationInput(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#2C4A2E] focus:ring-[#2C4A2E]"
+                      className="w-4 h-4 rounded text-farm-primary focus:ring-farm-primary"
                     />
                     <span>دریافت پیامک خودکار مراحل آماده‌سازی و تحویل پیک پروفارم در شیراز</span>
                   </label>
@@ -1485,7 +1485,7 @@ function AccountContent() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-2xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors shadow-sm cursor-pointer"
+                    className="px-6 py-2.5 rounded-2xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors shadow-sm cursor-pointer"
                   >
                     ذخیره تغییرات پروفایل
                   </button>
@@ -1498,11 +1498,11 @@ function AccountContent() {
           {activeTab === 'reviews' && (
             <div className="space-y-6 animate-in fade-in">
               {/* Header */}
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
-                    <h3 className="text-base font-black text-[#2C4A2E]">
+                    <h3 className="text-base font-black text-farm-primary">
                       دیدگاه‌ها و نظرات ثبت‌شده من
                     </h3>
                   </div>
@@ -1520,20 +1520,20 @@ function AccountContent() {
 
               {/* Reviews Summary Stats */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] text-center space-y-1">
-                  <span className="text-[11px] text-gray-500 font-bold block">کل دیدگاه‌ها</span>
+                <div className="bg-white p-4 rounded-2xl border border-farm-border text-center space-y-1">
+                  <span className="text-xs text-gray-500 font-bold block">کل دیدگاه‌ها</span>
                   <span className="text-xl font-black text-gray-800">
                     {toPersianDigits(userReviews.length)}
                   </span>
                 </div>
                 <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-200 text-center space-y-1">
-                  <span className="text-[11px] text-emerald-800 font-bold block">تایید و منتشر شده</span>
+                  <span className="text-xs text-emerald-800 font-bold block">تایید و منتشر شده</span>
                   <span className="text-xl font-black text-emerald-700">
                     {toPersianDigits(userReviews.filter((r) => r.status === 'APPROVED').length)}
                   </span>
                 </div>
                 <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200 text-center space-y-1">
-                  <span className="text-[11px] text-amber-800 font-bold block">در انتظار بررسی ادمین</span>
+                  <span className="text-xs text-amber-800 font-bold block">در انتظار بررسی ادمین</span>
                   <span className="text-xl font-black text-amber-700">
                     {toPersianDigits(userReviews.filter((r) => r.status === 'PENDING').length)}
                   </span>
@@ -1587,13 +1587,13 @@ function AccountContent() {
                               <span className="font-bold text-gray-900 text-xs truncate block">
                                 {prod.title}
                               </span>
-                              <span className="text-[10px] text-gray-400">سفارش {orderNumber}</span>
+                              <span className="text-xs text-gray-600">سفارش {orderNumber}</span>
                             </div>
                           </div>
 
                           <Link
                             href={`/products/${prod.slug}?review=true`}
-                            className="px-3 py-1.5 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-[11px] font-bold shrink-0 transition-colors flex items-center gap-1 shadow-xs"
+                            className="px-3 py-1.5 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs font-bold shrink-0 transition-colors flex items-center gap-1 shadow-xs"
                           >
                             <Star className="w-3 h-3 text-[#D4AF37] fill-[#D4AF37]" />
                             <span>ثبت نظر</span>
@@ -1607,7 +1607,7 @@ function AccountContent() {
 
               {/* User Reviews List */}
               {userReviews.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 border border-[#E6E1D5] text-center space-y-3 shadow-farm">
+                <div className="bg-white rounded-3xl p-12 border border-farm-border text-center space-y-3 shadow-farm">
                   <Star className="w-12 h-12 text-gray-300 mx-auto" />
                   <h4 className="text-sm font-bold text-gray-800">هنوز دیدگاهی ثبت نکرده‌اید</h4>
                   <p className="text-xs text-gray-500 max-w-sm mx-auto">
@@ -1619,19 +1619,19 @@ function AccountContent() {
                   {userReviews.map((review) => (
                     <div
                       key={review.id}
-                      className="bg-white rounded-3xl p-6 border border-[#E6E1D5] shadow-farm space-y-3.5"
+                      className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-3.5"
                     >
                       {/* Review Top */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
                         <div>
                           <Link
                             href={`/products/${review.productSlug}`}
-                            className="font-black text-gray-900 hover:text-[#2C4A2E] text-sm flex items-center gap-1.5"
+                            className="font-black text-gray-900 hover:text-farm-primary text-sm flex items-center gap-1.5"
                           >
                             <span>{review.productTitle}</span>
-                            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                            <ExternalLink className="w-3.5 h-3.5 text-gray-500" />
                           </Link>
-                          <span className="text-[11px] text-gray-400 mt-0.5 block">
+                          <span className="text-xs text-gray-600 mt-0.5 block">
                             تاریخ ثبت: {review.createdAt} • کد رهگیری سفارش: {review.orderId || 'نامشخص'}
                           </span>
                         </div>
@@ -1653,19 +1653,19 @@ function AccountContent() {
 
                           {/* Status Badge */}
                           {review.status === 'PENDING' && (
-                            <span className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-800 font-bold text-[11px] flex items-center gap-1">
+                            <span className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               <span>در انتظار تایید ادمین</span>
                             </span>
                           )}
                           {review.status === 'APPROVED' && (
-                            <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-[11px] flex items-center gap-1">
+                            <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" />
                               <span>تایید و منتشر شده</span>
                             </span>
                           )}
                           {review.status === 'REJECTED' && (
-                            <span className="px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-bold text-[11px]">
+                            <span className="px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-bold text-xs">
                               رد شده
                             </span>
                           )}
@@ -1684,8 +1684,8 @@ function AccountContent() {
 
                       {/* Official Admin Response */}
                       {review.adminResponse && (
-                        <div className="p-3.5 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15 space-y-1">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#2C4A2E]">
+                        <div className="p-3.5 rounded-2xl bg-farm-primary/5 border border-farm-primary/15 space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-farm-primary">
                             <CornerDownLeft className="w-3.5 h-3.5" />
                             <span>پاسخ رسمی پشتیبانی مزارع پروفارم شیراز:</span>
                           </div>
@@ -1706,15 +1706,15 @@ function AccountContent() {
       {/* ADD/EDIT ADDRESS MODAL */}
       {isAddressModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl border border-[#E6E1D5]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F3EFE6]">
-              <h3 className="text-base font-bold text-[#2C4A2E]">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl border border-farm-border">
+            <div className="flex items-center justify-between pb-3 border-b border-farm-bg-warm">
+              <h3 className="text-base font-bold text-farm-primary">
                 {editingAddressId ? 'ویرایش نشانی تحویل' : 'افزودن نشانی جدید در شیراز'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddressModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="text-gray-600 hover:text-gray-600 cursor-pointer"
               >
                 ✕
               </button>
@@ -1735,7 +1735,7 @@ function AccountContent() {
                     required
                     value={addressRecipient}
                     onChange={(e) => setAddressRecipient(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5]"
+                    className="w-full px-3 py-2 rounded-xl border border-farm-border bg-farm-bg"
                   />
                 </div>
                 <div>
@@ -1746,7 +1746,7 @@ function AccountContent() {
                     value={addressPhone}
                     onChange={(e) => setAddressPhone(e.target.value)}
                     dir="ltr"
-                    className="w-full px-3 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-left"
+                    className="w-full px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-left"
                   />
                 </div>
               </div>
@@ -1769,7 +1769,7 @@ function AccountContent() {
                   placeholder="مثال: بلوار ارم، کوچه ۶، پلاک ۱۲"
                   value={addressStreet}
                   onChange={(e) => setAddressStreet(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5]"
+                  className="w-full px-3 py-2 rounded-xl border border-farm-border bg-farm-bg"
                 />
               </div>
 
@@ -1781,7 +1781,7 @@ function AccountContent() {
                     placeholder="واحد ۲"
                     value={addressUnit}
                     onChange={(e) => setAddressUnit(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5]"
+                    className="w-full px-3 py-2 rounded-xl border border-farm-border bg-farm-bg"
                   />
                 </div>
                 <div>
@@ -1792,7 +1792,7 @@ function AccountContent() {
                     value={addressPostalCode}
                     onChange={(e) => setAddressPostalCode(e.target.value)}
                     dir="ltr"
-                    className="w-full px-3 py-2 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] text-left"
+                    className="w-full px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-left"
                   />
                 </div>
               </div>
@@ -1803,7 +1803,7 @@ function AccountContent() {
                     type="checkbox"
                     checked={addressIsDefault}
                     onChange={(e) => setAddressIsDefault(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#2C4A2E]"
+                    className="w-4 h-4 rounded text-farm-primary"
                   />
                   <span>تنظیم به عنوان نشانی پیش‌فرض تحویل</span>
                 </label>
@@ -1819,7 +1819,7 @@ function AccountContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#2C4A2E] text-white font-bold cursor-pointer hover:bg-[#1E3520]"
+                  className="px-5 py-2 rounded-xl bg-farm-primary text-white font-bold cursor-pointer hover:bg-farm-primary-dark"
                 >
                   ذخیره نشانی
                 </button>
@@ -1843,7 +1843,7 @@ export default function UserAccountPage() {
     <React.Suspense
       fallback={
         <div className="max-w-6xl mx-auto px-4 py-24 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-          <div className="w-5 h-5 border-2 border-[#2C4A2E] border-t-transparent rounded-full animate-spin" />
+          <div className="w-5 h-5 border-2 border-farm-primary border-t-transparent rounded-full animate-spin" />
           <span>در حال بارگذاری ناحیه کاربری مزارع شیراز...</span>
         </div>
       }

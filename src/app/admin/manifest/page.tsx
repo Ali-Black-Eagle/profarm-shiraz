@@ -242,18 +242,18 @@ export default function DailyManifestPage() {
   return (
     <div className="space-y-6">
       {/* Header & Controls (hidden in print) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E6E1D5] no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-farm-border no-print">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#D4A373]">
-            <Truck className="w-4 h-4 text-[#2C4A2E]" />
+            <Truck className="w-4 h-4 text-farm-primary" />
             <span>پیک اختصاصی تحویل شهری مزارع شیراز</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#2C4A2E] mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-black text-farm-primary mt-0.5">
             پیک شیراز
           </h1>
           <p className="text-xs text-gray-500">
             برگه مانیفست روزانه و برنامه تحویل رانندگان پیک شیراز | بازه زمانی انحصاری:{' '}
-            <strong className="text-[#2C4A2E]">۳ ظهر الی ۲۱ شب (۱۵:۰۰ الی ۲۱:۰۰)</strong>
+            <strong className="text-farm-primary">۳ ظهر الی ۲۱ شب (۱۵:۰۰ الی ۲۱:۰۰)</strong>
           </p>
         </div>
 
@@ -261,7 +261,7 @@ export default function DailyManifestPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2.5 rounded-xl bg-white border border-[#E6E1D5] text-[#2C4A2E] hover:bg-gray-50 text-xs font-bold transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-gray-50 text-xs font-bold transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>خروجی اکسل (CSV)</span>
@@ -269,7 +269,7 @@ export default function DailyManifestPage() {
 
           <button
             onClick={handlePrint}
-            className="px-5 py-2.5 rounded-xl bg-[#2C4A2E] text-white hover:bg-[#1E3520] text-xs font-bold transition-colors flex items-center gap-2 shadow-md cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-farm-primary text-white hover:bg-farm-primary-dark text-xs font-bold transition-colors flex items-center gap-2 shadow-md cursor-pointer"
           >
             <Printer className="w-4 h-4 text-[#D4A373]" />
             <span>چاپ برگه توزیع راننده</span>
@@ -297,9 +297,9 @@ export default function DailyManifestPage() {
       )}
 
       {/* Info & Delivery Slot Notice Bar (Primary Driver View First) */}
-      <div className="bg-[#F3EFE6] rounded-2xl p-4 border border-[#E6E1D5] flex flex-col sm:flex-row items-center justify-between gap-3 no-print text-xs">
+      <div className="bg-farm-bg-warm rounded-2xl p-4 border border-farm-border flex flex-col sm:flex-row items-center justify-between gap-3 no-print text-xs">
         <div className="flex flex-wrap items-center gap-2 text-gray-700">
-          <Clock className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+          <Clock className="w-4 h-4 text-farm-primary shrink-0" />
           <span>
             بازه استاندارد تحویل پیک شیراز: <strong>۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)</strong> | تعداد کل
             مرسولات آماده توزیع: <strong>{toPersianDigits(filteredOrders.length)} آدرس</strong>
@@ -320,14 +320,14 @@ export default function DailyManifestPage() {
           placeholder="جستجو در نام، شماره یا خیابان..."
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
-          className="px-3.5 py-2 rounded-xl border border-[#E6E1D5] bg-white text-sm sm:text-xs text-gray-800 w-full sm:w-64 focus:outline-none focus:border-[#2C4A2E]"
+          className="px-3.5 py-2 rounded-xl border border-farm-border bg-white text-sm sm:text-xs text-gray-800 w-full sm:w-64 focus:outline-none focus:border-farm-primary"
         />
       </div>
 
       {/* Shiraz Urban Delivery Zones Filter (for optimized courier route dispatch) */}
       <div className="flex flex-wrap items-center gap-2 no-print">
         <span className="text-xs font-bold text-gray-600 ml-1 flex items-center gap-1">
-          <MapPin className="w-3.5 h-3.5 text-[#2C4A2E]" />
+          <MapPin className="w-3.5 h-3.5 text-farm-primary" />
           <span>تفکیک بر اساس مناطق شهری شیراز:</span>
         </span>
 
@@ -351,12 +351,12 @@ export default function DailyManifestPage() {
               onClick={() => setSelectedZone(zone.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[#2C4A2E] text-white shadow-xs'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-[#E6E1D5]'
+                  ? 'bg-farm-primary text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-farm-border'
               }`}
             >
               <span>{zone.label.split('(')[0].trim()}</span>
-              <span className={`mr-1 px-1.5 py-0.2 rounded-md text-[11px] ${isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              <span className={`mr-1 px-1.5 py-0.2 rounded-md text-xs ${isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 {toPersianDigits(countInZone)}
               </span>
             </button>
@@ -381,7 +381,7 @@ export default function DailyManifestPage() {
       {/* Mobile Manifest Cards (for driver/admin on mobile phones - zero horizontal scrolling) */}
       <div className="md:hidden flex flex-col gap-3.5 print:hidden">
         {filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[#E6E1D5] p-8 text-center space-y-2">
+          <div className="bg-white rounded-2xl border border-farm-border p-8 text-center space-y-2">
             <p className="text-sm font-bold text-gray-700">هیچ مقصد فیزیکی فعالی برای توزیع در این فیلتر وجود ندارد.</p>
           </div>
         ) : (
@@ -392,19 +392,19 @@ export default function DailyManifestPage() {
             return (
               <div
                 key={order.id}
-                className="bg-white rounded-2xl border border-[#E6E1D5] p-4 shadow-xs space-y-3"
+                className="bg-white rounded-2xl border border-farm-border p-4 shadow-xs space-y-3"
               >
-                <div className="flex items-center justify-between border-b border-[#F3EFE6] pb-2">
+                <div className="flex items-center justify-between border-b border-farm-bg-warm pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#2C4A2E] text-white text-xs font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-farm-primary text-white text-xs font-bold flex items-center justify-center">
                       {toPersianDigits(idx + 1)}
                     </span>
-                    <span className="font-mono font-bold text-xs text-[#2C4A2E]">
+                    <span className="font-mono font-bold text-xs text-farm-primary">
                       #{order.orderNumber}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
                       <MapPin className="w-3 h-3 text-emerald-600" />
                       <span>{zoneBadge}</span>
                     </span>
@@ -435,25 +435,25 @@ export default function DailyManifestPage() {
                   )}
                 </div>
 
-                <div className="bg-[#F9F8F5] p-2.5 rounded-xl space-y-1.5 text-xs">
-                  <div className="font-bold text-gray-600 text-[11px]">بسته‌های بارگیری‌شده:</div>
+                <div className="bg-farm-bg p-2.5 rounded-xl space-y-1.5 text-xs">
+                  <div className="font-bold text-gray-600 text-xs">بسته‌های بارگیری‌شده:</div>
                   {order.items.map((item) => (
                     <div key={item.id} className="flex justify-between items-center text-gray-800">
                       <span>• {item.product.title}</span>
-                      <strong className="text-[#2C4A2E]">{toPersianDigits(item.quantity)} بسته</strong>
+                      <strong className="text-farm-primary">{toPersianDigits(item.quantity)} بسته</strong>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <span className="text-gray-600">زمان تحویل: ۳ ظهر الی ۹ شب</span>
-                  <span className="px-2.5 py-1 rounded-lg bg-[#2C4A2E]/10 text-[#2C4A2E] font-bold text-[11px]">
+                  <span className="px-2.5 py-1 rounded-lg bg-farm-primary/10 text-farm-primary font-bold text-xs">
                     مبلغ: {formatToman(order.totalAmount)}
                   </span>
                 </div>
 
-                <div className="pt-2 border-t border-[#F3EFE6] flex items-center justify-between gap-2">
-                  <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${statusMeta.badgeClass}`}>
+                <div className="pt-2 border-t border-farm-bg-warm flex items-center justify-between gap-2">
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${statusMeta.badgeClass}`}>
                     {statusMeta.label}
                   </span>
                   {isDelivered ? (
@@ -466,7 +466,7 @@ export default function DailyManifestPage() {
                       type="button"
                       disabled={updatingOrderId === order.id}
                       onClick={() => handleMarkDelivered(order)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
                     >
                       <CheckSquare className="w-4 h-4" />
                       <span>{updatingOrderId === order.id ? 'در حال ثبت...' : 'تحویل داده شد ✓'}</span>
@@ -480,11 +480,11 @@ export default function DailyManifestPage() {
       </div>
 
       {/* Manifest Table (Desktop & Print — fits 1280px & A4 without horizontal clipping) */}
-      <div className="hidden md:block print:block bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden print:border-black print:rounded-none print:shadow-none">
+      <div className="hidden md:block print:block bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden print:border-black print:rounded-none print:shadow-none">
         <div className="overflow-x-auto">
-          <table className="w-full table-auto text-right text-xs lg:text-sm print:text-[11px]">
-            <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] print:bg-gray-100 print:border-black">
-              <tr className="text-[#2C4A2E] print:text-black">
+          <table className="w-full table-auto text-right text-xs lg:text-sm print:text-xs">
+            <thead className="bg-farm-bg border-b border-farm-border print:bg-gray-100 print:border-black">
+              <tr className="text-farm-primary print:text-black">
                 <th className="py-3.5 px-2.5 font-black whitespace-nowrap">ردیف</th>
                 <th className="py-3.5 px-2.5 font-black whitespace-nowrap">سفارش</th>
                 <th className="py-3.5 px-2.5 font-black">تحویل‌گیرنده / تلفن</th>
@@ -495,7 +495,7 @@ export default function DailyManifestPage() {
                 <th className="py-3.5 px-2.5 font-black whitespace-nowrap text-center hidden print:table-cell">امضای مشتری</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E6E1D5] print:divide-black">
+            <tbody className="divide-y divide-farm-border print:divide-black">
               {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-gray-500 font-medium">
@@ -516,7 +516,7 @@ export default function DailyManifestPage() {
                       <td className="py-3.5 px-2.5 font-bold text-gray-500 whitespace-nowrap">
                         {toPersianDigits(idx + 1)}
                       </td>
-                      <td className="py-3.5 px-2.5 font-mono font-bold text-[#2C4A2E] print:text-black text-xs whitespace-nowrap">
+                      <td className="py-3.5 px-2.5 font-mono font-bold text-farm-primary print:text-black text-xs whitespace-nowrap">
                         {order.orderNumber}
                       </td>
                       <td className="py-3.5 px-2.5">
@@ -527,7 +527,7 @@ export default function DailyManifestPage() {
                       </td>
                       <td className="py-3.5 px-2.5 max-w-[230px]">
                         <div className="mb-1">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#2C4A2E]/10 text-[#2C4A2E] text-[11px] font-bold">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-farm-primary/10 text-farm-primary text-xs font-bold">
                             <MapPin className="w-3 h-3" />
                             <span>{zoneBadge}</span>
                           </span>
@@ -536,7 +536,7 @@ export default function DailyManifestPage() {
                           {order.address?.streetAddress}
                         </div>
                         {order.address?.unit && (
-                          <span className="inline-block mt-1 px-2 py-0.5 rounded bg-gray-100 text-[11px] text-gray-600 print:bg-transparent print:border print:border-gray-400">
+                          <span className="inline-block mt-1 px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-600 print:bg-transparent print:border print:border-gray-400">
                             واحد: {order.address?.unit}
                           </span>
                         )}
@@ -545,10 +545,10 @@ export default function DailyManifestPage() {
                         <div className="space-y-1 leading-relaxed">
                           {order.items.map((item) => (
                             <div key={item.id} className="text-gray-800 flex items-start gap-1.5 text-xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#2C4A2E] print:bg-black shrink-0 mt-1.5" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-farm-primary print:bg-black shrink-0 mt-1.5" />
                               <span>
                                 {item.product.title} (
-                                <strong className="text-[#2C4A2E] print:text-black">
+                                <strong className="text-farm-primary print:text-black">
                                   {toPersianDigits(item.quantity)} بسته
                                 </strong>
                                 )
@@ -558,7 +558,7 @@ export default function DailyManifestPage() {
                         </div>
                       </td>
                       <td className="py-3.5 px-2.5 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[#F3EFE6] text-[#2C4A2E] font-bold text-xs whitespace-nowrap print:bg-transparent print:border print:border-black">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-farm-bg-warm text-farm-primary font-bold text-xs whitespace-nowrap print:bg-transparent print:border print:border-black">
                           ۱۵:۰۰ الی ۲۱:۰۰
                         </span>
                       </td>
@@ -570,14 +570,14 @@ export default function DailyManifestPage() {
                           </span>
                         ) : (
                           <div className="flex flex-col items-center gap-1.5">
-                            <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${statusMeta.badgeClass}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${statusMeta.badgeClass}`}>
                               {statusMeta.label}
                             </span>
                             <button
                               type="button"
                               disabled={updatingOrderId === order.id}
                               onClick={() => handleMarkDelivered(order)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
                             >
                               <CheckSquare className="w-3.5 h-3.5" />
                               <span>{updatingOrderId === order.id ? 'ثبت...' : 'تحویل داده شد ✓'}</span>
@@ -598,12 +598,12 @@ export default function DailyManifestPage() {
       </div>
 
       {/* Collapsible Admin Capacity Management Widget (Below Driver Delivery List, Collapsed by Default) */}
-      <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden no-print">
+      <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden no-print">
         <button
           type="button"
           onClick={() => setIsCapacityOpen((prev) => !prev)}
           aria-expanded={isCapacityOpen}
-          className="w-full p-5 flex items-center justify-between gap-3 text-right hover:bg-[#F9F8F5] transition-colors cursor-pointer"
+          className="w-full p-5 flex items-center justify-between gap-3 text-right hover:bg-farm-bg transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-700 shrink-0">
@@ -611,10 +611,10 @@ export default function DailyManifestPage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-[#2C4A2E]">
+                <h3 className="text-sm sm:text-base font-bold text-farm-primary">
                   پایش و مدیریت ظرفیت پذیرش روزانه پیک پروفارم شیراز
                 </h3>
-                <span className="text-[11px] bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+                <span className="text-xs bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
                   {toPersianDigits(capacities.filter((c) => !c.isClosedManually && c.status !== 'FULL').length)} روز باز
                 </span>
               </div>
@@ -624,14 +624,14 @@ export default function DailyManifestPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 text-[#2C4A2E] text-xs font-bold">
+          <div className="flex items-center gap-2 shrink-0 text-farm-primary text-xs font-bold">
             <span className="hidden sm:inline">{isCapacityOpen ? 'بستن تنظیمات ظرفیت' : 'مدیریت ظرفیت روزها'}</span>
             {isCapacityOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
         </button>
 
         {isCapacityOpen && (
-          <div className="p-6 pt-0 space-y-5 border-t border-[#F3EFE6]">
+          <div className="p-6 pt-0 space-y-5 border-t border-farm-bg-warm">
             <div className="flex flex-wrap items-center justify-between gap-2 pt-4">
               <p className="text-xs text-gray-600">
                 کاربران عادی در صفحه تسویه حساب جزئیات این آمار را نمی‌بینند و فقط در صورت تکمیل ظرفیت یک روز، برچسب قرمز «تکمیل ظرفیت» را مشاهده می‌کنند.
@@ -671,12 +671,12 @@ export default function DailyManifestPage() {
                     key={cap.dateIso}
                     className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                       isFilterActive
-                        ? 'border-[#2C4A2E] bg-[#F3EFE6]/60 shadow-sm ring-2 ring-[#2C4A2E]/20'
+                        ? 'border-farm-primary bg-farm-bg-warm/60 shadow-sm ring-2 ring-farm-primary/20'
                         : cap.isClosedManually || cap.status === 'FULL'
                         ? 'border-rose-200 bg-rose-50/40'
                         : cap.status === 'NEAR_FULL'
                         ? 'border-amber-200 bg-amber-50/30'
-                        : 'border-[#E6E1D5] bg-[#F9F8F5]'
+                        : 'border-farm-border bg-farm-bg'
                     }`}
                   >
                     <div>
@@ -685,13 +685,13 @@ export default function DailyManifestPage() {
                           <span className="text-xs font-bold text-gray-800 block">
                             {cap.dayOfWeek}
                           </span>
-                          <span className="text-[11px] text-gray-600 block">
+                          <span className="text-xs text-gray-600 block">
                             {cap.jalaliFormatted}
                           </span>
                         </div>
 
                         <span
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                          className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
                             cap.isClosedManually || cap.status === 'FULL'
                               ? 'bg-rose-100 text-rose-800 border-rose-300'
                               : cap.status === 'NEAR_FULL'
@@ -725,15 +725,15 @@ export default function DailyManifestPage() {
                                 ? 'bg-rose-500'
                                 : cap.status === 'NEAR_FULL'
                                 ? 'bg-amber-500'
-                                : 'bg-[#2C4A2E]'
+                                : 'bg-farm-primary'
                             }`}
                             style={{ width: `${percent}%` }}
                           />
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] text-gray-600 pt-0.5">
+                        <div className="flex items-center justify-between text-xs text-gray-600 pt-0.5">
                           <span>ظرفیت خالی:</span>
-                          <span className="font-semibold text-[#2C4A2E]">
+                          <span className="font-semibold text-farm-primary">
                             {cap.isClosedManually ? '۰ سفارش' : `${toPersianDigits(cap.remainingCapacity)} سفارش`}
                           </span>
                         </div>
@@ -750,19 +750,19 @@ export default function DailyManifestPage() {
                             max="100"
                             value={editingCapacityInput}
                             onChange={(e) => setEditingCapacityInput(Number(e.target.value))}
-                            className="w-16 px-2 py-1 text-xs border border-[#E6E1D5] rounded-lg bg-white text-center"
+                            className="w-16 px-2 py-1 text-xs border border-farm-border rounded-lg bg-white text-center"
                           />
                           <button
                             type="button"
                             onClick={() => handleSaveCapacity(cap.dateIso)}
-                            className="flex-1 py-1 px-2 rounded-lg bg-emerald-700 text-white font-bold text-[11px] hover:bg-emerald-800 cursor-pointer"
+                            className="flex-1 py-1 px-2 rounded-lg bg-emerald-700 text-white font-bold text-xs hover:bg-emerald-800 cursor-pointer"
                           >
                             ذخیره سقف
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingDateIso(null)}
-                            className="py-1 px-2 rounded-lg bg-gray-200 text-gray-700 text-[11px] hover:bg-gray-300 cursor-pointer"
+                            className="py-1 px-2 rounded-lg bg-gray-200 text-gray-700 text-xs hover:bg-gray-300 cursor-pointer"
                           >
                             انصراف
                           </button>
@@ -772,7 +772,7 @@ export default function DailyManifestPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleCloseDay(cap.dateIso)}
-                            className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
                               cap.isClosedManually
                                 ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
                                 : 'bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300'
@@ -810,7 +810,7 @@ export default function DailyManifestPage() {
                             onClick={() => setSelectedDateFilter(isFilterActive ? null : cap.dateIso)}
                             className={`p-2 rounded-xl transition-colors cursor-pointer ${
                               isFilterActive
-                                ? 'bg-[#2C4A2E] text-white'
+                                ? 'bg-farm-primary text-white'
                                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                             }`}
                             title="فیلتر سفارشات جدول راننده"
@@ -830,8 +830,8 @@ export default function DailyManifestPage() {
       </div>
 
       {/* Driver Instructions & Signature Block (print-ready) */}
-      <div className="p-6 rounded-3xl bg-white border border-[#E6E1D5] text-xs space-y-4 print:border-black print:rounded-none">
-        <div className="flex items-center gap-2 font-bold text-[#2C4A2E] print:text-black">
+      <div className="p-6 rounded-3xl bg-white border border-farm-border text-xs space-y-4 print:border-black print:rounded-none">
+        <div className="flex items-center gap-2 font-bold text-farm-primary print:text-black">
           <ShieldCheck className="w-4 h-4" />
           <span>تعهدات الزامی سفیر پیک پروفارم شیراز (بازه ۱۵:۰۰ تا ۲۱:۰۰):</span>
         </div>

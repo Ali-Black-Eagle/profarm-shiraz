@@ -175,7 +175,7 @@ dialog::backdrop {
 
 /* Glassmorphic utilities */
 .glass-nav {
-  background: rgba(249, 248, 245, 0.9);
+  background: rgba(249, 248, 245, 0.97);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(230, 225, 213, 0.85);
@@ -355,8 +355,20 @@ dialog::backdrop {
     --enter-y: 0.5rem;
   }
 
+  .slide-in-from-bottom-3 {
+    --enter-y: 0.75rem;
+  }
+
   .slide-in-from-bottom-4 {
     --enter-y: 1rem;
+  }
+
+  .slide-in-from-bottom-5 {
+    --enter-y: 1.25rem;
+  }
+
+  .animate-fade-in {
+    animation: enterFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .slide-in-from-top-2 {

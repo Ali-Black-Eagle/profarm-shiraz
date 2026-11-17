@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { farmStore, DEFAULT_SITE_CONTENT } from '@/lib/db-store';
 import { SiteContent } from '@/types';
+import { SITE_CONFIG } from '@/lib/site-config';
+import { formatToJalali } from '@/lib/jalali';
+import { toPersianDigits } from '@/lib/formatters';
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
@@ -32,12 +35,12 @@ export const Footer: React.FC = () => {
   }
 
   return (
-    <footer className="bg-[#1E3520] text-[#F3EFE6] border-t border-[#2C4A2E] mt-20">
+    <footer className="bg-farm-primary-dark text-farm-bg-warm border-t border-farm-primary mt-20">
       {/* Guarantees bar */}
-      <div className="border-b border-[#2C4A2E]/80 py-8">
+      <div className="border-b border-farm-primary/80 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#2C4A2E]/50">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-farm-primary/50">
               <div className="w-12 h-12 rounded-xl bg-[#D4A373]/20 flex items-center justify-center text-[#D4A373]">
                 <Leaf className="w-6 h-6" />
               </div>
@@ -49,7 +52,7 @@ export const Footer: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#2C4A2E]/50">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-farm-primary/50">
               <div className="w-12 h-12 rounded-xl bg-[#D4A373]/20 flex items-center justify-center text-[#D4A373]">
                 <Truck className="w-6 h-6" />
               </div>
@@ -61,7 +64,7 @@ export const Footer: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#2C4A2E]/50">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-farm-primary/50">
               <div className="w-12 h-12 rounded-xl bg-[#D4A373]/20 flex items-center justify-center text-[#D4A373]">
                 <ShieldCheck className="w-6 h-6" />
               </div>
@@ -82,7 +85,7 @@ export const Footer: React.FC = () => {
           {/* Col 1: About */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[#D4A373] flex items-center justify-center text-[#1E3520] font-black">
+              <div className="w-9 h-9 rounded-xl bg-[#D4A373] flex items-center justify-center text-farm-primary-dark font-black">
                 <Leaf className="w-5 h-5" />
               </div>
               <span className="text-xl font-bold text-white">پروفارم شیراز</span>
@@ -94,14 +97,14 @@ export const Footer: React.FC = () => {
 
             {/* Social channels */}
             <div className="pt-2">
-              <span className="block text-[11px] font-bold text-[#D4A373] mb-2">ما را در شبکه‌های اجتماعی دنبال کنید:</span>
+              <span className="block text-xs font-bold text-[#D4A373] mb-2">ما را در شبکه‌های اجتماعی دنبال کنید:</span>
               <div className="flex items-center gap-2">
                 {content.socialInstagram && (
                   <a
                     href={content.socialInstagram}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-[11px] font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
                   >
                     اینستاگرام
                   </a>
@@ -111,7 +114,7 @@ export const Footer: React.FC = () => {
                     href={content.socialTelegram}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-[11px] font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
                   >
                     تلگرام
                   </a>
@@ -121,7 +124,7 @@ export const Footer: React.FC = () => {
                     href={content.socialEitaa}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-[11px] font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
                   >
                     ایتا
                   </a>
@@ -131,7 +134,7 @@ export const Footer: React.FC = () => {
                     href={content.socialWhatsapp}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#2C4A2E] hover:bg-[#D4A373] hover:text-[#1E3520] transition-colors text-xs font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
                   >
                     واتساپ
                   </a>
@@ -182,7 +185,7 @@ export const Footer: React.FC = () => {
               <p>
                 <strong className="text-white">مشترکین پرو:</strong> تحویل همه روزه (شنبه تا پنج‌شنبه)
               </p>
-              <p className="text-[11px] text-amber-200/90 pt-1">
+              <p className="text-xs text-amber-200/90 pt-1">
                 * توزیع خرده‌فروشی صرفاً در محدوده شهر شیراز انجام می‌پذیرد.
               </p>
             </div>
@@ -198,7 +201,9 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#D4A373] shrink-0" />
-                <span dir="ltr">{content.supportPhone || '۰۷۱-۳۲۲۲۰۰۰۰'}</span>
+                <a href={`tel:${SITE_CONFIG.contact.supportPhoneTel}`} dir="ltr" className="hover:text-white transition-colors">
+                  {content.supportPhone || SITE_CONFIG.contact.supportPhoneDisplay}
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-[#D4A373] shrink-0" />
@@ -208,11 +213,11 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-t border-[#2C4A2E] mt-10 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <p>© ۲۰۲۶ مزارع ارگانیک پروفارم شیراز. تمامی حقوق محفوظ است.</p>
-          <p className="flex items-center gap-1 text-gray-400">
+        <div className="border-t border-farm-primary mt-10 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-400 gap-4">
+          <p>© {toPersianDigits(formatToJalali(new Date()).year)} مزارع ارگانیک پروفارم شیراز. تمامی حقوق محفوظ است.</p>
+          <p className="flex items-center gap-1 text-gray-300">
             <span>توسعه یافته با عشق به طبیعت شیراز</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+            <Heart className="w-3.5 h-3.5 text-farm-accent fill-farm-accent" />
           </p>
         </div>
       </div>

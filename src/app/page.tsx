@@ -114,7 +114,7 @@ export default function HomePage() {
                 <span>{content.heroBadgeText}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-farm-primary leading-[1.2] tracking-tight text-center lg:text-right w-full">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-farm-primary leading-[1.2] text-center lg:text-right w-full">
                 {content.heroTitlePart1} <br />
                 <span className="text-farm-gold-text">{content.heroTitleHighlight}</span>
               </h1>
@@ -192,7 +192,7 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold text-farm-gold-text tracking-wide">
+            <span className="text-xs font-bold text-farm-gold-text">
               {content.productsBadgeText || 'پکیج‌های آماده و شناسنامه‌دار'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-farm-primary mt-1">
@@ -292,7 +292,7 @@ export default function HomePage() {
 
               <div className="pt-4 border-t border-farm-border">
                 <div className="w-full min-h-[44px] flex items-center justify-center px-4 rounded-2xl text-xs font-bold text-center bg-farm-bg-warm text-farm-primary border border-farm-border">
-                  {userTier === 'FREE' ? 'طرح فعال فعلی شما ✓' : 'طرح پایه فروشگاه'}
+                  {isUserLoggedIn && userTier === 'FREE' ? 'طرح فعال فعلی شما ✓' : 'بدون نیاز به اشتراک'}
                 </div>
               </div>
             </div>

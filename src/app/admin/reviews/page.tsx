@@ -128,14 +128,14 @@ export default function AdminReviewsPage() {
     <div className="space-y-6 pb-12">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-[#1E3520] text-white px-5 py-3 rounded-2xl shadow-xl border border-[#D4A373]/30 flex items-center gap-3 animate-fade-in text-sm font-bold">
+        <div className="fixed bottom-6 left-6 z-50 bg-farm-primary-dark text-white px-5 py-3 rounded-2xl shadow-xl border border-[#D4A373]/30 flex items-center gap-3 animate-fade-in text-sm font-bold">
           <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#E6E1D5] shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-farm-border shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-amber-500/10 text-amber-600">
@@ -158,13 +158,13 @@ export default function AdminReviewsPage() {
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-xs">
           <div className="flex items-center justify-between text-gray-500 text-xs font-bold mb-2">
             <span>کل نظرات ثبت‌شده</span>
-            <MessageSquare className="w-4 h-4 text-gray-400" />
+            <MessageSquare className="w-4 h-4 text-gray-500" />
           </div>
           <div className="text-2xl font-black text-gray-900">{toPersianDigits(reviews.length)}</div>
-          <span className="text-[11px] text-gray-400 mt-1 block">از خریداران محصولات ارگانیک</span>
+          <span className="text-xs text-gray-600 mt-1 block">از خریداران محصولات ارگانیک</span>
         </div>
 
         <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-200/80 shadow-xs">
@@ -173,7 +173,7 @@ export default function AdminReviewsPage() {
             <Clock className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-black text-amber-700">{toPersianDigits(pendingCount)}</div>
-          <span className="text-[11px] text-amber-600/80 mt-1 block">نیازمند بررسی قبل از انتشار</span>
+          <span className="text-xs text-amber-600/80 mt-1 block">نیازمند بررسی قبل از انتشار</span>
         </div>
 
         <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-200/80 shadow-xs">
@@ -182,31 +182,31 @@ export default function AdminReviewsPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-emerald-700">{toPersianDigits(approvedCount)}</div>
-          <span className="text-[11px] text-emerald-600/80 mt-1 block">در صفحه محصولات فعال است</span>
+          <span className="text-xs text-emerald-600/80 mt-1 block">در صفحه محصولات فعال است</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-xs">
           <div className="flex items-center justify-between text-gray-500 text-xs font-bold mb-2">
             <span>میانگین امتیاز رضایت</span>
             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
           </div>
           <div className="text-2xl font-black text-gray-900 flex items-baseline gap-1">
             <span>{toPersianDigits(averageRating)}</span>
-            <span className="text-xs text-gray-400 font-normal">از ۵</span>
+            <span className="text-xs text-gray-600 font-normal">از ۵</span>
           </div>
-          <span className="text-[11px] text-gray-400 mt-1 block">شاخص کیفی ارگانیک مزارع</span>
+          <span className="text-xs text-gray-600 mt-1 block">شاخص کیفی ارگانیک مزارع</span>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E1D5] flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white p-4 rounded-2xl border border-farm-border flex flex-col md:flex-row gap-4 items-center justify-between">
         {/* Status Filter Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
           <button
             onClick={() => setStatusFilter('ALL')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               statusFilter === 'ALL'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -249,13 +249,13 @@ export default function AdminReviewsPage() {
 
         {/* Search */}
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="جستجو در متن نظر، نام خریدار یا محصول..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pr-10 pl-4 py-2 rounded-xl border border-gray-200 text-xs text-gray-800 bg-[#F9F8F5] focus:bg-white focus:outline-none focus:border-[#2C4A2E]"
+            className="w-full pr-10 pl-4 py-2 rounded-xl border border-gray-200 text-xs text-gray-800 bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
           />
         </div>
       </div>
@@ -263,10 +263,10 @@ export default function AdminReviewsPage() {
       {/* Reviews List */}
       <div className="space-y-4">
         {filteredReviews.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-[#E6E1D5]">
+          <div className="bg-white rounded-3xl p-12 text-center border border-farm-border">
             <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h3 className="font-bold text-gray-700 text-base">هیچ دیدگاهی در این بخش یافت نشد</h3>
-            <p className="text-xs text-gray-400 mt-1">با تغییر فیلترها یا جستجو می‌توانید نتایج دیگری را ببینید.</p>
+            <p className="text-xs text-gray-600 mt-1">با تغییر فیلترها یا جستجو می‌توانید نتایج دیگری را ببینید.</p>
           </div>
         ) : (
           filteredReviews.map((review) => {
@@ -281,7 +281,7 @@ export default function AdminReviewsPage() {
                     ? 'border-amber-300 shadow-md ring-2 ring-amber-100'
                     : review.status === 'REJECTED'
                     ? 'border-rose-200 opacity-75'
-                    : 'border-[#E6E1D5] hover:border-gray-300'
+                    : 'border-farm-border hover:border-gray-300'
                 }`}
               >
                 {/* Review Top Bar */}
@@ -296,7 +296,7 @@ export default function AdminReviewsPage() {
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                        <MessageSquare className="w-5 h-5 text-gray-400" />
+                        <MessageSquare className="w-5 h-5 text-gray-500" />
                       </div>
                     )}
                     <div>
@@ -304,20 +304,20 @@ export default function AdminReviewsPage() {
                         <Link
                           href={`/products/${review.productSlug}`}
                           target="_blank"
-                          className="font-black text-gray-900 hover:text-[#2C4A2E] text-sm flex items-center gap-1 group"
+                          className="font-black text-gray-900 hover:text-farm-primary text-sm flex items-center gap-1 group"
                         >
                           <span>{review.productTitle}</span>
-                          <ExternalLink className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#2C4A2E]" />
+                          <ExternalLink className="w-3.5 h-3.5 text-gray-500 group-hover:text-farm-primary" />
                         </Link>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                         <span className="font-bold text-gray-700">{review.userName}</span>
                         <span>•</span>
-                        <span dir="ltr" className="font-mono text-gray-400">
+                        <span dir="ltr" className="font-mono text-gray-600">
                           {review.userPhone}
                         </span>
                         {review.isVerifiedBuyer && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-xs">
                             <ShieldCheck className="w-3 h-3 text-emerald-600" />
                             <span>خریدار تایید شده</span>
                           </span>
@@ -379,7 +379,7 @@ export default function AdminReviewsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       {review.pros && review.pros.length > 0 && (
                         <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100 space-y-1">
-                          <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                          <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
                             <ThumbsUp className="w-3 h-3 text-emerald-600" />
                             <span>نقاط قوت از نظر خریدار:</span>
                           </span>
@@ -393,7 +393,7 @@ export default function AdminReviewsPage() {
 
                       {review.cons && review.cons.length > 0 && (
                         <div className="bg-rose-50/60 p-2.5 rounded-xl border border-rose-100 space-y-1">
-                          <span className="text-[11px] font-bold text-rose-800 flex items-center gap-1">
+                          <span className="text-xs font-bold text-rose-800 flex items-center gap-1">
                             <ThumbsDown className="w-3 h-3 text-rose-600" />
                             <span>نقاط ضعف از نظر خریدار:</span>
                           </span>
@@ -417,7 +417,7 @@ export default function AdminReviewsPage() {
                         </span>
                       ) : (
                         <span className="text-gray-500 flex items-center gap-1">
-                          <XCircle className="w-3.5 h-3.5 text-gray-400" />
+                          <XCircle className="w-3.5 h-3.5 text-gray-500" />
                           <span>خرید این کالا را به دیگران پیشنهاد نمی‌کنم</span>
                         </span>
                       )}
@@ -427,8 +427,8 @@ export default function AdminReviewsPage() {
 
                 {/* Existing Admin Reply if any */}
                 {review.adminResponse && (
-                  <div className="p-3.5 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/20 space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#2C4A2E]">
+                  <div className="p-3.5 rounded-2xl bg-farm-primary/5 border border-farm-primary/20 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-farm-primary">
                       <CornerDownLeft className="w-3.5 h-3.5" />
                       <span>پاسخ رسمی پشتیبانی پروفارم:</span>
                     </div>
@@ -447,7 +447,7 @@ export default function AdminReviewsPage() {
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="متن پاسخ رسمی مزرعه را بنویسید (در صفحه محصول به عنوان پاسخ رسمی ادمین نمایش داده می‌شود)..."
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 focus:outline-none focus:border-farm-primary"
                     />
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -463,7 +463,7 @@ export default function AdminReviewsPage() {
                       <button
                         type="button"
                         onClick={() => handleSaveReply(review.id)}
-                        className="px-4 py-1.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors cursor-pointer"
+                        className="px-4 py-1.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors cursor-pointer"
                       >
                         ثبت پاسخ رسمی
                       </button>
@@ -473,7 +473,7 @@ export default function AdminReviewsPage() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100 text-xs">
-                  <div className="text-gray-400 text-[11px]">
+                  <div className="text-gray-600 text-xs">
                     تاریخ ثبت: {new Date(review.createdAt).toLocaleDateString('fa-IR')} • کد رهگیری سفارش:{' '}
                     <span className="font-mono">{review.orderId}</span>
                   </div>
@@ -511,7 +511,7 @@ export default function AdminReviewsPage() {
                           setReplyingReviewId(review.id);
                           setReplyText(review.adminResponse || '');
                         }}
-                        className="px-3.5 py-1.5 rounded-xl border border-gray-200 hover:border-[#2C4A2E] hover:text-[#2C4A2E] text-gray-700 font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl border border-gray-200 hover:border-farm-primary hover:text-farm-primary text-gray-700 font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <CornerDownLeft className="w-3.5 h-3.5" />
                         <span>{review.adminResponse ? 'ویرایش پاسخ' : 'پاسخ رسمی ادمین'}</span>
@@ -522,7 +522,7 @@ export default function AdminReviewsPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(review.id)}
-                      className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      className="p-2 rounded-xl text-gray-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="حذف دائمی"
                     >
                       <Trash2 className="w-4 h-4" />

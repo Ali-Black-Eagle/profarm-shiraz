@@ -46,6 +46,7 @@ import {
 import { SiteContent } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import InlineEditableText from './InlineEditableText';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface CmsLiveEditorProps {
   content: SiteContent;
@@ -62,6 +63,7 @@ export default function CmsLiveEditor({
   onReset,
   isSaving = false,
 }: CmsLiveEditorProps) {
+  const toast = useToast();
   const [isEditing, setIsEditing] = useState(true);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [activeSection, setActiveSection] = useState<string>('all');
@@ -173,7 +175,7 @@ export default function CmsLiveEditor({
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('حجم فایل انتخابی نباید بیش از ۵ مگابایت باشد.');
+      toast.error('حجم فایل انتخابی نباید بیش از ۵ مگابایت باشد.');
       return;
     }
 
@@ -202,25 +204,25 @@ export default function CmsLiveEditor({
   return (
     <div className="space-y-6 pb-28 select-none-headers">
       {/* 1. TOP STICKY CONTROL BAR */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E6E1D5] shadow-xs -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 transition-all">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-farm-border shadow-xs -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 transition-all">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Title & Status */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2C4A2E] to-[#1E3520] text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-farm-primary to-farm-primary-dark text-white flex items-center justify-center shadow-xs shrink-0">
               <Sparkles className="w-5 h-5 text-[#D4A373]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-black text-[#2C4A2E]">
+                <h1 className="text-base font-black text-farm-primary">
                   ویرایشگر زنده محتوای مزارع پروفارم
                 </h1>
                 {isDirty && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold animate-pulse">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold animate-pulse">
                     تغییرات ذخیره‌نشده
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-gray-500 hidden sm:block">
+              <p className="text-xs text-gray-500 hidden sm:block">
                 مستقیماً روی هر متن یا تصویر کلیک کنید تا در لحظه ویرایش و اعمال شود
               </p>
             </div>
@@ -229,13 +231,13 @@ export default function CmsLiveEditor({
           {/* Controls: Mode + Device + Actions */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 self-end md:self-auto">
             {/* Device Switcher */}
-            <div className="flex items-center bg-[#F3EFE6] p-1 rounded-xl border border-[#E6E1D5]">
+            <div className="flex items-center bg-farm-bg-warm p-1 rounded-xl border border-farm-border">
               <button
                 type="button"
                 onClick={() => setPreviewDevice('desktop')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   previewDevice === 'desktop'
-                    ? 'bg-white text-[#2C4A2E] shadow-xs'
+                    ? 'bg-white text-farm-primary shadow-xs'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
                 title="نمایشگر دسکتاپ عریض"
@@ -248,7 +250,7 @@ export default function CmsLiveEditor({
                 onClick={() => setPreviewDevice('mobile')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   previewDevice === 'mobile'
-                    ? 'bg-white text-[#2C4A2E] shadow-xs'
+                    ? 'bg-white text-farm-primary shadow-xs'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
                 title="نمایشگر موبایل شیراز"
@@ -259,13 +261,13 @@ export default function CmsLiveEditor({
             </div>
 
             {/* Edit Mode / Preview Mode Switcher */}
-            <div className="flex items-center bg-[#F3EFE6] p-1 rounded-xl border border-[#E6E1D5]">
+            <div className="flex items-center bg-farm-bg-warm p-1 rounded-xl border border-farm-border">
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   isEditing
-                    ? 'bg-[#2C4A2E] text-white shadow-xs'
+                    ? 'bg-farm-primary text-white shadow-xs'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
                 title="حالت ویرایش زنده با راهنمای بصری"
@@ -292,7 +294,7 @@ export default function CmsLiveEditor({
             <Link
               href="/"
               target="_blank"
-              className="p-2 sm:px-3 sm:py-2 rounded-xl border border-[#E6E1D5] bg-white text-gray-700 hover:bg-gray-50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl border border-farm-border bg-white text-gray-700 hover:bg-gray-50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               title="مشاهده صفحه اصلی زنده سایت در تب جدید"
             >
               <ExternalLink className="w-4 h-4 text-emerald-700" />
@@ -318,7 +320,7 @@ export default function CmsLiveEditor({
                 setIsDirty(false);
               }}
               disabled={isSaving}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#2C4A2E] via-emerald-800 to-[#1E3520] hover:brightness-110 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-farm-primary via-emerald-800 to-farm-primary-dark hover:brightness-110 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
             >
               {isSaving ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -331,8 +333,8 @@ export default function CmsLiveEditor({
         </div>
 
         {/* Section Fast Jumper */}
-        <div className="max-w-7xl mx-auto mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 text-[11px]">
-          <span className="text-gray-400 font-bold ml-1 shrink-0">پرش به بخش:</span>
+        <div className="max-w-7xl mx-auto mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 text-xs">
+          <span className="text-gray-600 font-bold ml-1 shrink-0">پرش به بخش:</span>
           {[
             { id: 'all', label: 'همه بخش‌ها' },
             { id: 'sec-topbanner', label: 'نوار اعلان بالا' },
@@ -350,7 +352,7 @@ export default function CmsLiveEditor({
               onClick={() => scrollToSection(sec.id)}
               className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 activeSection === sec.id
-                  ? 'bg-[#2C4A2E] text-white shadow-2xs'
+                  ? 'bg-farm-primary text-white shadow-2xs'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -377,10 +379,10 @@ export default function CmsLiveEditor({
 
         {/* Inner Canvas */}
         <div
-          className={`bg-[#F9F8F5] overflow-hidden ${
+          className={`bg-farm-bg overflow-hidden ${
             previewDevice === 'mobile'
-              ? 'rounded-[36px] border border-[#E6E1D5] max-h-[85vh] overflow-y-auto'
-              : 'rounded-3xl border border-[#E6E1D5] shadow-sm'
+              ? 'rounded-[36px] border border-farm-border max-h-[85vh] overflow-y-auto'
+              : 'rounded-3xl border border-farm-border shadow-sm'
           }`}
         >
           {/* SECTION 1: TOP ANNOUNCEMENT BAR */}
@@ -392,9 +394,9 @@ export default function CmsLiveEditor({
                     type="checkbox"
                     checked={content.topBannerActive}
                     onChange={(e) => updateField('topBannerActive', e.target.checked)}
-                    className="w-3.5 h-3.5 accent-[#2C4A2E] rounded cursor-pointer"
+                    className="w-3.5 h-3.5 accent-farm-primary rounded cursor-pointer"
                   />
-                  <span className="font-bold text-[11px] text-gray-700">
+                  <span className="font-bold text-xs text-gray-700">
                     {content.topBannerActive ? 'نوار اعلان فعال است' : 'نوار اعلان خاموش است'}
                   </span>
                 </label>
@@ -402,7 +404,7 @@ export default function CmsLiveEditor({
             )}
 
             {content.topBannerActive ? (
-              <div className="bg-[#1E3520] text-[#F3EFE6] px-4 py-2.5 text-xs text-center border-b border-[#2C4A2E]/50">
+              <div className="bg-farm-primary-dark text-farm-bg-warm px-4 py-2.5 text-xs text-center border-b border-farm-primary/50">
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                   <InlineEditableText
@@ -427,7 +429,7 @@ export default function CmsLiveEditor({
               </div>
             ) : (
               isEditing && (
-                <div className="p-3 bg-gray-100 text-gray-400 text-xs text-center border-b border-dashed border-gray-300">
+                <div className="p-3 bg-gray-100 text-gray-600 text-xs text-center border-b border-dashed border-gray-300">
                   نوار اعلان بالای سایت در حال حاضر غیرفعال است (برای فعال‌سازی تیک بالا را بزنید)
                 </div>
               )
@@ -437,10 +439,10 @@ export default function CmsLiveEditor({
           {/* SECTION 2: HERO & STATS SECTION */}
           <section
             id="sec-hero"
-            className="relative overflow-hidden pt-8 pb-14 md:pt-12 md:pb-20 bg-gradient-to-b from-[#F3EFE6] via-[#F9F8F5] to-[#F9F8F5] border-b border-[#E6E1D5]"
+            className="relative overflow-hidden pt-8 pb-14 md:pt-12 md:pb-20 bg-gradient-to-b from-farm-bg-warm via-farm-bg to-farm-bg border-b border-farm-border"
           >
             {/* Decorative background glows */}
-            <div className="absolute top-0 right-10 w-80 h-80 bg-[#2C4A2E]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-10 w-80 h-80 bg-farm-primary/5 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-10 w-80 h-80 bg-[#D4A373]/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
@@ -448,8 +450,8 @@ export default function CmsLiveEditor({
                 {/* Left/Main Content */}
                 <div className="w-full lg:col-span-7 space-y-5 text-center lg:text-right flex flex-col items-center lg:items-start">
                   {/* Badge */}
-                  <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E6E1D5] shadow-2xs text-xs font-semibold text-[#2C4A2E]">
-                    <span className="w-2 h-2 rounded-full bg-[#2C4A2E] animate-ping" />
+                  <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-farm-border shadow-2xs text-xs font-semibold text-farm-primary">
+                    <span className="w-2 h-2 rounded-full bg-farm-primary animate-ping" />
                     <InlineEditableText
                       value={content.heroBadgeText}
                       onChange={(val) => updateField('heroBadgeText', val)}
@@ -459,7 +461,7 @@ export default function CmsLiveEditor({
                   </div>
 
                   {/* Main Title (Part 1 + Highlight) */}
-                  <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#2C4A2E] leading-tight tracking-tight text-center lg:text-right w-full">
+                  <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-farm-primary leading-tight text-center lg:text-right w-full">
                     <InlineEditableText
                       value={content.heroTitlePart1}
                       onChange={(val) => updateField('heroTitlePart1', val)}
@@ -490,7 +492,7 @@ export default function CmsLiveEditor({
 
                   {/* CTAs */}
                   <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2 w-full">
-                    <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#2C4A2E] via-[#385e3b] to-[#1E3520] text-white text-xs font-black shadow-md flex items-center gap-2">
+                    <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-farm-primary via-[#385e3b] to-farm-primary-dark text-white text-xs font-black shadow-md flex items-center gap-2">
                       <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
@@ -517,9 +519,9 @@ export default function CmsLiveEditor({
                   </div>
 
                   {/* Shiraz Trust Highlights (3 Items under Hero) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 border-t border-[#E6E1D5]/60 text-xs w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 border-t border-farm-border/60 text-xs w-full">
                     <div className="flex items-center justify-center lg:justify-start gap-2">
-                      <Truck className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+                      <Truck className="w-4 h-4 text-farm-primary shrink-0" />
                       <InlineEditableText
                         value={content.trustItem1}
                         onChange={(val) => updateField('trustItem1', val)}
@@ -529,7 +531,7 @@ export default function CmsLiveEditor({
                       />
                     </div>
                     <div className="flex items-center justify-center lg:justify-start gap-2">
-                      <ShieldCheck className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+                      <ShieldCheck className="w-4 h-4 text-farm-primary shrink-0" />
                       <InlineEditableText
                         value={content.trustItem2}
                         onChange={(val) => updateField('trustItem2', val)}
@@ -539,7 +541,7 @@ export default function CmsLiveEditor({
                       />
                     </div>
                     <div className="flex items-center justify-center lg:justify-start gap-2">
-                      <Sparkles className="w-4 h-4 text-[#2C4A2E] shrink-0" />
+                      <Sparkles className="w-4 h-4 text-farm-primary shrink-0" />
                       <InlineEditableText
                         value={content.trustItem3}
                         onChange={(val) => updateField('trustItem3', val)}
@@ -589,7 +591,7 @@ export default function CmsLiveEditor({
                         <button
                           type="button"
                           onClick={() => handleOpenImageModal('heroImageUrl')}
-                          className="px-3 py-1.5 rounded-xl bg-white/95 text-[#2C4A2E] hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
+                          className="px-3 py-1.5 rounded-xl bg-white/95 text-farm-primary hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
                         >
                           <Camera className="w-3.5 h-3.5 text-emerald-700" />
                           <span>تغییر تصویر هدر</span>
@@ -605,21 +607,21 @@ export default function CmsLiveEditor({
           {/* SECTION 3: TRUST & VALUE PROPOSITION PILLARS */}
           <section id="sec-trust" className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-6">
             <div className="text-center max-w-xl mx-auto space-y-1">
-              <span className="text-[11px] font-bold text-[#D4A373]">
+              <span className="text-xs font-bold text-[#D4A373]">
                 استانداردهای طلایی سلامت و زنجیره تامین
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[#2C4A2E]">
+              <h2 className="text-xl sm:text-2xl font-black text-farm-primary">
                 چهار رکن اعتماد خانواده‌های شیراز به پروفارم
               </h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Card 1 */}
-              <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
+              <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                   <Truck className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-black text-[#2C4A2E]">
+                <h3 className="text-sm font-black text-farm-primary">
                   <InlineEditableText
                     value={content.trustItem1Title || 'تحویل اختصاصی سراسر شیراز'}
                     onChange={(val) => updateField('trustItem1Title', val)}
@@ -641,11 +643,11 @@ export default function CmsLiveEditor({
               </div>
 
               {/* Card 2 */}
-              <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
+              <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-black text-[#2C4A2E]">
+                <h3 className="text-sm font-black text-farm-primary">
                   <InlineEditableText
                     value={content.trustItem2Title || 'بسته‌بندی شناسنامه‌دار'}
                     onChange={(val) => updateField('trustItem2Title', val)}
@@ -668,11 +670,11 @@ export default function CmsLiveEditor({
               </div>
 
               {/* Card 3 */}
-              <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
+              <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-800 flex items-center justify-center">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-black text-[#2C4A2E]">
+                <h3 className="text-sm font-black text-farm-primary">
                   <InlineEditableText
                     value={content.trustItem3Title || 'آزمایشگاه کنترل کیفیت'}
                     onChange={(val) => updateField('trustItem3Title', val)}
@@ -695,11 +697,11 @@ export default function CmsLiveEditor({
               </div>
 
               {/* Card 4 */}
-              <div className="bg-white p-5 rounded-2xl border border-[#E6E1D5] shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
+              <div className="bg-white p-5 rounded-2xl border border-farm-border shadow-2xs space-y-2 relative group/card hover:border-emerald-300 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-800 flex items-center justify-center">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-black text-[#2C4A2E]">
+                <h3 className="text-sm font-black text-farm-primary">
                   <InlineEditableText
                     value={content.trustItem4Title || 'تضمین ۱۰۰٪ رضایت مشتری'}
                     onChange={(val) => updateField('trustItem4Title', val)}
@@ -725,9 +727,9 @@ export default function CmsLiveEditor({
 
           {/* SECTION 4: PRODUCTS SHOWCASE HEADER */}
           <section id="sec-products" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E6E1D5] pb-4">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-farm-border pb-4">
               <div>
-                <span className="text-xs font-bold text-[#D4A373] tracking-wide">
+                <span className="text-xs font-bold text-[#D4A373]">
                   <InlineEditableText
                     value={content.productsBadgeText || 'پکیج‌های آماده و شناسنامه‌دار'}
                     onChange={(val) => updateField('productsBadgeText', val)}
@@ -735,7 +737,7 @@ export default function CmsLiveEditor({
                     label="بج ویترین محصولات"
                   />
                 </span>
-                <h2 className="text-xl sm:text-2xl font-black text-[#2C4A2E] mt-1">
+                <h2 className="text-xl sm:text-2xl font-black text-farm-primary mt-1">
                   <InlineEditableText
                     value={
                       content.productsSectionTitle ||
@@ -758,7 +760,7 @@ export default function CmsLiveEditor({
                   />
                 </p>
               </div>
-              <div className="text-xs font-bold text-gray-400">
+              <div className="text-xs font-bold text-gray-600">
                 (ویترین زنده محصولات صفحه اصلی با ۴۵+ قلم کالای طبیعی)
               </div>
             </div>
@@ -773,13 +775,13 @@ export default function CmsLiveEditor({
               ].map((p, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-2xl border border-[#E6E1D5] overflow-hidden p-3 space-y-2 shadow-2xs"
+                  className="bg-white rounded-2xl border border-farm-border overflow-hidden p-3 space-y-2 shadow-2xs"
                 >
                   <div className="aspect-square rounded-xl overflow-hidden relative bg-gray-100">
                     <Image src={p.img} alt={p.title} fill className="object-cover" />
                   </div>
                   <div className="text-xs font-bold text-gray-900 truncate">{p.title}</div>
-                  <div className="text-[11px] font-black text-emerald-800">
+                  <div className="text-xs font-black text-emerald-800">
                     {p.price} تومان
                   </div>
                 </div>
@@ -789,7 +791,7 @@ export default function CmsLiveEditor({
 
           {/* SECTION 5: CLUB & PRO MEMBERSHIP BANNER */}
           <section id="sec-pro" className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-            <div className="bg-gradient-to-br from-[#2C4A2E] via-[#243c26] to-[#1a301c] rounded-3xl p-6 sm:p-10 text-white relative overflow-hidden shadow-farm">
+            <div className="bg-gradient-to-br from-farm-primary via-[#243c26] to-[#1a301c] rounded-3xl p-6 sm:p-10 text-white relative overflow-hidden shadow-farm">
               <div className="absolute top-0 left-0 w-80 h-80 bg-[#D4A373]/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="max-w-2xl mb-6 space-y-2">
@@ -832,7 +834,7 @@ export default function CmsLiveEditor({
               {/* Highlights cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs space-y-1">
-                  <span className="text-amber-300 font-bold text-[10px] block">
+                  <span className="text-amber-300 font-bold text-xs block">
                     نکته برجسته طرح طلایی پرو:
                   </span>
                   <div className="text-white font-medium">
@@ -849,7 +851,7 @@ export default function CmsLiveEditor({
                 </div>
 
                 <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs space-y-1">
-                  <span className="text-emerald-300 font-bold text-[10px] block">
+                  <span className="text-emerald-300 font-bold text-xs block">
                     نکته برجسته طرح اقتصادی پلاس:
                   </span>
                   <div className="text-white font-medium">
@@ -870,10 +872,10 @@ export default function CmsLiveEditor({
 
           {/* SECTION 6: SHIRAZ FARM STORY & HERITAGE */}
           <section id="sec-story" className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-            <div className="bg-white rounded-3xl border border-[#E6E1D5] shadow-farm overflow-hidden">
+            <div className="bg-white rounded-3xl border border-farm-border shadow-farm overflow-hidden">
               <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
                 <div className="lg:col-span-7 p-6 sm:p-10 space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4A373]/15 text-[#2C4A2E] text-xs font-bold">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4A373]/15 text-farm-primary text-xs font-bold">
                     <Leaf className="w-3.5 h-3.5 text-[#D4A373]" />
                     <InlineEditableText
                       value={content.storyBadgeText || 'اصالت سرزمین فارس'}
@@ -883,7 +885,7 @@ export default function CmsLiveEditor({
                     />
                   </div>
 
-                  <h2 className="text-xl sm:text-3xl font-black text-[#2C4A2E] leading-tight">
+                  <h2 className="text-xl sm:text-3xl font-black text-farm-primary leading-tight">
                     <InlineEditableText
                       value={content.storyTitle || 'از دامنه‌های زاگرس تا سفره‌های شیراز'}
                       onChange={(val) => updateField('storyTitle', val)}
@@ -905,7 +907,7 @@ export default function CmsLiveEditor({
                     />
                   </p>
 
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#2C4A2E] pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-farm-primary pt-2">
                     <MapPin className="w-4 h-4 text-[#D4A373] shrink-0" />
                     <span>مزارع تحت پوشش: </span>
                     <InlineEditableText
@@ -932,7 +934,7 @@ export default function CmsLiveEditor({
                       <button
                         type="button"
                         onClick={() => handleOpenImageModal('storyImageUrl')}
-                        className="px-3 py-1.5 rounded-xl bg-white/95 text-[#2C4A2E] hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
+                        className="px-3 py-1.5 rounded-xl bg-white/95 text-farm-primary hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
                       >
                         <Camera className="w-3.5 h-3.5 text-emerald-700" />
                         <span>تغییر تصویر داستان</span>
@@ -946,14 +948,14 @@ export default function CmsLiveEditor({
 
           {/* SECTION 7: WHOLESALE & BULK LOGISTICS */}
           <section id="sec-bulk" className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-            <div className="bg-[#F3EFE6] rounded-3xl border border-[#E6E1D5] overflow-hidden">
+            <div className="bg-farm-bg-warm rounded-3xl border border-farm-border overflow-hidden">
               <div className="grid grid-cols-1 md:grid-cols-12 items-center">
                 <div className="md:col-span-8 p-6 sm:p-8 flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#2C4A2E] flex items-center justify-center text-[#D4A373] shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-farm-primary flex items-center justify-center text-[#D4A373] shrink-0">
                     <Package className="w-6 h-6" />
                   </div>
                   <div className="space-y-2">
-                    <div className="inline-block text-[11px] font-bold text-[#D4A373]">
+                    <div className="inline-block text-xs font-bold text-[#D4A373]">
                       <InlineEditableText
                         value={content.bulkBadgeText || 'فروش مستقیم کارگاهی و مزارع'}
                         onChange={(val) => updateField('bulkBadgeText', val)}
@@ -961,7 +963,7 @@ export default function CmsLiveEditor({
                         label="بج بخش عمده"
                       />
                     </div>
-                    <h3 className="text-base sm:text-lg font-black text-[#2C4A2E]">
+                    <h3 className="text-base sm:text-lg font-black text-farm-primary">
                       <InlineEditableText
                         value={
                           content.bulkSectionTitle ||
@@ -985,7 +987,7 @@ export default function CmsLiveEditor({
                       />
                     </p>
                     <div className="pt-2">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold shadow-xs">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-farm-primary text-white text-xs font-bold shadow-xs">
                         <InlineEditableText
                           value={content.bulkCtaText || 'ورود به سامانه سفارش عمده'}
                           onChange={(val) => updateField('bulkCtaText', val)}
@@ -1011,7 +1013,7 @@ export default function CmsLiveEditor({
                       <button
                         type="button"
                         onClick={() => handleOpenImageModal('bulkSectionImageUrl')}
-                        className="px-3 py-1.5 rounded-xl bg-white/95 text-[#2C4A2E] hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
+                        className="px-3 py-1.5 rounded-xl bg-white/95 text-farm-primary hover:bg-white text-xs font-black shadow-lg flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs hover:scale-105"
                       >
                         <Camera className="w-3.5 h-3.5 text-emerald-700" />
                         <span>تغییر تصویر عمده</span>
@@ -1024,23 +1026,23 @@ export default function CmsLiveEditor({
           </section>
 
           {/* SECTION 8: CONTACT, SUPPORT & FOOTER */}
-          <footer id="sec-footer" className="bg-[#1E3520] text-gray-300 pt-12 pb-8 px-4 sm:px-8 border-t border-[#2C4A2E]">
+          <footer id="sec-footer" className="bg-farm-primary-dark text-gray-300 pt-12 pb-8 px-4 sm:px-8 border-t border-farm-primary">
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8">
               {/* Col 1: Brand & About */}
               <div className="md:col-span-5 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#D4A373] text-[#1E3520] flex items-center justify-center font-black">
+                  <div className="w-9 h-9 rounded-xl bg-[#D4A373] text-farm-primary-dark flex items-center justify-center font-black">
                     <Leaf className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="text-sm font-black text-white block">پروفارم شیراز</span>
-                    <span className="text-[10px] text-emerald-300 block">
+                    <span className="text-xs text-emerald-300 block">
                       سامانه رسمی توزیع مستقیم محصولات ارگانیک فارس
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
+                <p className="text-xs text-gray-600 leading-relaxed max-w-sm">
                   <InlineEditableText
                     value={
                       content.footerAboutText ||
@@ -1063,7 +1065,7 @@ export default function CmsLiveEditor({
 
                 <div className="space-y-2 text-xs text-gray-300">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400">تلفن شیراز:</span>
+                    <span className="text-gray-600">تلفن شیراز:</span>
                     <InlineEditableText
                       value={content.supportPhone || '۰۷۱-۳۶۲۸۰۰۰۰'}
                       onChange={(val) => updateField('supportPhone', val)}
@@ -1074,7 +1076,7 @@ export default function CmsLiveEditor({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400">ساعات پاسخگویی:</span>
+                    <span className="text-gray-600">ساعات پاسخگویی:</span>
                     <InlineEditableText
                       value={content.supportHours || 'شنبه تا پنج‌شنبه، ۸ صبح الی ۲۰ شب'}
                       onChange={(val) => updateField('supportHours', val)}
@@ -1084,7 +1086,7 @@ export default function CmsLiveEditor({
                   </div>
 
                   <div className="flex items-start gap-2">
-                    <span className="text-gray-400 shrink-0">آدرس دفتر مرکزی:</span>
+                    <span className="text-gray-600 shrink-0">آدرس دفتر مرکزی:</span>
                     <InlineEditableText
                       value={
                         content.supportAddress ||
@@ -1109,7 +1111,7 @@ export default function CmsLiveEditor({
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
                     <Instagram className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                    <span className="text-gray-400">اینستاگرام:</span>
+                    <span className="text-gray-600">اینستاگرام:</span>
                     <InlineEditableText
                       value={content.socialInstagram || 'profarm_shiraz'}
                       onChange={(val) => updateField('socialInstagram', val)}
@@ -1121,7 +1123,7 @@ export default function CmsLiveEditor({
 
                   <div className="flex items-center gap-2">
                     <Send className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                    <span className="text-gray-400">تلگرام:</span>
+                    <span className="text-gray-600">تلگرام:</span>
                     <InlineEditableText
                       value={content.socialTelegram || 'profarm_support'}
                       onChange={(val) => updateField('socialTelegram', val)}
@@ -1133,7 +1135,7 @@ export default function CmsLiveEditor({
 
                   <div className="flex items-center gap-2">
                     <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span className="text-gray-400">واتس‌اپ:</span>
+                    <span className="text-gray-600">واتس‌اپ:</span>
                     <InlineEditableText
                       value={content.socialWhatsapp || '۰۹۱۷۰۰۰۰۰۰۰'}
                       onChange={(val) => updateField('socialWhatsapp', val)}
@@ -1157,7 +1159,7 @@ export default function CmsLiveEditor({
               </div>
             </div>
 
-            <div className="max-w-6xl mx-auto mt-8 pt-4 border-t border-white/10 text-center text-[11px] text-gray-500">
+            <div className="max-w-6xl mx-auto mt-8 pt-4 border-t border-white/10 text-center text-xs text-gray-500">
               کلیه حقوق مادی و معنوی برای مزارع ارگانیک پروفارم شیراز محفوظ است.
             </div>
           </footer>
@@ -1167,12 +1169,12 @@ export default function CmsLiveEditor({
       {/* 3. IMAGE PICKER MODAL */}
       {imageModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-[#E6E1D5] overflow-hidden flex flex-col max-h-[85vh] text-right">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-farm-border overflow-hidden flex flex-col max-h-[85vh] text-right">
             {/* Modal Header */}
-            <div className="p-4 border-b border-[#E6E1D5] flex items-center justify-between bg-[#F9F8F5]">
+            <div className="p-4 border-b border-farm-border flex items-center justify-between bg-farm-bg">
               <div className="flex items-center gap-2">
-                <Camera className="w-5 h-5 text-[#2C4A2E]" />
-                <h3 className="font-black text-sm text-[#2C4A2E]">
+                <Camera className="w-5 h-5 text-farm-primary" />
+                <h3 className="font-black text-sm text-farm-primary">
                   انتخاب یا بارگذاری تصویر بخش{' '}
                   {activeImageField === 'heroImageUrl'
                     ? 'هدر اصلی'
@@ -1184,7 +1186,7 @@ export default function CmsLiveEditor({
               <button
                 type="button"
                 onClick={() => setImageModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
+                className="p-1 text-gray-600 hover:text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1197,7 +1199,7 @@ export default function CmsLiveEditor({
                 onClick={() => setImageTab('presets')}
                 className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                   imageTab === 'presets'
-                    ? 'border-[#2C4A2E] text-[#2C4A2E]'
+                    ? 'border-farm-primary text-farm-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
@@ -1208,7 +1210,7 @@ export default function CmsLiveEditor({
                 onClick={() => setImageTab('upload')}
                 className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                   imageTab === 'upload'
-                    ? 'border-[#2C4A2E] text-[#2C4A2E]'
+                    ? 'border-farm-primary text-farm-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
@@ -1219,7 +1221,7 @@ export default function CmsLiveEditor({
                 onClick={() => setImageTab('url')}
                 className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                   imageTab === 'url'
-                    ? 'border-[#2C4A2E] text-[#2C4A2E]'
+                    ? 'border-farm-primary text-farm-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
@@ -1258,10 +1260,10 @@ export default function CmsLiveEditor({
                           )}
                         </div>
                         <div className="p-2 bg-white">
-                          <div className="text-[11px] font-bold text-gray-900 truncate">
+                          <div className="text-xs font-bold text-gray-900 truncate">
                             {img.title}
                           </div>
-                          <span className="text-[10px] text-gray-400 block mt-0.5">
+                          <span className="text-xs text-gray-600 block mt-0.5">
                             {img.category}
                           </span>
                         </div>
@@ -1285,7 +1287,7 @@ export default function CmsLiveEditor({
                       <span className="text-xs font-bold text-gray-800 block">
                         جهت انتخاب تصویر کلیک کنید
                       </span>
-                      <span className="text-[11px] text-gray-500 block mt-1">
+                      <span className="text-xs text-gray-500 block mt-1">
                         فرمت‌های مجاز: JPG, PNG, WEBP (حداکثر ۵ مگابایت)
                       </span>
                     </div>
@@ -1345,7 +1347,7 @@ export default function CmsLiveEditor({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[#E6E1D5] bg-[#F9F8F5] flex items-center justify-between">
+            <div className="p-4 border-t border-farm-border bg-farm-bg flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setImageModalOpen(false)}
@@ -1357,7 +1359,7 @@ export default function CmsLiveEditor({
               <button
                 type="button"
                 onClick={handleApplyImage}
-                className="px-5 py-2 rounded-xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-xs font-black shadow-md transition-all cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs font-black shadow-md transition-all cursor-pointer"
               >
                 تایید و اعمال بر روی صفحه
               </button>

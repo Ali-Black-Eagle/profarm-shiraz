@@ -229,13 +229,13 @@ export default function ProductDetailClient({
     e.preventDefault();
     if (!user) return;
     if (!reviewComment.trim()) {
-      alert('لطفاً متن نظر خود را وارد فرمایید.');
+      showToast('لطفاً متن نظر خود را وارد فرمایید.');
       return;
     }
 
     const check = farmStore.canUserReviewProduct(user.id, product.slug);
     if (!check.canReview) {
-      alert(check.reason || 'امکان ثبت نظر وجود ندارد.');
+      showToast(check.reason || 'امکان ثبت نظر وجود ندارد.');
       return;
     }
 
@@ -392,29 +392,29 @@ export default function ProductDetailClient({
 
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-        <Link href="/" className="hover:text-[#2C4A2E] transition-colors">
+        <Link href="/" className="hover:text-farm-primary transition-colors">
           صفحه اصلی
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
-        <Link href="/products" className="hover:text-[#2C4A2E] transition-colors">
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-500" />
+        <Link href="/products" className="hover:text-farm-primary transition-colors">
           محصولات ارگانیک
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-500" />
         <Link
           href={`/products?category=${encodeURIComponent(product.category)}`}
-          className="hover:text-[#2C4A2E] transition-colors"
+          className="hover:text-farm-primary transition-colors"
         >
           {product.category}
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
-        <span className="text-[#2C4A2E] font-bold truncate max-w-xs">{product.title}</span>
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-500" />
+        <span className="text-farm-primary font-bold truncate max-w-xs">{product.title}</span>
       </nav>
 
       {/* ================= HERO SECTION ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
         {/* Left: Image Gallery */}
         <div className="lg:col-span-6 space-y-4">
-          <div className="relative aspect-4/3 sm:aspect-square w-full rounded-3xl overflow-hidden bg-white border border-[#E6E1D5] shadow-farm group">
+          <div className="relative aspect-4/3 sm:aspect-square w-full rounded-3xl overflow-hidden bg-white border border-farm-border shadow-farm group">
             <img
               src={selectedImage || product.images[0]}
               alt={product.title}
@@ -424,13 +424,13 @@ export default function ProductDetailClient({
             {/* Badges on image */}
             <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
               {product.isOrganicCertified && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-md text-[#2C4A2E] font-bold text-xs">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-md text-farm-primary font-bold text-xs">
                   <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
                   <span>تاییدیه ۱۰۰٪ ارگانیک فارس</span>
                 </span>
               )}
               {product.originLocation && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#2C4A2E]/90 backdrop-blur-md shadow-md text-white font-bold text-xs">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-farm-primary/90 backdrop-blur-md shadow-md text-white font-bold text-xs">
                   <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
                   <span>{product.originLocation}</span>
                 </span>
@@ -447,7 +447,7 @@ export default function ProductDetailClient({
                   onClick={() => setSelectedImage(img)}
                   className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
                     selectedImage === img
-                      ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/20 scale-102'
+                      ? 'border-farm-primary ring-2 ring-farm-primary/20 scale-102'
                       : 'border-gray-200 opacity-70 hover:opacity-100'
                   }`}
                 >
@@ -478,7 +478,7 @@ export default function ProductDetailClient({
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#2C4A2E] leading-snug">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-farm-primary leading-snug">
               {product.title}
             </h1>
 
@@ -514,7 +514,7 @@ export default function ProductDetailClient({
                   const el = document.getElementById('reviews-section');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="text-xs text-[#2C4A2E] hover:underline font-bold cursor-pointer"
+                className="text-xs text-farm-primary hover:underline font-bold cursor-pointer"
               >
                 {totalApprovedReviews > 0
                   ? `${toPersianDigits(totalApprovedReviews)} دیدگاه خریداران واقعی`
@@ -531,7 +531,7 @@ export default function ProductDetailClient({
           {/* Key Highlights Checklist */}
           {product.highlights && product.highlights.length > 0 && (
             <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-2.5">
-              <span className="text-xs font-bold text-[#2C4A2E] flex items-center gap-1.5">
+              <span className="text-xs font-bold text-farm-primary flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
                 <span>مزایای برجسته و ویژگی‌های ممتاز این محصول:</span>
               </span>
@@ -549,32 +549,32 @@ export default function ProductDetailClient({
           )}
 
           {/* Quick Specs Pill Badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-white border border-[#E6E1D5] text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-white border border-farm-border text-xs">
             {product.packSize && (
               <div className="space-y-1">
-                <span className="text-gray-400 flex items-center gap-1">
-                  <Package className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                <span className="text-gray-600 flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5 text-farm-primary" />
                   <span>فرمت بسته‌بندی:</span>
                 </span>
-                <span className="font-bold text-[#2C4A2E]">{product.packSize}</span>
+                <span className="font-bold text-farm-primary">{product.packSize}</span>
               </div>
             )}
 
             {Boolean(product.weightKg != null && Number(product.weightKg) > 0) && (
               <div className="space-y-1">
-                <span className="text-gray-400 flex items-center gap-1">
-                  <Scale className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                <span className="text-gray-600 flex items-center gap-1">
+                  <Scale className="w-3.5 h-3.5 text-farm-primary" />
                   <span>وزن خالص:</span>
                 </span>
-                <span className="font-bold text-[#2C4A2E]">
+                <span className="font-bold text-farm-primary">
                   {toPersianDigits(product.weightKg)} کیلوگرم
                 </span>
               </div>
             )}
 
             <div className="space-y-1">
-              <span className="text-gray-400 flex items-center gap-1">
-                <Warehouse className="w-3.5 h-3.5 text-[#2C4A2E]" />
+              <span className="text-gray-600 flex items-center gap-1">
+                <Warehouse className="w-3.5 h-3.5 text-farm-primary" />
                 <span>موجودی انبار شیراز:</span>
               </span>
               <span
@@ -609,11 +609,11 @@ export default function ProductDetailClient({
           )}
 
           {/* Price & Purchase Box */}
-          <div className="p-6 rounded-3xl bg-white border border-[#E6E1D5] shadow-farm space-y-5">
+          <div className="p-6 rounded-3xl bg-white border border-farm-border shadow-farm space-y-5">
             <div className="flex items-baseline justify-between">
               <span className="text-xs text-gray-500 font-bold">قیمت واحد کالا:</span>
               <div className="text-left">
-                <span className="text-3xl font-black text-[#2C4A2E]">
+                <span className="text-3xl font-black text-farm-primary">
                   {formatToman(product.price)}
                 </span>
               </div>
@@ -636,7 +636,7 @@ export default function ProductDetailClient({
                 </button>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 bg-[#F9F8F5] border border-[#E6E1D5] rounded-2xl p-1.5">
+                  <div className="flex items-center gap-3 bg-farm-bg border border-farm-border rounded-2xl p-1.5">
                     <button
                       type="button"
                       onClick={handleIncreaseQty}
@@ -645,19 +645,19 @@ export default function ProductDetailClient({
                           ? cartItem.quantity >= (product.stock || 1)
                           : selectedQty >= (product.stock || 1)
                       }
-                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-[#2C4A2E] hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                       aria-label="افزایش تعداد"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
-                    <span className="w-8 text-center text-sm font-black text-[#2C4A2E]">
+                    <span className="w-8 text-center text-sm font-black text-farm-primary">
                       {toPersianDigits(cartItem ? cartItem.quantity : selectedQty)}
                     </span>
                     <button
                       type="button"
                       onClick={handleDecreaseQty}
                       disabled={!cartItem && selectedQty <= 1}
-                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                       aria-label="کاهش تعداد"
                     >
                       <Minus className="w-4 h-4" />
@@ -667,7 +667,7 @@ export default function ProductDetailClient({
                   {cartItem ? (
                     <Link
                       href="/cart"
-                      className="flex-1 py-4 px-6 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
+                      className="flex-1 py-4 px-6 rounded-2xl bg-farm-primary text-white text-sm font-bold hover:bg-farm-primary-dark active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
                     >
                       <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                       <span>رفتن به سبد خرید</span>
@@ -676,7 +676,7 @@ export default function ProductDetailClient({
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      className="flex-1 py-4 px-6 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
+                      className="flex-1 py-4 px-6 rounded-2xl bg-farm-primary text-white text-sm font-bold hover:bg-farm-primary-dark active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
                     >
                       <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                       <span>
@@ -693,19 +693,19 @@ export default function ProductDetailClient({
 
           {/* Trust Guarantees */}
           <div className="grid grid-cols-2 gap-3 pt-1">
-            <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center gap-2.5">
-              <ShieldCheck className="w-5 h-5 text-[#2C4A2E] shrink-0" />
+            <div className="p-3 rounded-2xl bg-farm-bg border border-farm-border flex items-center gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-farm-primary shrink-0" />
               <div>
                 <div className="font-bold text-gray-900 text-xs">{SITE_CONFIG.policies.freshReturnShort}</div>
                 <div className="text-xs text-gray-600">تضمین سلامت و کیفیت ارگانیک</div>
               </div>
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center gap-2.5">
-              <Truck className="w-5 h-5 text-[#2C4A2E] shrink-0" />
+            <div className="p-3 rounded-2xl bg-farm-bg border border-farm-border flex items-center gap-2.5">
+              <Truck className="w-5 h-5 text-farm-primary shrink-0" />
               <div>
                 <div className="font-bold text-gray-900 text-xs">پیک اختصاصی شیراز</div>
-                <div className="text-[10px] text-gray-500">ارسال با زنجیره سرد بهداشتی</div>
+                <div className="text-xs text-gray-500">ارسال با زنجیره سرد بهداشتی</div>
               </div>
             </div>
           </div>
@@ -713,7 +713,7 @@ export default function ProductDetailClient({
       </div>
 
       {/* ================= TABS SYSTEM ================= */}
-      <div id="reviews-section" className="pt-8 border-t border-[#E6E1D5] space-y-6">
+      <div id="reviews-section" className="pt-8 border-t border-farm-border space-y-6">
         {/* Tab Buttons (Responsive 4-column segmented control on mobile, horizontal pill bar on desktop) */}
         <div className="grid grid-cols-4 gap-1 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 sm:bg-transparent sm:border-0 sm:border-b sm:border-gray-200 sm:p-0 sm:flex sm:items-center sm:gap-2 sm:rounded-none">
           <button
@@ -721,12 +721,12 @@ export default function ProductDetailClient({
             onClick={() => setActiveTab('specs')}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'specs'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
             }`}
           >
             <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="text-[11px] sm:text-sm leading-tight">
+            <span className="text-xs sm:text-sm leading-tight">
               <span className="sm:hidden">مشخصات</span>
               <span className="hidden sm:inline">مشخصات فنی و شناسنامه</span>
             </span>
@@ -737,12 +737,12 @@ export default function ProductDetailClient({
             onClick={() => setActiveTab('nutrition')}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'nutrition'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
             }`}
           >
             <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
-            <span className="text-[11px] sm:text-sm leading-tight">
+            <span className="text-xs sm:text-sm leading-tight">
               <span className="sm:hidden">ارزش غذایی</span>
               <span className="hidden sm:inline">ارزش غذایی و نگهداری</span>
             </span>
@@ -753,12 +753,12 @@ export default function ProductDetailClient({
             onClick={() => setActiveTab('faqs')}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'faqs'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="text-[11px] sm:text-sm leading-tight">
+            <span className="text-xs sm:text-sm leading-tight">
               <span className="sm:hidden">سوالات ({toPersianDigits(product.faqs?.length || 0)})</span>
               <span className="hidden sm:inline">سوالات متداول ({toPersianDigits(product.faqs?.length || 0)})</span>
             </span>
@@ -769,12 +769,12 @@ export default function ProductDetailClient({
             onClick={() => setActiveTab('reviews')}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'reviews'
-                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                ? 'bg-farm-primary text-white shadow-sm'
                 : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
             }`}
           >
             <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 fill-amber-400 shrink-0" />
-            <span className="text-[11px] sm:text-sm leading-tight">
+            <span className="text-xs sm:text-sm leading-tight">
               <span className="sm:hidden">نظرات ({toPersianDigits(totalApprovedReviews)})</span>
               <span className="hidden sm:inline">دیدگاه‌ها و نظرات ({toPersianDigits(totalApprovedReviews)})</span>
             </span>
@@ -783,9 +783,9 @@ export default function ProductDetailClient({
 
         {/* TAB 1: Specifications */}
         {activeTab === 'specs' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-farm-border shadow-xs space-y-6">
             <div>
-              <h3 className="text-lg font-black text-[#2C4A2E]">
+              <h3 className="text-lg font-black text-farm-primary">
                 جدول مشخصات فنی و ویژگی‌های تولید
               </h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -864,9 +864,9 @@ export default function ProductDetailClient({
 
         {/* TAB 2: Nutritional Info & Storage */}
         {activeTab === 'nutrition' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-farm-border shadow-xs space-y-6">
             <div>
-              <h3 className="text-lg font-black text-[#2C4A2E]">
+              <h3 className="text-lg font-black text-farm-primary">
                 ارزش غذایی تقریبی و دستورالعمل نگهداری
               </h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -922,14 +922,14 @@ export default function ProductDetailClient({
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] text-sm text-gray-600">
+              <div className="p-4 rounded-2xl bg-farm-bg border border-farm-border text-sm text-gray-600">
                 جدول ارزش غذایی دقیق برای این محصول هنوز توسط واحد کنترل کیفیت ثبت نشده است.
               </div>
             )}
 
             {/* Storage Instructions Banner */}
-            <div className="p-5 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
-              <span className="text-xs font-bold text-[#2C4A2E] flex items-center gap-1.5">
+            <div className="p-5 rounded-2xl bg-farm-bg border border-farm-border space-y-2">
+              <span className="text-xs font-bold text-farm-primary flex items-center gap-1.5">
                 <Info className="w-4 h-4" />
                 <span>بهترین شرایط نگهداری جهت حفظ حداکثر طراوت و ارزش غذایی:</span>
               </span>
@@ -943,9 +943,9 @@ export default function ProductDetailClient({
 
         {/* TAB 3: FAQs */}
         {activeTab === 'faqs' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-farm-border shadow-xs space-y-6">
             <div>
-              <h3 className="text-lg font-black text-[#2C4A2E]">
+              <h3 className="text-lg font-black text-farm-primary">
                 سوالات متداول مشتریان درباره این محصول
               </h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -954,9 +954,9 @@ export default function ProductDetailClient({
             </div>
 
             {(!product.faqs || product.faqs.length === 0) ? (
-              <div className="p-8 text-center text-xs text-gray-400 bg-[#F9F8F5] rounded-2xl border border-gray-200">
+              <div className="p-8 text-center text-xs text-gray-600 bg-farm-bg rounded-2xl border border-gray-200">
                 در حال حاضر سوال متداولی برای این محصول ثبت نشده است. در صورت نیاز می‌توانید با
-                پشتیبانی پروفارم به شماره ۰۷۱-۳۶۲۸۰۰۰۰ تماس بگیرید.
+                پشتیبانی پروفارم به شماره {SITE_CONFIG.contact.supportPhoneDisplay} تماس بگیرید.
               </div>
             ) : (
               <div className="space-y-3">
@@ -977,7 +977,7 @@ export default function ProductDetailClient({
                         </span>
                         <ChevronDown
                           className={`w-4 h-4 text-gray-500 transition-transform ${
-                            isOpen ? 'rotate-180 text-[#2C4A2E]' : ''
+                            isOpen ? 'rotate-180 text-farm-primary' : ''
                           }`}
                         />
                       </button>
@@ -998,11 +998,11 @@ export default function ProductDetailClient({
         {activeTab === 'reviews' && (
           <div className="space-y-6">
             {/* Reviews Summary & Call to Action */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs flex flex-col md:flex-row gap-6 items-center justify-between">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-farm-border shadow-xs flex flex-col md:flex-row gap-6 items-center justify-between">
               {/* Score Left */}
               <div className="flex items-center gap-5">
-                <div className="text-center p-4 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15">
-                  <div className="text-3xl font-black text-[#2C4A2E]">
+                <div className="text-center p-4 rounded-2xl bg-farm-primary/5 border border-farm-primary/15">
+                  <div className="text-3xl font-black text-farm-primary">
                     {totalApprovedReviews > 0 && averageRating ? toPersianDigits(averageRating) : '—'}
                   </div>
                   <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -1040,7 +1040,7 @@ export default function ProductDetailClient({
               <button
                 type="button"
                 onClick={handleOpenReviewModal}
-                className="px-6 py-3.5 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-2 cursor-pointer hover:scale-102"
+                className="px-6 py-3.5 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-2 cursor-pointer hover:scale-102"
               >
                 <Star className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
                 <span>ثبت نظر برای این محصول (ویژه خریداران)</span>
@@ -1049,10 +1049,10 @@ export default function ProductDetailClient({
 
             {/* List of Approved Reviews */}
             {reviews.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center border border-[#E6E1D5]">
+              <div className="bg-white rounded-3xl p-12 text-center border border-farm-border">
                 <Star className="w-12 h-12 text-amber-300 fill-amber-100 mx-auto mb-3" />
                 <h4 className="font-bold text-gray-800 text-sm">هنوز نظری برای این کالا ثبت نشده است</h4>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-600 mt-1">
                   اگر این محصول را دریافت کرده‌اید، اولین خریدار باشید که نظر خود را به اشتراک می‌گذارد.
                 </p>
               </div>
@@ -1061,12 +1061,12 @@ export default function ProductDetailClient({
                 {reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="bg-white rounded-3xl border border-[#E6E1D5] p-6 space-y-3.5 shadow-xs"
+                    className="bg-white rounded-3xl border border-farm-border p-6 space-y-3.5 shadow-xs"
                   >
                     {/* Reviewer Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-full bg-[#2C4A2E]/10 text-[#2C4A2E] flex items-center justify-center font-bold text-xs">
+                        <div className="w-10 h-10 rounded-full bg-farm-primary/10 text-farm-primary flex items-center justify-center font-bold text-xs">
                           {rev.userName ? rev.userName.charAt(0) : 'خ'}
                         </div>
                         <div>
@@ -1075,13 +1075,13 @@ export default function ProductDetailClient({
                               {rev.userName}
                             </span>
                             {rev.isVerifiedBuyer && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-xs">
                                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                                 <span>خریدار تایید شده</span>
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-gray-400 mt-0.5 block">
+                          <span className="text-xs text-gray-600 mt-0.5 block">
                             ثبت شده در {rev.createdAt}
                           </span>
                         </div>
@@ -1147,14 +1147,14 @@ export default function ProductDetailClient({
 
                     {/* Recommendation */}
                     {rev.isRecommended !== undefined && (
-                      <div className="text-[11px] font-bold pt-1">
+                      <div className="text-xs font-bold pt-1">
                         {rev.isRecommended ? (
                           <span className="text-emerald-700 flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" />
                             <span>خرید این کالا را به دیگران پیشنهاد می‌کنم</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400 flex items-center gap-1">
+                          <span className="text-gray-600 flex items-center gap-1">
                             <X className="w-3.5 h-3.5 text-rose-400" />
                             <span>خرید این کالا را پیشنهاد نمی‌کنم</span>
                           </span>
@@ -1164,8 +1164,8 @@ export default function ProductDetailClient({
 
                     {/* Official Farm Reply */}
                     {rev.adminResponse && (
-                      <div className="p-3.5 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15 space-y-1 mt-2">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#2C4A2E]">
+                      <div className="p-3.5 rounded-2xl bg-farm-primary/5 border border-farm-primary/15 space-y-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-farm-primary">
                           <CornerDownLeft className="w-3.5 h-3.5" />
                           <span>پاسخ رسمی پشتیبانی مزارع پروفارم شیراز:</span>
                         </div>
@@ -1184,12 +1184,12 @@ export default function ProductDetailClient({
 
       {/* ================= RELATED PRODUCTS ================= */}
       {relatedProducts.length > 0 && (
-        <div className="pt-8 border-t border-[#E6E1D5] space-y-6">
+        <div className="pt-8 border-t border-farm-border space-y-6">
           <div>
-            <span className="text-xs font-bold text-farm-gold-text tracking-wide">
+            <span className="text-xs font-bold text-farm-gold-text">
               پیشنهادات ویژه مزرعه
             </span>
-            <h2 className="text-xl sm:text-2xl font-black text-[#2C4A2E]">
+            <h2 className="text-xl sm:text-2xl font-black text-farm-primary">
               سایر محصولات ارگانیک منتخب
             </h2>
           </div>
@@ -1204,7 +1204,7 @@ export default function ProductDetailClient({
       {/* ================= MODAL: INELIGIBLE BUYER RULE NOTICE ================= */}
       {isEligibilityModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-[#E6E1D5] shadow-2xl">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-farm-border shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
               <Lock className="w-6 h-6" />
             </div>
@@ -1221,7 +1221,7 @@ export default function ProductDetailClient({
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>چرا فقط خریداران واقعی؟</span>
               </div>
-              <p className="text-[11px] leading-relaxed">
+              <p className="text-xs leading-relaxed">
                 جهت اطمینان از اصالت دیدگاه‌ها و جلوگیری از نظرات غیرواقعی، سامانه پروفارم ثبت نظر را
                 منحصر به افرادی نموده است که کالا را سفارش داده و آن را دریافت نموده‌اند.
               </p>
@@ -1230,7 +1230,7 @@ export default function ProductDetailClient({
             <button
               type="button"
               onClick={() => setIsEligibilityModalOpen(false)}
-              className="w-full py-3 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors cursor-pointer"
+              className="w-full py-3 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors cursor-pointer"
             >
               متوجه شدم
             </button>
@@ -1241,7 +1241,7 @@ export default function ProductDetailClient({
       {/* ================= MODAL: SUBMIT VERIFIED REVIEW ================= */}
       {isReviewModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-[#E6E1D5] shadow-2xl my-8">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-farm-border shadow-2xl my-8">
             {reviewSubmittedSuccess ? (
               <div className="py-8 text-center space-y-3">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
@@ -1265,7 +1265,7 @@ export default function ProductDetailClient({
                   <button
                     type="button"
                     onClick={() => setIsReviewModalOpen(false)}
-                    className="p-1 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="p-1 rounded-xl text-gray-600 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -1317,7 +1317,7 @@ export default function ProductDetailClient({
                     value={reviewTitle}
                     onChange={(e) => setReviewTitle(e.target.value)}
                     placeholder="مثلاً: طعم اصیل زرده، بسته‌بندی عالی..."
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-farm-primary"
                   />
                 </div>
 
@@ -1332,7 +1332,7 @@ export default function ProductDetailClient({
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="تجربه خود از عطر، طعم، بسته‌بندی و تحویل این محصول را بنویسید..."
-                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E] leading-relaxed"
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-farm-primary leading-relaxed"
                   />
                 </div>
 
@@ -1347,7 +1347,7 @@ export default function ProductDetailClient({
                       value={proInput}
                       onChange={(e) => setProInput(e.target.value)}
                       placeholder="مثلاً: طراوت فوق‌العاده"
-                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-farm-primary"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1395,7 +1395,7 @@ export default function ProductDetailClient({
                       value={conInput}
                       onChange={(e) => setConInput(e.target.value)}
                       placeholder="مثلاً: قیمت نسبتاً بالا"
-                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-farm-primary"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1443,7 +1443,7 @@ export default function ProductDetailClient({
                         type="radio"
                         checked={isRecommended === true}
                         onChange={() => setIsRecommended(true)}
-                        className="text-[#2C4A2E]"
+                        className="text-farm-primary"
                       />
                       <span>بله، پیشنهاد می‌کنم</span>
                     </label>
@@ -1453,7 +1453,7 @@ export default function ProductDetailClient({
                         type="radio"
                         checked={isRecommended === false}
                         onChange={() => setIsRecommended(false)}
-                        className="text-[#2C4A2E]"
+                        className="text-farm-primary"
                       />
                       <span>خیر، پیشنهاد نمی‌کنم</span>
                     </label>
@@ -1461,7 +1461,7 @@ export default function ProductDetailClient({
                 </div>
 
                 {/* Notice */}
-                <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-[11px] leading-relaxed border border-amber-200">
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs leading-relaxed border border-amber-200">
                   توجه: به منظور رعایت ادب و استانداردهای فروشگاه، دیدگاه‌ها پس از تایید توسط ادمین
                   در صفحه محصول نمایش داده می‌شوند.
                 </div>
@@ -1477,7 +1477,7 @@ export default function ProductDetailClient({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md cursor-pointer transition-all hover:scale-102"
+                    className="px-6 py-2.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark shadow-md cursor-pointer transition-all hover:scale-102"
                   >
                     ثبت نهایی دیدگاه
                   </button>
@@ -1490,7 +1490,7 @@ export default function ProductDetailClient({
 
       {/* ================= STICKY BOTTOM ACTION BAR ================= */}
       {showStickyBar && isAvailable && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E6E1D5] py-3 px-4 sm:px-8 shadow-2xl animate-fade-in">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-farm-border py-3 px-4 sm:px-8 shadow-2xl animate-fade-in">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <img
@@ -1502,14 +1502,14 @@ export default function ProductDetailClient({
                 <div className="font-bold text-gray-900 text-xs sm:text-sm truncate">
                   {product.title}
                 </div>
-                <div className="text-xs font-black text-[#2C4A2E] mt-0.5">
+                <div className="text-xs font-black text-farm-primary mt-0.5">
                   {formatToman(product.price)}
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 bg-[#F9F8F5] border border-[#E6E1D5] rounded-xl p-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-farm-bg border border-farm-border rounded-xl p-1">
                 <button
                   type="button"
                   onClick={handleIncreaseQty}
@@ -1518,19 +1518,19 @@ export default function ProductDetailClient({
                       ? cartItem.quantity >= (product.stock || 1)
                       : selectedQty >= (product.stock || 1)
                   }
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-[#2C4A2E] hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                   aria-label="افزایش تعداد"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-                <span className="w-6 text-center text-xs sm:text-sm font-black text-[#2C4A2E]">
+                <span className="w-6 text-center text-xs sm:text-sm font-black text-farm-primary">
                   {toPersianDigits(cartItem ? cartItem.quantity : selectedQty)}
                 </span>
                 <button
                   type="button"
                   onClick={handleDecreaseQty}
                   disabled={!cartItem && selectedQty <= 1}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                   aria-label="کاهش تعداد"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -1540,7 +1540,7 @@ export default function ProductDetailClient({
               {cartItem ? (
                 <Link
                   href="/cart"
-                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                   <span>رفتن به سبد خرید</span>
@@ -1549,7 +1549,7 @@ export default function ProductDetailClient({
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                   <span>

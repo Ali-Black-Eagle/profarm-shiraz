@@ -93,7 +93,7 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
           </li>
           <li>یا حداقل مبلغ سفارش به میزان {formatToman(minBulkPrice)}</li>
         </ul>
-        <p className="text-[11px] text-gray-500 pt-1">
+        <p className="text-xs text-gray-500 pt-1">
           سبد خرید فعلی شما: {toPersianDigits(totalItemsCount)} بسته (مبلغ:{' '}
           {formatToman(totalPrice)})
         </p>
@@ -104,7 +104,7 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
           <button
             type="button"
             onClick={onEnableBulkMode}
-            className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-[#2C4A2E] text-white hover:bg-[#1E3520] transition-colors text-center"
+            className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-farm-primary text-white hover:bg-farm-primary-dark transition-colors text-center"
           >
             تبدیل به سفارش عمده (تکمیل حداقل بسته)
           </button>

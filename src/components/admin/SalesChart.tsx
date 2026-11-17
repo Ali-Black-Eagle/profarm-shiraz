@@ -95,7 +95,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
                 >
                   {/* Compact label above bar on desktop */}
                   <span
-                    className={`text-[11px] font-mono mb-1.5 transition-opacity hidden sm:block ${
+                    className={`text-xs font-mono mb-1.5 transition-opacity hidden sm:block ${
                       isSelected ? 'opacity-100 text-farm-primary font-bold' : 'opacity-70 text-farm-text-muted'
                     }`}
                   >
@@ -116,7 +116,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
 
                   {/* Day label */}
                   <span
-                    className={`mt-2 text-[11px] sm:text-xs font-bold transition-colors truncate max-w-full ${
+                    className={`mt-2 text-xs sm:text-xs font-bold transition-colors truncate max-w-full ${
                       isSelected ? 'text-farm-primary font-black' : 'text-farm-text-muted'
                     }`}
                   >
