@@ -59,6 +59,7 @@ import {
 } from './initial-data';
 import { generateDeliverySlots, formatToJalali, PERSIAN_MONTHS, PERSIAN_WEEKDAYS } from './jalali';
 import { sendOrderStatusSms, sendCustomSms } from './sms';
+import { isCountableSaleOrder } from './order-utils';
 import {
   generateSeoSlug,
   generateProductSeoTitle,
@@ -2003,38 +2004,54 @@ class FarmDataStore {
   }
 
   getWeeklySalesData(): { day: string; amount: number; orderCount: number }[] {
-    return [
-      { day: 'شنبه', amount: 3250000, orderCount: 7 },
-      { day: 'یکشنبه', amount: 5800000, orderCount: 14 },
-      { day: 'دوشنبه', amount: 4100000, orderCount: 9 },
-      { day: 'سه‌شنبه', amount: 3950000, orderCount: 8 },
-      { day: 'چهارشنبه', amount: 6900000, orderCount: 16 },
-      { day: 'پنج‌شنبه', amount: 5400000, orderCount: 12 },
-      { day: 'جمعه', amount: 1800000, orderCount: 4 },
-    ];
+    const paidOrders = this.getOrders().filter(isCountableSaleOrder);
+    const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+    return days.map((day) => {
+      const matching = paidOrders.filter((o) => {
+        try {
+          return formatToJalali(new Date(o.createdAt)).dayOfWeek === day;
+        } catch {
+          return false;
+        }
+      });
+      return {
+        day,
+        amount: matching.reduce((sum, o) => sum + o.totalAmount, 0),
+        orderCount: matching.length,
+      };
+    });
   }
 
-  // --- FINANCIAL ANALYTICS, DAILY, WEEKLY & MONTHLY PERIODS & EXCEL EXPORT ---
+  private calculateOrderCost(order: Order): number {
+    if (order.isSubscription) return 0;
+    return order.items.reduce((sum, item) => {
+      const prod =
+        this.products.find((p) => p.id === item.productId || p.slug === item.productId) ||
+        item.product;
+      const unitCost = typeof prod?.costPrice === 'number' && prod.costPrice >= 0 ? prod.costPrice : 0;
+      return sum + unitCost * item.quantity;
+    }, 0);
+  }
+
+  // --- FINANCIAL ANALYTICS, DAILY, WEEKLY & MONTHLY PERIODS & EXCEL EXPORT (100% Real Paid Orders) ---
   getDailyFinancialStats(targetDate?: string): DailyShiftStat[] {
-    const orders = this.getOrders();
+    const paidOrders = this.getOrders().filter(isCountableSaleOrder);
     const now = new Date();
 
-    // 4 standard operational shifts in Shiraz farm distribution
     const shiftsConfig = [
-      { id: 'morning', name: '۰۸:۰۰ الی ۱۲:۰۰ (صبح و تامین مزرعه)', startHour: 8, endHour: 12, baseOrders: 5, baseGross: 2450000, baseDisc: 150000, baseNet: 2300000, topProd: 'تخم‌مرغ محلی ارگانیک' },
-      { id: 'noon', name: '۱۲:۰۰ الی ۱۶:۰۰ (ظهر و پردازش انبار)', startHour: 12, endHour: 16, baseOrders: 7, baseGross: 3600000, baseDisc: 220000, baseNet: 3380000, topProd: 'عسل گون کوهی' },
-      { id: 'afternoon', name: '۱۶:۰۰ الی ۲۰:۰۰ (عصر و تحویل پیک شیراز)', startHour: 16, endHour: 20, baseOrders: 10, baseGross: 5100000, baseDisc: 380000, baseNet: 4720000, topProd: 'بسته سبزیجات نوبرانه' },
-      { id: 'night', name: '۲۰:۰۰ الی ۲۴:۰۰ (شب و سفارش‌های آنلاین)', startHour: 20, endHour: 24, baseOrders: 4, baseGross: 1950000, baseDisc: 150000, baseNet: 1800000, topProd: 'روغن زیتون فرابکر' },
+      { id: 'morning', name: '۰۸:۰۰ الی ۱۲:۰۰ (صبح و تامین مزرعه)', startHour: 8, endHour: 12 },
+      { id: 'noon', name: '۱۲:۰۰ الی ۱۶:۰۰ (ظهر و پردازش انبار)', startHour: 12, endHour: 16 },
+      { id: 'afternoon', name: '۱۶:۰۰ الی ۲۰:۰۰ (عصر و تحویل پیک شیراز)', startHour: 16, endHour: 20 },
+      { id: 'night', name: '۲۰:۰۰ الی ۲۴:۰۰ (شب و سفارش‌های آنلاین)', startHour: 20, endHour: 24 },
     ];
 
-    // Filter orders matching today / targetDate
-    const dateOrders = orders.filter((o) => {
+    const dateOrders = paidOrders.filter((o) => {
       const d = new Date(o.createdAt);
       if (isNaN(d.getTime())) return false;
       if (targetDate) {
         return d.toISOString().startsWith(targetDate);
       }
-      return d.toDateString() === now.toDateString() || (now.getTime() - d.getTime()) <= 24 * 60 * 60 * 1000;
+      return d.toDateString() === now.toDateString();
     });
 
     return shiftsConfig.map((shift) => {
@@ -2043,222 +2060,222 @@ class FarmDataStore {
         return h >= shift.startHour && h < shift.endHour;
       });
 
-      if (shiftOrders.length > 0) {
-        const grossRevenue = shiftOrders.reduce((sum, ord) => sum + ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0), 0);
-        const netRevenue = shiftOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
-        const totalDiscount = Math.max(0, grossRevenue - netRevenue);
-        const grossProfit = Math.round(netRevenue * 0.31);
-        const ordersCount = Math.max(shift.baseOrders, shiftOrders.length);
-        const finalGross = Math.max(shift.baseGross, grossRevenue);
-        const finalNet = Math.max(shift.baseNet, netRevenue);
-        const finalDiscount = Math.max(shift.baseDisc, totalDiscount);
-        const finalProfit = Math.max(Math.round(shift.baseNet * 0.31), grossProfit);
-        const averageOrderValue = Math.round(finalNet / ordersCount);
-
-        const prodCounts: Record<string, number> = {};
-        shiftOrders.forEach((ord) => {
-          ord.items.forEach((item) => {
-            const title = item.product?.title || item.productId;
-            prodCounts[title] = (prodCounts[title] || 0) + item.quantity;
-          });
-        });
-        const topProd = Object.entries(prodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || shift.topProd;
-
+      if (shiftOrders.length === 0) {
         return {
           shiftName: shift.name,
-          ordersCount,
-          grossRevenue: finalGross,
-          totalDiscount: finalDiscount,
-          netRevenue: finalNet,
-          grossProfit: finalProfit,
-          averageOrderValue,
-          topProduct: topProd,
+          ordersCount: 0,
+          grossRevenue: 0,
+          totalDiscount: 0,
+          netRevenue: 0,
+          grossProfit: 0,
+          averageOrderValue: 0,
+          topProduct: '-',
         };
       }
 
+      const grossRevenue = shiftOrders.reduce(
+        (sum, ord) =>
+          sum +
+          (ord.items.length > 0
+            ? ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0)
+            : ord.totalAmount),
+        0
+      );
+      const netRevenue = shiftOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
+      const totalCost = shiftOrders.reduce((sum, ord) => sum + this.calculateOrderCost(ord), 0);
+      const totalDiscount = Math.max(0, grossRevenue - netRevenue);
+      const grossProfit = Math.max(0, netRevenue - totalCost);
+      const averageOrderValue = Math.round(netRevenue / shiftOrders.length);
+
+      const prodCounts: Record<string, number> = {};
+      shiftOrders.forEach((ord) => {
+        ord.items.forEach((item) => {
+          const title = item.product?.title || item.productId;
+          prodCounts[title] = (prodCounts[title] || 0) + item.quantity;
+        });
+      });
+      const topProd = Object.entries(prodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
       return {
         shiftName: shift.name,
-        ordersCount: shift.baseOrders,
-        grossRevenue: shift.baseGross,
-        totalDiscount: shift.baseDisc,
-        netRevenue: shift.baseNet,
-        grossProfit: Math.round(shift.baseNet * 0.31),
-        averageOrderValue: Math.round(shift.baseNet / shift.baseOrders),
-        topProduct: shift.topProd,
+        ordersCount: shiftOrders.length,
+        grossRevenue,
+        totalDiscount,
+        netRevenue,
+        grossProfit,
+        averageOrderValue,
+        topProduct: topProd,
       };
     });
   }
 
   getWeeklyFinancialStats(weekFilter?: string): WeeklyDayStat[] {
-    const orders = this.getOrders();
+    const paidOrders = this.getOrders().filter(isCountableSaleOrder);
     const now = new Date();
     const todayJalali = formatToJalali(now);
 
     const weekdaysConfig = [
-      { dayName: 'شنبه', offset: -3, baseOrders: 18, baseGross: 8900000, baseDisc: 550000, baseNet: 8350000, topGateway: 'شاپرک (سامان‌کیش)' },
-      { dayName: 'یکشنبه', offset: -2, baseOrders: 24, baseGross: 12200000, baseDisc: 800000, baseNet: 11400000, topGateway: 'شاپرک (به‌پرداخت ملت)' },
-      { dayName: 'دوشنبه', offset: -1, baseOrders: 21, baseGross: 10500000, baseDisc: 650000, baseNet: 9850000, topGateway: 'اسنپ‌پی (اقساط ۴ ماهه)' },
-      { dayName: 'سه‌شنبه', offset: 0, baseOrders: 26, baseGross: 13100000, baseDisc: 900000, baseNet: 12200000, topGateway: 'شاپرک (سامان‌کیش)' },
-      { dayName: 'چهارشنبه', offset: 1, baseOrders: 32, baseGross: 16400000, baseDisc: 1100000, baseNet: 15300000, topGateway: 'شاپرک (به‌پرداخت ملت)' },
-      { dayName: 'پنج‌شنبه', offset: 2, baseOrders: 28, baseGross: 14200000, baseDisc: 950000, baseNet: 13250000, topGateway: 'شاپرک (زرین‌پال)' },
-      { dayName: 'جمعه', offset: 3, baseOrders: 12, baseGross: 6100000, baseDisc: 400000, baseNet: 5700000, topGateway: 'شاپرک (سامان‌کیش)' },
+      { dayName: 'شنبه', offset: -3 },
+      { dayName: 'یکشنبه', offset: -2 },
+      { dayName: 'دوشنبه', offset: -1 },
+      { dayName: 'سه‌شنبه', offset: 0 },
+      { dayName: 'چهارشنبه', offset: 1 },
+      { dayName: 'پنج‌شنبه', offset: 2 },
+      { dayName: 'جمعه', offset: 3 },
     ];
 
     return weekdaysConfig.map((wd) => {
-      const isToday = wd.dayName === todayJalali.dayOfWeek || wd.offset === 0;
-
-      // Calculate approximate Persian date string for this weekday
+      const isToday = wd.dayName === todayJalali.dayOfWeek;
       const targetDayNum = Math.max(1, Math.min(31, todayJalali.day + wd.offset));
       const dateStr = `${todayJalali.year}/${todayJalali.month.toString().padStart(2, '0')}/${targetDayNum.toString().padStart(2, '0')}`;
 
-      // Live orders matching this day of the week
-      const matchingOrders = orders.filter((o) => {
+      const matchingOrders = paidOrders.filter((o) => {
         try {
-          const j = formatToJalali(new Date(o.createdAt));
-          return j.dayOfWeek === wd.dayName;
+          const d = new Date(o.createdAt);
+          const diffDays = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+          return diffDays <= 7 && formatToJalali(d).dayOfWeek === wd.dayName;
         } catch {
           return false;
         }
       });
 
-      if (matchingOrders.length > 0) {
-        const liveGross = matchingOrders.reduce((sum, ord) => sum + ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0), 0);
-        const liveNet = matchingOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
-        const liveDiscount = Math.max(0, liveGross - liveNet);
-        const ordersCount = Math.max(wd.baseOrders, matchingOrders.length);
-        const grossRevenue = Math.max(wd.baseGross, liveGross);
-        const netRevenue = Math.max(wd.baseNet, liveNet);
-        const totalDiscount = Math.max(wd.baseDisc, liveDiscount);
-        const grossProfit = Math.round(netRevenue * 0.31);
-        const averageOrderValue = Math.round(netRevenue / ordersCount);
-
-        const gwCounts: Record<string, number> = {};
-        matchingOrders.forEach((o) => {
-          const g = o.payment?.gateway || 'شاپرک';
-          gwCounts[g] = (gwCounts[g] || 0) + 1;
-        });
-        const topGw = Object.entries(gwCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || wd.topGateway;
-
+      if (matchingOrders.length === 0) {
         return {
           dayName: wd.dayName,
           date: dateStr,
-          ordersCount,
-          grossRevenue,
-          totalDiscount,
-          netRevenue,
-          grossProfit,
-          averageOrderValue,
-          topGateway: topGw,
+          ordersCount: 0,
+          grossRevenue: 0,
+          totalDiscount: 0,
+          netRevenue: 0,
+          grossProfit: 0,
+          averageOrderValue: 0,
+          topGateway: '-',
           isToday,
         };
       }
 
+      const grossRevenue = matchingOrders.reduce(
+        (sum, ord) =>
+          sum +
+          (ord.items.length > 0
+            ? ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0)
+            : ord.totalAmount),
+        0
+      );
+      const netRevenue = matchingOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
+      const totalCost = matchingOrders.reduce((sum, ord) => sum + this.calculateOrderCost(ord), 0);
+      const totalDiscount = Math.max(0, grossRevenue - netRevenue);
+      const grossProfit = Math.max(0, netRevenue - totalCost);
+      const averageOrderValue = Math.round(netRevenue / matchingOrders.length);
+
+      const gwCounts: Record<string, number> = {};
+      matchingOrders.forEach((o) => {
+        const g = o.payment?.gateway || 'زرین‌پال';
+        gwCounts[g] = (gwCounts[g] || 0) + 1;
+      });
+      const topGw = Object.entries(gwCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
       return {
         dayName: wd.dayName,
         date: dateStr,
-        ordersCount: wd.baseOrders,
-        grossRevenue: wd.baseGross,
-        totalDiscount: wd.baseDisc,
-        netRevenue: wd.baseNet,
-        grossProfit: Math.round(wd.baseNet * 0.31),
-        averageOrderValue: Math.round(wd.baseNet / wd.baseOrders),
-        topGateway: wd.topGateway,
+        ordersCount: matchingOrders.length,
+        grossRevenue,
+        totalDiscount,
+        netRevenue,
+        grossProfit,
+        averageOrderValue,
+        topGateway: topGw,
         isToday,
       };
     });
   }
 
   getMonthlyFinancialStats(year: number = 1405): MonthlyFinancialStat[] {
-    const orders = this.getOrders();
+    const paidOrders = this.getOrders().filter(isCountableSaleOrder);
+    const currentMonth = formatToJalali(new Date()).month;
 
-    // Baseline historical / seasonal financial statements for year 1405 (Shiraz operations)
-    const baselineMonthly = [
-      { monthIndex: 1, monthName: 'فروردین', ordersCount: 168, gross: 82400000, discount: 4900000, net: 77500000, profit: 23250000, aov: 461300, topGateway: 'شاپرک (به‌پرداخت ملت)' },
-      { monthIndex: 2, monthName: 'اردیبهشت', ordersCount: 195, gross: 94800000, discount: 5900000, net: 88900000, profit: 27559000, aov: 455800, topGateway: 'شاپرک (سامان‌کیش)' },
-      { monthIndex: 3, monthName: 'خرداد', ordersCount: 214, gross: 106200000, discount: 7000000, net: 99200000, profit: 30752000, aov: 463500, topGateway: 'شاپرک (زرین‌پال)' },
-      { monthIndex: 4, monthName: 'تیر', ordersCount: 238, gross: 119500000, discount: 8000000, net: 111500000, profit: 34565000, aov: 468400, topGateway: 'اسنپ‌پی (اقساط ۴ ماهه)' },
-      { monthIndex: 5, monthName: 'مرداد', ordersCount: 252, gross: 127800000, discount: 8800000, net: 119000000, profit: 36890000, aov: 472200, topGateway: 'شاپرک (سامان‌کیش)' },
-      { monthIndex: 6, monthName: 'شهریور', ordersCount: 240, gross: 118900000, discount: 7100000, net: 111800000, profit: 34658000, aov: 465800, topGateway: 'شاپرک (به‌پرداخت ملت)', isCurrentMonth: true },
-      { monthIndex: 7, monthName: 'مهر', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-      { monthIndex: 8, monthName: 'آبان', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-      { monthIndex: 9, monthName: 'آذر', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-      { monthIndex: 10, monthName: 'دی', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-      { monthIndex: 11, monthName: 'بهمن', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-      { monthIndex: 12, monthName: 'اسفند', ordersCount: 0, gross: 0, discount: 0, net: 0, profit: 0, aov: 0, topGateway: '-' },
-    ];
+    return PERSIAN_MONTHS.map((monthName, idx) => {
+      const monthIndex = idx + 1;
+      const isCurrentMonth = monthIndex === currentMonth;
 
-    return baselineMonthly.map((m) => {
-      // Find orders matching this month
-      const monthOrders = orders.filter((o) => {
+      const monthOrders = paidOrders.filter((o) => {
         try {
           const jalali = formatToJalali(new Date(o.createdAt));
-          return jalali.month === m.monthIndex && jalali.year === year;
+          return jalali.month === monthIndex && jalali.year === year;
         } catch {
           return false;
         }
       });
 
-      if (monthOrders.length > 0) {
-        const liveGross = monthOrders.reduce((sum, ord) => sum + ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0), 0);
-        const liveNet = monthOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
-        const liveDiscount = Math.max(0, liveGross - liveNet);
-
-        const gwCounts: Record<string, number> = {};
-        monthOrders.forEach((o) => {
-          const g = o.payment?.gateway || 'شاپرک';
-          gwCounts[g] = (gwCounts[g] || 0) + 1;
-        });
-        const topGw = Object.entries(gwCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || m.topGateway;
-
+      if (monthOrders.length === 0) {
         return {
-          monthIndex: m.monthIndex,
-          monthName: m.monthName,
+          monthIndex,
+          monthName,
           year,
-          ordersCount: Math.max(m.ordersCount, monthOrders.length),
-          grossRevenue: Math.max(m.gross, liveGross),
-          totalDiscount: Math.max(m.discount, liveDiscount),
-          netRevenue: Math.max(m.net, liveNet),
-          grossProfit: Math.round(Math.max(m.net, liveNet) * 0.31),
-          averageOrderValue: Math.round(Math.max(m.net, liveNet) / Math.max(m.ordersCount, monthOrders.length)),
-          topGateway: topGw,
-          isCurrentMonth: m.isCurrentMonth,
+          ordersCount: 0,
+          grossRevenue: 0,
+          totalDiscount: 0,
+          netRevenue: 0,
+          grossProfit: 0,
+          averageOrderValue: 0,
+          topGateway: '-',
+          isCurrentMonth,
         };
       }
 
+      const grossRevenue = monthOrders.reduce(
+        (sum, ord) =>
+          sum +
+          (ord.items.length > 0
+            ? ord.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0)
+            : ord.totalAmount),
+        0
+      );
+      const netRevenue = monthOrders.reduce((sum, ord) => sum + ord.totalAmount, 0);
+      const totalCost = monthOrders.reduce((sum, ord) => sum + this.calculateOrderCost(ord), 0);
+      const totalDiscount = Math.max(0, grossRevenue - netRevenue);
+      const grossProfit = Math.max(0, netRevenue - totalCost);
+
+      const gwCounts: Record<string, number> = {};
+      monthOrders.forEach((o) => {
+        const g = o.payment?.gateway || 'زرین‌پال';
+        gwCounts[g] = (gwCounts[g] || 0) + 1;
+      });
+      const topGw = Object.entries(gwCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
       return {
-        monthIndex: m.monthIndex,
-        monthName: m.monthName,
+        monthIndex,
+        monthName,
         year,
-        ordersCount: m.ordersCount,
-        grossRevenue: m.gross,
-        totalDiscount: m.discount,
-        netRevenue: m.net,
-        grossProfit: m.profit,
-        averageOrderValue: m.aov,
-        topGateway: m.topGateway,
-        isCurrentMonth: m.isCurrentMonth,
+        ordersCount: monthOrders.length,
+        grossRevenue,
+        totalDiscount,
+        netRevenue,
+        grossProfit,
+        averageOrderValue: Math.round(netRevenue / monthOrders.length),
+        topGateway: topGw,
+        isCurrentMonth,
       };
     });
   }
 
   getFinancialRecords(timeframe?: string): FinancialRecord[] {
-    const orders = this.getOrders();
+    const paidOrders = this.getOrders().filter(isCountableSaleOrder);
     const settings = this.getSubscriptionSettings();
     const now = new Date();
 
     const isPersianMonth = PERSIAN_MONTHS.includes(timeframe || '');
     const isPersianWeekday = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'].includes(timeframe || '');
 
-    // Dynamic timeframe / Persian Month / Weekday filtering
-    const filteredOrders = orders.filter((order) => {
-      if (!timeframe || timeframe === 'ALL') return true;
+    // Strict timeframe filtering — never fall back to all orders when a timeframe has 0 orders
+    const filteredOrders = paidOrders.filter((order) => {
+      if (!timeframe || timeframe === 'ALL' || timeframe === 'YEAR') return true;
       const orderDate = new Date(order.createdAt);
-      if (isNaN(orderDate.getTime())) return true;
+      if (isNaN(orderDate.getTime())) return false;
 
       if (isPersianMonth) {
         try {
-          const jalali = formatToJalali(orderDate);
-          return jalali.monthName === timeframe;
+          return formatToJalali(orderDate).monthName === timeframe;
         } catch {
           return false;
         }
@@ -2266,19 +2283,15 @@ class FarmDataStore {
 
       if (isPersianWeekday) {
         try {
-          const jalali = formatToJalali(orderDate);
-          return jalali.dayOfWeek === timeframe;
+          return formatToJalali(orderDate).dayOfWeek === timeframe;
         } catch {
           return false;
         }
       }
 
-      const diffMs = now.getTime() - orderDate.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-      const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
+      const diffDays = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
       if (timeframe === 'TODAY' || timeframe === 'DAY') {
-        return diffHours <= 24 || orderDate.toDateString() === now.toDateString();
+        return orderDate.toDateString() === now.toDateString();
       }
       if (timeframe === 'WEEK') {
         return diffDays <= 7;
@@ -2286,43 +2299,36 @@ class FarmDataStore {
       if (timeframe === 'MONTH') {
         return diffDays <= 30;
       }
-      if (timeframe === 'YEAR') {
-        return diffDays <= 365;
-      }
       return true;
     });
 
-    const activeOrders = filteredOrders.length > 0 ? filteredOrders : orders;
-
-    return activeOrders.map((order) => {
-      const itemsGross = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    return filteredOrders.map((order) => {
+      const itemsGross =
+        order.items.length > 0
+          ? order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+          : order.totalAmount;
       const isPro = order.user?.tier === 'PRO' || (order.user?.isProMember && !order.user?.tier);
       const isPlus = order.user?.tier === 'PLUS';
       const customerTier: SubscriptionTier = order.user?.tier || (isPro ? 'PRO' : isPlus ? 'PLUS' : 'FREE');
 
-      let shippingFee = settings.baseShippingFee;
-      if (isPro) {
+      let shippingFee = order.isSubscription ? 0 : settings.baseShippingFee;
+      if (!order.isSubscription && isPro) {
         shippingFee = Math.round(settings.baseShippingFee * (1 - settings.proShippingDiscountPercent / 100));
       }
 
       const calculatedExpected = itemsGross + shippingFee;
       const discountAmount = Math.max(0, calculatedExpected - order.totalAmount);
-
-      const costAmount = order.items.reduce((sum, item) => {
-        const prod = this.getProductBySlug(item.productId) || item.product;
-        const unitCost = prod?.costPrice || Math.round(item.unitPrice * 0.7);
-        return sum + unitCost * item.quantity;
-      }, 0);
+      const costAmount = this.calculateOrderCost(order);
       const profitAmount = Math.max(0, order.totalAmount - costAmount);
 
-      const trackingCode = order.payment?.refId || `SHP-${order.orderNumber.replace(/[^0-9]/g, '').slice(-6) || '819204'}`;
+      const trackingCode = order.payment?.refId || order.orderNumber;
 
       return {
         id: order.id,
         orderNumber: order.orderNumber,
         createdAt: order.createdAt,
         customerName: order.address?.recipientName || order.user?.name || 'مشتری پروفارم',
-        customerPhone: order.address?.phone || order.user?.phone || '09170000000',
+        customerPhone: order.address?.phone || order.user?.phone || '-',
         customerTier,
         grossAmount: itemsGross,
         discountAmount,
@@ -2330,8 +2336,8 @@ class FarmDataStore {
         netPayableAmount: order.totalAmount,
         costAmount,
         profitAmount,
-        paymentGateway: order.payment?.gateway || 'شاپرک (سامان‌کیش)',
-        paymentStatus: order.payment?.status || (order.status !== 'CANCELLED' ? 'SUCCESS' : 'FAILED'),
+        paymentGateway: order.payment?.gateway || 'زرین‌پال',
+        paymentStatus: order.payment?.status || 'SUCCESS',
         orderStatus: order.status,
         itemCount: order.items.reduce((sum, i) => sum + i.quantity, 0),
         settlementStatus: 'SETTLED',
@@ -2342,93 +2348,38 @@ class FarmDataStore {
 
   getFinancialSummary(timeframe?: string): FinancialSummary {
     const records = this.getFinancialRecords(timeframe);
-    const monthlyStats = this.getMonthlyFinancialStats(1405);
+    const currentYear = formatToJalali(new Date()).year;
+    const monthlyStats = this.getMonthlyFinancialStats(currentYear);
     const weeklyStats = this.getWeeklyFinancialStats();
     const dailyStats = this.getDailyFinancialStats();
 
     const isPersianMonth = PERSIAN_MONTHS.includes(timeframe || '');
     const isPersianWeekday = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'].includes(timeframe || '');
     const isDaily = timeframe === 'TODAY' || timeframe === 'DAY';
-    const isWeekly = timeframe === 'WEEK' || isPersianWeekday;
-
-    const selectedMonthStat = isPersianMonth ? monthlyStats.find((m) => m.monthName === timeframe) : undefined;
-    const selectedWeekdayStat = isPersianWeekday ? weeklyStats.find((w) => w.dayName === timeframe) : undefined;
-
-    const totalYearlyNet = monthlyStats.reduce((sum, m) => sum + m.netRevenue, 0);
-    const totalYearlyGross = monthlyStats.reduce((sum, m) => sum + m.grossRevenue, 0);
-    const totalYearlyOrders = monthlyStats.reduce((sum, m) => sum + m.ordersCount, 0);
-    const totalYearlyDiscount = monthlyStats.reduce((sum, m) => sum + m.totalDiscount, 0);
-    const totalYearlyProfit = monthlyStats.reduce((sum, m) => sum + m.grossProfit, 0);
-
-    const totalWeeklyNet = weeklyStats.reduce((sum, w) => sum + w.netRevenue, 0);
-    const totalWeeklyGross = weeklyStats.reduce((sum, w) => sum + w.grossRevenue, 0);
-    const totalWeeklyOrders = weeklyStats.reduce((sum, w) => sum + w.ordersCount, 0);
-    const totalWeeklyDiscount = weeklyStats.reduce((sum, w) => sum + w.totalDiscount, 0);
-    const totalWeeklyProfit = weeklyStats.reduce((sum, w) => sum + w.grossProfit, 0);
-
-    const totalDailyNet = dailyStats.reduce((sum, d) => sum + d.netRevenue, 0);
-    const totalDailyGross = dailyStats.reduce((sum, d) => sum + d.grossRevenue, 0);
-    const totalDailyOrders = dailyStats.reduce((sum, d) => sum + d.ordersCount, 0);
-    const totalDailyDiscount = dailyStats.reduce((sum, d) => sum + d.totalDiscount, 0);
-    const totalDailyProfit = dailyStats.reduce((sum, d) => sum + d.grossProfit, 0);
-
     const isAllYear = !timeframe || timeframe === 'ALL' || timeframe === 'YEAR';
 
-    let grossRevenue = 0;
-    let totalDiscount = 0;
-    let netRevenue = 0;
-    let totalOrdersCount = 0;
-    let grossProfit = 0;
-    let selectedPeriodLabel = 'سال مالی ۱۴۰۵';
+    const selectedPeriodLabel = isPersianMonth
+      ? `ماه ${timeframe} ${currentYear}`
+      : isPersianWeekday
+      ? `روز ${timeframe}`
+      : isDaily
+      ? 'پایش امروز مزرعه'
+      : timeframe === 'WEEK'
+      ? 'عملکرد ۷ روز هفته جاری'
+      : isAllYear
+      ? 'کل سفارش‌های تاییدشده'
+      : timeframe;
 
-    if (selectedMonthStat) {
-      grossRevenue = selectedMonthStat.grossRevenue;
-      totalDiscount = selectedMonthStat.totalDiscount;
-      netRevenue = selectedMonthStat.netRevenue;
-      totalOrdersCount = selectedMonthStat.ordersCount;
-      grossProfit = selectedMonthStat.grossProfit;
-      selectedPeriodLabel = `ماه ${timeframe} ۱۴۰۵`;
-    } else if (selectedWeekdayStat) {
-      grossRevenue = selectedWeekdayStat.grossRevenue;
-      totalDiscount = selectedWeekdayStat.totalDiscount;
-      netRevenue = selectedWeekdayStat.netRevenue;
-      totalOrdersCount = selectedWeekdayStat.ordersCount;
-      grossProfit = selectedWeekdayStat.grossProfit;
-      selectedPeriodLabel = `روز ${timeframe} (${selectedWeekdayStat.date})`;
-    } else if (isDaily) {
-      grossRevenue = totalDailyGross;
-      totalDiscount = totalDailyDiscount;
-      netRevenue = totalDailyNet;
-      totalOrdersCount = totalDailyOrders;
-      grossProfit = totalDailyProfit;
-      selectedPeriodLabel = 'پایش امروز مزرعه';
-    } else if (timeframe === 'WEEK') {
-      grossRevenue = totalWeeklyGross;
-      totalDiscount = totalWeeklyDiscount;
-      netRevenue = totalWeeklyNet;
-      totalOrdersCount = totalWeeklyOrders;
-      grossProfit = totalWeeklyProfit;
-      selectedPeriodLabel = 'عملکرد ۷ روز هفته جاری';
-    } else if (isAllYear) {
-      grossRevenue = totalYearlyGross;
-      totalDiscount = totalYearlyDiscount;
-      netRevenue = totalYearlyNet;
-      totalOrdersCount = totalYearlyOrders;
-      grossProfit = totalYearlyProfit;
-      selectedPeriodLabel = 'کل سال مالی ۱۴۰۵';
-    } else {
-      grossRevenue = records.reduce((sum, r) => sum + r.grossAmount, 0);
-      totalDiscount = records.reduce((sum, r) => sum + r.discountAmount, 0);
-      netRevenue = records.reduce((sum, r) => sum + r.netPayableAmount, 0);
-      totalOrdersCount = records.length;
-      grossProfit = Math.round(netRevenue * 0.31);
-      selectedPeriodLabel = timeframe;
-    }
-
+    // Strictly reconciled from filtered paid records so dashboard, finance, and CSV match 100%
+    const grossRevenue = records.reduce((sum, r) => sum + r.grossAmount, 0);
+    const totalDiscount = records.reduce((sum, r) => sum + r.discountAmount, 0);
+    const netRevenue = records.reduce((sum, r) => sum + r.netPayableAmount, 0);
+    const totalOrdersCount = records.length;
+    const totalCost = records.reduce((sum, r) => sum + (r.costAmount || 0), 0);
+    const grossProfit = Math.max(0, netRevenue - totalCost);
     const totalShipping = records.reduce((sum, r) => sum + r.shippingFee, 0);
     const averageOrderValue = totalOrdersCount > 0 ? Math.round(netRevenue / totalOrdersCount) : 0;
-    const totalCost = records.reduce((sum, r) => sum + (r.costAmount || 0), 0);
-    const profitMarginPercent = netRevenue > 0 ? Math.round((grossProfit / netRevenue) * 100) : 31;
+    const profitMarginPercent = netRevenue > 0 ? Math.round((grossProfit / netRevenue) * 100) : 0;
 
     // Payment Gateway Breakdown
     const gwMap = new Map<string, { amount: number; count: number }>();
@@ -2455,11 +2406,11 @@ class FarmDataStore {
     const settings = this.getSubscriptionSettings();
     const subscriptionRevenue = proCount * settings.proMonthlyPrice + plusCount * settings.plusMonthlyPrice;
 
-    // Category breakdown derived from the active timeframe records
+    // Category breakdown derived strictly from the active timeframe's countable paid records
     const orderIdSet = new Set(records.map((r) => r.id));
     const timeframeOrders = this.orders.filter((o) => orderIdSet.has(o.id));
     const catMap = new Map<string, { revenue: number; count: number }>();
-    (timeframeOrders.length > 0 ? timeframeOrders : this.orders).forEach((ord) => {
+    timeframeOrders.forEach((ord) => {
       ord.items.forEach((item) => {
         const cat = item.product?.category || 'محصولات مزرعه';
         const current = catMap.get(cat) || { revenue: 0, count: 0 };

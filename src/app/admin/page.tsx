@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { farmStore } from '@/lib/db-store';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { getOrderStatusMeta } from '@/lib/site-config';
+import { isCountableSaleOrder } from '@/lib/order-utils';
 import { Order, FinancialSummary, Product, ReturnRequest } from '@/types';
 import { SalesChart } from '@/components/admin/SalesChart';
 
@@ -103,7 +105,8 @@ export default function AdminOverviewPage() {
     }
   };
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const paidOrders = orders.filter(isCountableSaleOrder);
+  const totalRevenue = finSummary?.netRevenue ?? paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
   const outForDeliveryCount = orders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
   const users = farmStore.getAllUsers();
@@ -388,10 +391,10 @@ export default function AdminOverviewPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-amber-900">
-            {formatToman(finSummary?.grossProfit || Math.round(totalRevenue * 0.32))}
+            {formatToman(finSummary?.grossProfit ?? 0)}
           </div>
-          <span className="text-[11px] text-amber-700 font-medium">
-            حاشیه سود میانگین: {toPersianDigits(finSummary?.profitMarginPercent || 32)}٪ بعد از بهای خرید
+          <span className="text-[11px] text-amber-800 font-medium">
+            حاشیه سود واقعی: {toPersianDigits(finSummary?.profitMarginPercent ?? 0)}٪ از {toPersianDigits(paidOrders.length)} سفارش تاییدشده
           </span>
         </div>
 
@@ -512,25 +515,16 @@ export default function AdminOverviewPage() {
                     {formatToman(order.totalAmount)}
                   </td>
                   <td className="py-3.5 px-3">
-                    <span
-                      className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        order.status === 'PROCESSING'
-                          ? 'bg-blue-100 text-blue-800'
-                          : order.status === 'OUT_FOR_DELIVERY'
-                          ? 'bg-amber-100 text-amber-800'
-                          : order.status === 'DELIVERED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {order.status === 'PROCESSING'
-                        ? 'در حال آماده‌سازی'
-                        : order.status === 'OUT_FOR_DELIVERY'
-                        ? 'تحویل به پیک'
-                        : order.status === 'DELIVERED'
-                        ? 'تحویل داده شد'
-                        : order.status}
-                    </span>
+                    {(() => {
+                      const statusMeta = getOrderStatusMeta(order.status);
+                      return (
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${statusMeta.badgeClass}`}
+                        >
+                          {statusMeta.shortLabel}
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

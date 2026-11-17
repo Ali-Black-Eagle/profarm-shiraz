@@ -260,6 +260,7 @@ export interface Product {
   status?: ProductStatus; // موجود، ناموجود، به زودی
   images: string[];
   isOrganicCertified: boolean;
+  isDigital?: boolean;
   isBulkEligible: boolean;
   minBulkQuantity: number;
 

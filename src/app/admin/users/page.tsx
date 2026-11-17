@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { farmStore } from '@/lib/db-store';
 import { User, SubscriptionTier, UserRole } from '@/types';
 import { toPersianDigits } from '@/lib/formatters';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Users,
   Crown,
@@ -15,6 +16,7 @@ import {
   X,
   Save,
   CheckCircle2,
+  AlertCircle,
   Filter,
   UserCheck,
   Zap,
@@ -22,9 +24,10 @@ import {
 } from 'lucide-react';
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [filterTier, setFilterTier] = useState<'ALL' | 'PRO' | 'PLUS' | 'FREE'>('ALL');
-  const [notification, setNotification] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -32,6 +35,8 @@ export default function AdminUsersPage() {
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('FREE');
   const [customExpiry, setCustomExpiry] = useState<string>('');
   const [userRole, setUserRole] = useState<UserRole>('USER');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -67,10 +72,20 @@ export default function AdminUsersPage() {
     loadUsers();
   }, []);
 
-  const showToast = (msg: string) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 4000);
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ type, text });
+    setTimeout(() => setNotification(null), 5000);
   };
+
+  const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+  const isEditingSelf = Boolean(
+    editingUser &&
+      currentUser &&
+      ((editingUser.id && currentUser.id && editingUser.id === currentUser.id) ||
+        (editingUser.phone && currentUser.phone && editingUser.phone === currentUser.phone))
+  );
+  const isEditingLastAdmin = Boolean(editingUser?.role === 'ADMIN' && adminCount <= 1);
+  const isRoleLocked = isEditingSelf || isEditingLastAdmin;
 
   const handleOpenEditModal = (user: User) => {
     setEditingUser(user);
@@ -79,6 +94,7 @@ export default function AdminUsersPage() {
     const expiry = tier === 'PRO' ? (user.proExpiresAt || '۱۴۰۵/۱۲/۲۹') : tier === 'PLUS' ? (user.plusExpiresAt || '۱۴۰۵/۱۲/۲۹') : '';
     setCustomExpiry(expiry);
     setUserRole(user.role || 'USER');
+    setSaveError(null);
     setIsEditModalOpen(true);
   };
 
@@ -93,10 +109,30 @@ export default function AdminUsersPage() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setSaveError(null);
 
+    const isRoleChanging = editingUser.role !== userRole;
+    if (isRoleChanging) {
+      if (isEditingSelf && userRole !== 'ADMIN') {
+        setSaveError('امکان تغییر نقش حساب کاربری خودتان به کاربر عادی وجود ندارد.');
+        return;
+      }
+      if (isEditingLastAdmin && userRole !== 'ADMIN') {
+        setSaveError('این حساب آخرین مدیر ارشد سامانه است و نمی‌توان نقش آن را کاهش داد.');
+        return;
+      }
+      const confirmRole = window.confirm(
+        `آیا از تغییر نقش «${editingUser.name || editingUser.phone}» به «${
+          userRole === 'ADMIN' ? 'مدیر ارشد' : 'کاربر عادی'
+        }» اطمینان دارید؟`
+      );
+      if (!confirmRole) return;
+    }
+
+    setIsSaving(true);
     try {
       // 1. Update subscription on server
-      await fetch('/api/admin', {
+      const subRes = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,10 +144,15 @@ export default function AdminUsersPage() {
           },
         }),
       });
+      const subData = await subRes.json().catch(() => ({}));
+      if (!subRes.ok || !subData.success) {
+        setSaveError(subData.error || subData.message || 'خطا در ذخیره اشتراک کاربر در سرور.');
+        return;
+      }
 
       // 2. Update role on server if changed
-      if (editingUser.role !== userRole) {
-        await fetch('/api/admin', {
+      if (isRoleChanging) {
+        const roleRes = await fetch('/api/admin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -122,27 +163,34 @@ export default function AdminUsersPage() {
             },
           }),
         });
+        const roleData = await roleRes.json().catch(() => ({}));
+        if (!roleRes.ok || !roleData.success) {
+          setSaveError(roleData.error || roleData.message || 'خطا در تغییر نقش کاربر در سرور.');
+          return;
+        }
       }
-    } catch (err) {
-      console.warn('Failed to update user on server API:', err);
-    }
 
-    // Sync local store
-    const userIdentifier = editingUser.id || editingUser.phone || '';
-    if (userIdentifier) {
-      farmStore.updateUserSubscription(
-        userIdentifier,
-        selectedTier,
-        selectedTier !== 'FREE' ? customExpiry : undefined
-      );
-      if (editingUser.role !== userRole) {
-        farmStore.updateUserRole(userIdentifier, userRole);
+      // Sync local store ONLY after server confirms success
+      const userIdentifier = editingUser.id || editingUser.phone || '';
+      if (userIdentifier) {
+        farmStore.updateUserSubscription(
+          userIdentifier,
+          selectedTier,
+          selectedTier !== 'FREE' ? customExpiry : undefined
+        );
+        if (isRoleChanging) {
+          farmStore.updateUserRole(userIdentifier, userRole);
+        }
       }
-    }
 
-    await loadUsers();
-    setIsEditModalOpen(false);
-    showToast(`اشتراک و دسترسی‌های کاربر ${editingUser.name || editingUser.phone || 'کاربر'} با موفقیت ذخیره شد.`);
+      await loadUsers();
+      setIsEditModalOpen(false);
+      showToast(`اشتراک و دسترسی‌های کاربر ${editingUser.name || editingUser.phone || 'کاربر'} با موفقیت در سرور ذخیره شد.`);
+    } catch {
+      setSaveError('خطا در ارتباط با سرور. تغییرات ذخیره نشد؛ لطفاً مجدداً تلاش کنید.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const filteredUsers = users.filter((u) => {
@@ -188,9 +236,20 @@ export default function AdminUsersPage() {
       </div>
 
       {notification && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs sm:text-sm font-bold text-emerald-950 flex items-center gap-2.5 animate-in fade-in shadow-xs">
-          <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
-          <span>{notification}</span>
+        <div
+          role={notification.type === 'error' ? 'alert' : 'status'}
+          className={`p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-center gap-2.5 animate-in fade-in shadow-xs ${
+            notification.type === 'error'
+              ? 'bg-rose-50 border-rose-300 text-rose-900'
+              : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+          }`}
+        >
+          {notification.type === 'error' ? (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+          )}
+          <span>{notification.text}</span>
         </div>
       )}
 
@@ -629,13 +688,28 @@ export default function AdminUsersPage() {
                 </label>
                 <select
                   value={userRole}
+                  disabled={isRoleLocked}
                   onChange={(e) => setUserRole(e.target.value as UserRole)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E]"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#E6E1D5] bg-[#F9F8F5] focus:bg-white text-xs font-bold text-gray-800 focus:outline-none focus:border-[#2C4A2E] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="USER">کاربر عادی و خریدار محصولات</option>
                   <option value="ADMIN">مدیر ارشد (دسترسی به پنل ادمین)</option>
                 </select>
+                {isRoleLocked && (
+                  <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-medium">
+                    {isEditingSelf
+                      ? 'برای جلوگیری از قفل شدن پنل مدیریت، امکان کاهش نقش حساب کاربری خودتان غیرفعال است.'
+                      : 'این حساب تنها مدیر ارشد فعال سامانه است و امکان کاهش نقش آن وجود ندارد.'}
+                  </p>
+                )}
               </div>
+
+              {saveError && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
@@ -648,10 +722,11 @@ export default function AdminUsersPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
+                  disabled={isSaving}
+                  className="px-6 py-2 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60"
                 >
                   <Save className="w-4 h-4 text-[#D4A373]" />
-                  <span>ذخیره تغییرات</span>
+                  <span>{isSaving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}</span>
                 </button>
               </div>
             </form>

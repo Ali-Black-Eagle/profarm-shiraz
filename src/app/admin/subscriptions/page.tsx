@@ -111,18 +111,19 @@ export default function AdminSubscriptionsPage() {
           : [],
       };
       setSettings(sanitizedSettings);
-      farmStore.updateSubscriptionSettings(sanitizedSettings);
-      setStats(farmStore.getSubscriptionStats());
 
+      let serverSaved = false;
       try {
         const res = await fetch('/api/subscriptions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ settings: sanitizedSettings }),
         });
-        if (!res.ok) {
+        if (res.ok) {
+          serverSaved = true;
+        } else {
           // Fallback to /api/admin
-          await fetch('/api/admin', {
+          const adminRes = await fetch('/api/admin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -130,12 +131,22 @@ export default function AdminSubscriptionsPage() {
               payload: { settings: sanitizedSettings },
             }),
           });
+          if (adminRes.ok) {
+            serverSaved = true;
+          }
         }
-      } catch (serverErr) {
-        // Local state is already saved
+      } catch {
+        serverSaved = false;
       }
 
-      showToast('تنظیمات اشتراک‌ها (خصوصیات واقعی و بصری) با موفقیت ذخیره و در سراسر سایت اعمال شد.');
+      if (!serverSaved) {
+        showToast('خطا در ذخیره تنظیمات اشتراک در سرور. لطفاً اتصال خود را بررسی کرده و مجدداً تلاش کنید.');
+        return;
+      }
+
+      farmStore.updateSubscriptionSettings(sanitizedSettings);
+      setStats(farmStore.getSubscriptionStats());
+      showToast('تنظیمات اشتراک‌ها با موفقیت در سرور ذخیره و در سراسر سایت اعمال شد.');
     } catch (err) {
       showToast('خطا در ذخیره‌سازی تنظیمات');
     } finally {
@@ -151,7 +162,7 @@ export default function AdminSubscriptionsPage() {
     ) {
       const reset = farmStore.resetSubscriptionSettings();
       try {
-        await fetch('/api/admin', {
+        const res = await fetch('/api/admin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -159,8 +170,13 @@ export default function AdminSubscriptionsPage() {
             payload: { settings: reset },
           }),
         });
-      } catch (serverErr) {
-        // ignore
+        if (!res.ok) {
+          showToast('خطا در بازنشانی تنظیمات در سرور.');
+          return;
+        }
+      } catch {
+        showToast('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
+        return;
       }
       refreshData();
       showToast('تنظیمات اشتراک با موفقیت به مقادیر اولیه بازگردانی شد.');

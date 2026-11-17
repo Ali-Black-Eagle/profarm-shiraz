@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { farmStore } from '@/lib/db-store';
 import { Order, OrderStatus, Product, OrderItem } from '@/types';
 import { formatToman, toPersianDigits, isValidIranPhone } from '@/lib/formatters';
+import { getOrderStatusMeta } from '@/lib/site-config';
 import {
   ShoppingBag,
   Truck,
@@ -63,13 +64,31 @@ export default function AdminOrdersPage() {
   }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    const updated = await farmStore.updateOrderStatus(orderId, newStatus);
-    if (updated) {
+    const statusLabel = getOrderStatusMeta(newStatus).label;
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateOrderStatus',
+          payload: { orderId, status: newStatus },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setSmsNotification(`خطا: ${data.error || data.message || 'تغییر وضعیت سفارش مجاز نیست.'}`);
+        setTimeout(() => setSmsNotification(null), 5000);
+        return;
+      }
+      const updated = await farmStore.updateOrderStatus(orderId, newStatus);
       fetchOrdersAndProducts();
-      const phone = updated.address?.phone || updated.user?.phone;
+      const phone = updated?.address?.phone || updated?.user?.phone || '';
       setSmsNotification(
-        `پیامک خودکار تغییر وضعیت به «${newStatus}» برای شماره ${toPersianDigits(phone)} با موفقیت ارسال و ثبت گردید.`
+        `وضعیت سفارش به «${statusLabel}» تغییر یافت${phone ? ` (شماره تماس مشتری: ${toPersianDigits(phone)})` : ''}.`
       );
+      setTimeout(() => setSmsNotification(null), 5000);
+    } catch {
+      setSmsNotification('خطا در ارتباط با سرور؛ وضعیت سفارش تغییر نکرد.');
       setTimeout(() => setSmsNotification(null), 5000);
     }
   };

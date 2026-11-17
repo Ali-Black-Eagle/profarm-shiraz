@@ -96,7 +96,7 @@ export default function AdminPaymentSettingsPage() {
       });
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success) {
         farmStore.updatePaymentSettings(settings);
         setNotification({
           type: 'success',
@@ -105,15 +105,13 @@ export default function AdminPaymentSettingsPage() {
       } else {
         setNotification({
           type: 'error',
-          message: data.message || 'خطا در ذخیره‌سازی تنظیمات در سرور.',
+          message: data.message || data.error || 'خطا در ذخیره‌سازی تنظیمات در سرور.',
         });
       }
-    } catch (err: any) {
-      // Fallback update in store
-      farmStore.updatePaymentSettings(settings);
+    } catch {
       setNotification({
-        type: 'success',
-        message: 'تنظیمات در حافظه پایدار مرورگر ذخیره شد.',
+        type: 'error',
+        message: 'خطا در ارتباط با سرور؛ تنظیمات درگاه در سرور ذخیره نشد.',
       });
     } finally {
       setIsSaving(false);
@@ -611,33 +609,57 @@ export default function AdminPaymentSettingsPage() {
               </p>
             </div>
 
-            {/* Sandbox Mode Toggle */}
+            {/* Sandbox vs Live Mode Segmented Selector (Unambiguous in RTL) */}
             <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50/50 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-xs font-black text-gray-900">محیط آزمایشی (سندباکس زرین‌پال):</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
-                    در حالت سندباکس پرداخت‌ها به درگاه تستی sandbox.zarinpal.com هدایت می‌شوند.
+                  <h4 className="text-xs font-black text-gray-900">حالت اجرای درگاه زرین‌پال:</h4>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    در حالت سندباکس پرداخت‌ها به درگاه تستی هدایت می‌شوند؛ در حالت عملیاتی پرداخت واقعی شاپرک فعال است.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSettings({
-                      ...settings,
-                      zarinpal: { ...settings.zarinpal, sandbox: !settings.zarinpal.sandbox },
-                    })
-                  }
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                    settings.zarinpal.sandbox ? 'bg-amber-600' : 'bg-emerald-600'
-                  }`}
+                <div
+                  role="radiogroup"
+                  aria-label="حالت اجرای زرین‌پال"
+                  className="inline-flex p-1 rounded-xl bg-gray-200/80 border border-gray-300 shrink-0"
                 >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                      settings.zarinpal.sandbox ? 'translate-x-0' : '-translate-x-5'
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={settings.zarinpal.sandbox}
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        zarinpal: { ...settings.zarinpal, sandbox: true },
+                      })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      settings.zarinpal.sandbox
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-gray-700 hover:text-gray-900'
                     }`}
-                  />
-                </button>
+                  >
+                    تستی (سندباکس)
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!settings.zarinpal.sandbox}
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        zarinpal: { ...settings.zarinpal, sandbox: false },
+                      })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      !settings.zarinpal.sandbox
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    عملیاتی (Live)
+                  </button>
+                </div>
               </div>
 
               <div

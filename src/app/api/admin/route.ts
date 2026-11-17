@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { getSessionFromRequest } from '@/lib/session';
+import { normalizePhoneNumber } from '@/lib/formatters';
+import { isValidOrderStatusTransition } from '@/lib/order-utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,9 +56,24 @@ export async function POST(req: NextRequest) {
 
     if (action === 'updateOrderStatus') {
       const { orderId, status } = payload || {};
-      const allowedStatuses = ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-      if (!allowedStatuses.includes(status)) {
-        return NextResponse.json({ success: false, message: 'وضعیت سفارش نامعتبر است.' }, { status: 400 });
+      const allowedStatuses = ['PENDING_PAYMENT', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+      if (!orderId || !allowedStatuses.includes(status)) {
+        return NextResponse.json({ success: false, message: 'وضعیت یا شناسه سفارش نامعتبر است.' }, { status: 400 });
+      }
+      const existingOrder = farmStore.getOrderById(orderId);
+      if (!existingOrder) {
+        return NextResponse.json({ success: false, message: 'سفارش مورد نظر یافت نشد.' }, { status: 404 });
+      }
+      const transition = isValidOrderStatusTransition(
+        existingOrder.status,
+        status,
+        existingOrder.payment?.gateway
+      );
+      if (!transition.allowed) {
+        return NextResponse.json(
+          { success: false, message: transition.reason || 'تغییر وضعیت سفارش مجاز نیست.' },
+          { status: 400 }
+        );
       }
       const updated = await farmStore.updateOrderStatus(orderId, status);
       return NextResponse.json({ success: true, order: updated });
@@ -79,8 +96,36 @@ export async function POST(req: NextRequest) {
       if (role !== 'ADMIN' && role !== 'USER') {
         return NextResponse.json({ success: false, message: 'نقش کاربری نامعتبر است.' }, { status: 400 });
       }
-      if (identifier === session.userId && role !== 'ADMIN') {
-        return NextResponse.json({ success: false, message: 'مدیر سیستم نمی‌تواند سطح دسترسی حساب خود را عزل کند.' }, { status: 400 });
+      const allUsers = farmStore.getAllUsers();
+      const cleanId = String(identifier || '').trim();
+      const targetUser = allUsers.find(
+        (u) =>
+          u.id === cleanId ||
+          (u.phone && normalizePhoneNumber(u.phone) === normalizePhoneNumber(cleanId)) ||
+          (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+      );
+      if (!targetUser) {
+        return NextResponse.json({ success: false, message: 'کاربر مورد نظر یافت نشد.' }, { status: 404 });
+      }
+      const isSelf =
+        targetUser.id === session.userId ||
+        (session.phone &&
+          targetUser.phone &&
+          normalizePhoneNumber(targetUser.phone) === normalizePhoneNumber(session.phone));
+      if (isSelf && role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, message: 'مدیر سیستم نمی‌تواند سطح دسترسی حساب خود را عزل کند.' },
+          { status: 400 }
+        );
+      }
+      if (targetUser.role === 'ADMIN' && role !== 'ADMIN') {
+        const remainingAdmins = allUsers.filter((u) => u.role === 'ADMIN' && u.id !== targetUser.id);
+        if (remainingAdmins.length === 0) {
+          return NextResponse.json(
+            { success: false, message: 'امکان عزل آخرین مدیر فعال سیستم وجود ندارد.' },
+            { status: 400 }
+          );
+        }
       }
       const updated = farmStore.updateUserRole(identifier, role);
       return NextResponse.json({ success: true, user: updated ? sanitizeUser(updated) : null });

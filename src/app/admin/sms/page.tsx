@@ -319,11 +319,11 @@ function AdminSmsPageContent() {
     }
   };
 
-  // Test simulation send
+  // Test simulation send (explicitly labeled as local simulation)
   const handleTestSendSimulation = () => {
     const current = eventTemplates.find((t) => t.id === selectedEventId);
     if (!current) return;
-    showToast(`پیامک تستی رویداد «${current.title}» با موفقیت به شماره مدیر سیستم ارسال شد.`);
+    showToast(`پیش‌نمایش شبیه‌سازی محلی رویداد «${current.title}» بررسی شد (ارسال واقعی مخابراتی انجام نشد).`);
   };
 
   // Save Gateway API Settings securely to server
@@ -338,25 +338,20 @@ function AdminSmsPageContent() {
           testPhone: testPhoneNumber,
         }),
       });
-      const data = await res.json();
-      if (data.success && data.settings) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.settings) {
         setGatewaySettings({ ...data.settings });
         farmStore.updateSmsSettings(data.settings);
         showToast(`تنظیمات وب‌سرویس API سامانه ${getProviderName(data.settings.provider)} با موفقیت در سرور ذخیره شد.`);
         return;
       }
+      alert(data.error || data.message || 'خطا در ذخیره تنظیمات پیامک در سرور.');
     } catch {
-      // fallback
+      alert('خطا در ارتباط با سرور؛ تنظیمات پیامک ذخیره نشد.');
     }
-    const updated = farmStore.updateSmsSettings({
-      ...gatewaySettings,
-      testPhone: testPhoneNumber,
-    });
-    setGatewaySettings({ ...updated });
-    showToast(`تنظیمات وب‌سرویس API سامانه ${getProviderName(updated.provider)} ذخیره شد.`);
   };
 
-  // Test send via configured SMS Gateway
+  // Test send via configured SMS Gateway (explicitly labeled when simulated)
   const handleTestGatewaySend = () => {
     if (!testPhoneNumber.trim()) {
       alert('لطفاً شماره موبایل تست را وارد کنید.');
@@ -369,10 +364,10 @@ function AdminSmsPageContent() {
       setIsTestingGateway(false);
       const provName = getProviderName(gatewaySettings.provider);
       setGatewayTestLog(
-        `✓ ارتباط موفق با وب‌سرویس ${provName}: پیامک تست اتصال سامانه مزارع پروفارم با موفقیت به شماره ${testPhoneNumber} تحویل شبکه مخابراتی شد. کد پیگیری شاپرک/سامانه: ${Math.floor(1000000 + Math.random() * 9000000)}`
+        `[شبیه‌سازی محلی] وب‌سرویس ${provName} برای شماره ${testPhoneNumber} در محیط آزمایشی بررسی شد. تا زمان فعال‌سازی API کلید واقعی در سرور، پیامکی به شبکه مخابراتی ارسال نمی‌شود.`
       );
-      showToast(`تست ارسال وب‌سرویس پیامک موفقیت‌آمیز بود!`);
-    }, 900);
+      showToast(`شبیه‌سازی تست اتصال وب‌سرویس ${provName} انجام شد (ارسال واقعی انجام نشد).`);
+    }, 400);
   };
 
   const getProviderName = (prov?: SmsProviderType | string) => {

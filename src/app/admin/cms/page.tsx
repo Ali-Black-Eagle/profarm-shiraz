@@ -123,9 +123,8 @@ export default function AdminCmsPage() {
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsSaving(true);
-    farmStore.updateSiteContent(content);
     try {
-      await fetch('/api/admin', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,15 +132,23 @@ export default function AdminCmsPage() {
           payload: { content },
         }),
       });
-    } catch (err) {
-      console.error('Failed to sync site content with server API', err);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setToastMessage(`خطا: ${data.error || data.message || 'تنظیمات در سرور ذخیره نشد.'}`);
+        setTimeout(() => setToastMessage(null), 6000);
+        return;
+      }
+      farmStore.updateSiteContent(content);
+      setToastMessage(
+        'تنظیمات محتوا و المان‌های سایت با موفقیت در سرور ذخیره و منتشر شد.'
+      );
+      setTimeout(() => setToastMessage(null), 6000);
+    } catch {
+      setToastMessage('خطا در ارتباط با سرور؛ تغییرات محتوا ذخیره نشد.');
+      setTimeout(() => setToastMessage(null), 6000);
     } finally {
       setIsSaving(false);
     }
-    setToastMessage(
-      'تنظیمات محتوا و المان‌های سایت با موفقیت ذخیره و به‌صورت آنی در سراسر سایت منتشر شد.'
-    );
-    setTimeout(() => setToastMessage(null), 6000);
   };
 
   const handleReset = async () => {
@@ -150,19 +157,26 @@ export default function AdminCmsPage() {
         'آیا از بازنشانی کلیه متون، تصاویر و بخش‌های محتوایی سایت به مقادیر اولیه اطمینان دارید؟'
       )
     ) {
-      const resetContent = farmStore.resetSiteContent();
-      setContent({ ...resetContent });
       try {
-        await fetch('/api/admin', {
+        const res = await fetch('/api/admin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'resetSiteContent' }),
         });
-      } catch (err) {
-        console.error('Failed to reset on server', err);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          setToastMessage(`خطا: ${data.error || 'بازنشانی در سرور انجام نشد.'}`);
+          setTimeout(() => setToastMessage(null), 5000);
+          return;
+        }
+        const resetContent = farmStore.resetSiteContent();
+        setContent({ ...resetContent });
+        setToastMessage('کلیه متون و بخش‌های سایت به حالت پیش‌فرض اولیه بازنشانی شدند.');
+        setTimeout(() => setToastMessage(null), 5000);
+      } catch {
+        setToastMessage('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
+        setTimeout(() => setToastMessage(null), 5000);
       }
-      setToastMessage('کلیه متون و بخش‌های سایت به حالت پیش‌فرض اولیه بازنشانی شدند.');
-      setTimeout(() => setToastMessage(null), 5000);
     }
   };
 
@@ -205,8 +219,15 @@ export default function AdminCmsPage() {
       </div>
 
       {toastMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-sm font-bold text-emerald-900 flex items-center gap-2.5 animate-in fade-in shadow-xs">
-          <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+        <div
+          role={toastMessage.startsWith('خطا') ? 'alert' : 'status'}
+          className={`p-4 rounded-2xl border text-sm font-bold flex items-center gap-2.5 animate-in fade-in shadow-xs ${
+            toastMessage.startsWith('خطا')
+              ? 'bg-rose-50 border-rose-300 text-rose-900'
+              : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          }`}
+        >
+          <CheckCircle2 className={`w-5 h-5 shrink-0 ${toastMessage.startsWith('خطا') ? 'text-rose-600' : 'text-emerald-700'}`} />
           <span>{toastMessage}</span>
         </div>
       )}

@@ -29,6 +29,7 @@ import {
 import { farmStore } from '@/lib/db-store';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { PERSIAN_MONTHS, formatToJalali } from '@/lib/jalali';
+import { SITE_CONFIG } from '@/lib/site-config';
 import {
   FinancialRecord,
   FinancialSummary,
@@ -44,8 +45,8 @@ const WEEKDAYS_LIST = [
   { name: 'شنبه', label: 'شنبه' },
   { name: 'یکشنبه', label: 'یکشنبه' },
   { name: 'دوشنبه', label: 'دوشنبه' },
-  { name: 'سه‌شنبه', label: 'سه‌شنبه (امروز)' },
-  { name: 'چهارشنبه', label: 'چهارشنبه (ارسال اصلی)' },
+  { name: 'سه‌شنبه', label: 'سه‌شنبه' },
+  { name: 'چهارشنبه', label: 'چهارشنبه' },
   { name: 'پنج‌شنبه', label: 'پنج‌شنبه' },
   { name: 'جمعه', label: 'جمعه' },
 ];
@@ -54,8 +55,8 @@ export default function AdminFinancePage() {
   // Period Mode: Daily, Weekly, or Monthly
   const [periodMode, setPeriodMode] = useState<MonitorPeriodMode>('MONTHLY');
 
-  // Active filters inside each mode
-  const [selectedMonth, setSelectedMonth] = useState<string>('شهریور');
+  // Active filters inside each mode (default ALL so real paid orders appear immediately)
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedWeekday, setSelectedWeekday] = useState<string>('ALL');
   const [selectedShift, setSelectedShift] = useState<string>('ALL');
 
@@ -111,6 +112,10 @@ export default function AdminFinancePage() {
 
   // Handle Export to Excel (CSV with UTF-8 BOM for Persian Windows Excel)
   const handleExportExcel = () => {
+    if (records.length === 0) {
+      showToast('در بازه زمانی انتخاب‌شده هیچ سفارش پرداخت‌شده‌ای برای صدور اکسل ثبت نشده است.');
+      return;
+    }
     try {
       const csvData = farmStore.exportFinancialCsv(activeTimeframe);
       const timestamp = new Date().toLocaleDateString('fa-IR').replace(/\//g, '-');
@@ -322,8 +327,8 @@ export default function AdminFinancePage() {
 
               {WEEKDAYS_LIST.map((w) => {
                 const isSelected = selectedWeekday === w.name;
-                const isToday = w.name === 'سه‌شنبه';
                 const dayStat = weeklyStats.find((s) => s.dayName === w.name);
+                const isToday = Boolean(dayStat?.isToday);
 
                 return (
                   <button
@@ -378,9 +383,9 @@ export default function AdminFinancePage() {
 
               {PERSIAN_MONTHS.map((mName) => {
                 const isSelected = selectedMonth === mName;
-                const isCurrent = mName === 'شهریور';
                 const mStat = monthlyStats.find((s) => s.monthName === mName);
-                const hasData = mStat && mStat.ordersCount > 0;
+                const isCurrent = Boolean(mStat?.isCurrentMonth);
+                const hasData = Boolean(mStat && mStat.ordersCount > 0);
 
                 return (
                   <button
@@ -409,7 +414,7 @@ export default function AdminFinancePage() {
                           : 'text-gray-400'
                       }`}
                     >
-                      {hasData ? `${toPersianDigits(mStat.ordersCount)} سفارش` : 'دوره آتی'}
+                      {hasData && mStat ? `${toPersianDigits(mStat.ordersCount)} سفارش` : 'بدون سفارش'}
                     </span>
                   </button>
                 );
@@ -505,7 +510,7 @@ export default function AdminFinancePage() {
             <div className="flex items-center justify-between text-white">
               <span className="text-xs font-bold text-emerald-300">سود ناخالص و حاشیه سود</span>
               <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black">
-                {toPersianDigits(summary.profitMarginPercent || 31)}٪ مارجین
+                {toPersianDigits(summary.profitMarginPercent ?? 0)}٪ مارجین
               </span>
             </div>
             <div className="text-2xl font-black text-emerald-300 mt-2">
@@ -540,8 +545,14 @@ export default function AdminFinancePage() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
+          {totalDailyOrders === 0 ? (
+            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+              <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در شیفت‌های امروز ثبت نشده است.</p>
+              <p className="text-xs text-gray-500">آمار واقعی به محض تسویه سفارش‌های جدید یا تحویل سفارش‌های پرداخت در محل در این جدول نمایش داده می‌شود.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
               <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
                 <tr>
                   <th className="py-3.5 px-4 font-black">شیفت کاری</th>
@@ -628,6 +639,7 @@ export default function AdminFinancePage() {
               </tfoot>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -650,8 +662,14 @@ export default function AdminFinancePage() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
+          {totalWeeklyOrders === 0 ? (
+            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+              <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در هفته جاری ثبت نشده است.</p>
+              <p className="text-xs text-gray-500">آمار واقعی روزهای هفته به محض ثبت و پرداخت سفارش‌های جدید نمایش داده می‌شود.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
               <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
                 <tr>
                   <th className="py-3.5 px-4 font-black">روز هفته</th>
@@ -777,6 +795,7 @@ export default function AdminFinancePage() {
               </tfoot>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -799,8 +818,14 @@ export default function AdminFinancePage() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
+          {totalYearlyOrders === 0 ? (
+            <div className="p-8 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center space-y-1.5">
+              <p className="text-sm font-bold text-gray-700">هنوز سفارش پرداخت‌شده‌ای در سال مالی جاری ثبت نشده است.</p>
+              <p className="text-xs text-gray-500">آمار واقعی ماهانه پس از تایید پرداخت یا تحویل سفارش‌های پرداخت در محل محاسبه می‌شود.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs">
               <thead className="bg-[#F9F8F5] border-b border-[#E6E1D5] text-[#2C4A2E]">
                 <tr>
                   <th className="py-3.5 px-4 font-black">ردیف</th>
@@ -929,6 +954,7 @@ export default function AdminFinancePage() {
               </tfoot>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -947,26 +973,32 @@ export default function AdminFinancePage() {
           </div>
 
           <div className="space-y-3.5">
-            {(summary.gatewayBreakdown || []).map((gw) => (
-              <div key={gw.gateway} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-gray-800 truncate max-w-[220px]">{gw.label}</span>
-                  <span className="text-[#2C4A2E]">{toPersianDigits(gw.percentage)}٪</span>
-                </div>
-
-                <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-emerald-700 transition-all"
-                    style={{ width: `${Math.max(8, gw.percentage)}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
-                  <span>{formatToman(gw.totalAmount)}</span>
-                  <span>{toPersianDigits(gw.count)} تراکنش</span>
-                </div>
+            {(summary.gatewayBreakdown || []).length === 0 ? (
+              <div className="py-6 px-4 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center text-xs text-gray-500">
+                تراکنش پرداخت‌شده‌ای در این بازه زمانی برای نمایش سهم درگاه‌ها وجود ندارد.
               </div>
-            ))}
+            ) : (
+              (summary.gatewayBreakdown || []).map((gw) => (
+                <div key={gw.gateway} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-gray-800 truncate max-w-[220px]">{gw.label}</span>
+                    <span className="text-[#2C4A2E]">{toPersianDigits(gw.percentage)}٪</span>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-700 transition-all"
+                      style={{ width: `${gw.percentage > 0 ? Math.max(8, gw.percentage) : 0}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>{formatToman(gw.totalAmount)}</span>
+                    <span>{toPersianDigits(gw.count)} تراکنش</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -983,36 +1015,42 @@ export default function AdminFinancePage() {
           </div>
 
           <div className="space-y-3.5">
-            {summary.tierRevenues.map((t) => (
-              <div key={t.tier} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-gray-800 flex items-center gap-1.5">
-                    {t.tier === 'PRO' && <Crown className="w-3.5 h-3.5 text-amber-500" />}
-                    {t.tier === 'PLUS' && <Zap className="w-3.5 h-3.5 text-emerald-600" />}
-                    <span>{t.label}</span>
-                  </span>
-                  <span className="text-[#2C4A2E]">{toPersianDigits(t.percentage)}٪</span>
-                </div>
-
-                <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      t.tier === 'PRO'
-                        ? 'bg-amber-500'
-                        : t.tier === 'PLUS'
-                        ? 'bg-emerald-600'
-                        : 'bg-gray-400'
-                    }`}
-                    style={{ width: `${Math.max(8, t.percentage)}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
-                  <span>{formatToman(t.revenue)}</span>
-                  <span>{toPersianDigits(t.ordersCount)} سفارش</span>
-                </div>
+            {summary.totalOrdersCount === 0 ? (
+              <div className="py-6 px-4 rounded-2xl bg-[#F9F8F5] border border-dashed border-[#E6E1D5] text-center text-xs text-gray-500">
+                سفارش پرداخت‌شده‌ای در این بازه زمانی برای تفکیک سطوح کاربری وجود ندارد.
               </div>
-            ))}
+            ) : (
+              summary.tierRevenues.map((t) => (
+                <div key={t.tier} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-gray-800 flex items-center gap-1.5">
+                      {t.tier === 'PRO' && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+                      {t.tier === 'PLUS' && <Zap className="w-3.5 h-3.5 text-emerald-600" />}
+                      <span>{t.label}</span>
+                    </span>
+                    <span className="text-[#2C4A2E]">{toPersianDigits(t.percentage)}٪</span>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        t.tier === 'PRO'
+                          ? 'bg-amber-500'
+                          : t.tier === 'PLUS'
+                          ? 'bg-emerald-600'
+                          : 'bg-gray-400'
+                      }`}
+                      style={{ width: `${t.percentage > 0 ? Math.max(8, t.percentage) : 0}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>{formatToman(t.revenue)}</span>
+                    <span>{toPersianDigits(t.ordersCount)} سفارش</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -1217,7 +1255,7 @@ export default function AdminFinancePage() {
                   <div><strong>نام شخص حقوقی:</strong> شرکت کشت و صنعت پروفارم شیراز</div>
                   <div><strong>شناسه ملی:</strong> ۱۰۸۶۰۱۲۳۴۵۶ | <strong>کد اقتصادی:</strong> ۴۱۱۵۶۷۸۹۱۲۳۴</div>
                   <div><strong>نشانی:</strong> استان فارس، شیراز، بلوار ارم، مجتمع پروفارم</div>
-                  <div><strong>تلفن پشتیبانی و پیگیری:</strong> ۰۷۱-۳۶۲۸۰۰۰۰</div>
+                  <div><strong>تلفن پشتیبانی و پیگیری:</strong> {SITE_CONFIG.contact.supportPhoneDisplay}</div>
                 </div>
 
                 {/* Buyer Box */}
