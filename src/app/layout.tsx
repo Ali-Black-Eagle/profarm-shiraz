@@ -5,6 +5,7 @@ import { Header } from '@/components/modules/Header';
 import { Footer } from '@/components/modules/Footer';
 import { ScrollToTop } from '@/components/modules/ScrollToTop';
 import { CartFloatingPopup } from '@/components/modules/CartFloatingPopup';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import { safeJsonLdStringify } from '@/lib/formatters';
 
 const vazirmatn = localFont({
@@ -257,11 +258,13 @@ export default function RootLayout({
             `,
           }}
         />
-        <ScrollToTop />
-        <Header />
-        <main id="main-content" className="flex-1 flex flex-col">{children}</main>
-        <Footer />
-        <CartFloatingPopup />
+        <ToastProvider>
+          <ScrollToTop />
+          <Header />
+          <main id="main-content" className="flex-1 flex flex-col">{children}</main>
+          <Footer />
+          <CartFloatingPopup />
+        </ToastProvider>
       </body>
     </html>
   );
