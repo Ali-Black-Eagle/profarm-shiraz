@@ -14,3 +14,6 @@ yarn-error.log*
 out
 .DS_Store
 *.pem
+admin userpass.txt
+.data/
+.env*

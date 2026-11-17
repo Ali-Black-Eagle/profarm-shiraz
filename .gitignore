@@ -23,6 +23,7 @@ scratch/
 src/lib/payment-settings.json
 *.pem
 *.bak
+admin userpass.txt
 
 # Android App Build Artifacts
 profarm-admin-app/build/
@@ -52,3 +53,5 @@ next-env.d.ts
 *.njsproj
 *.sln
 *.sw?
+e2e/test-results/
+e2e/playwright-report/

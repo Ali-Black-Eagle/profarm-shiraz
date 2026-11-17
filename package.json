@@ -7,11 +7,11 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "lint": "next lint",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:start": "tsx scripts/start-postgres.ts"
+    "db:start": "tsx scripts/start-postgres.ts",
+    "test:e2e": "playwright test"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -35,6 +35,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.0.7",
     "@types/node": "^22.13.4",
     "@types/nodemailer": "^8.0.2",
