@@ -6,6 +6,7 @@ import { Order, DailyCapacityItem } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { isDigitalOrder } from '@/lib/order-utils';
 import { getOrderStatusMeta } from '@/lib/site-config';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   Printer,
   FileSpreadsheet,
@@ -47,6 +48,8 @@ export function getShirazZoneForAddress(address: string): string {
 }
 
 export default function DailyManifestPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
@@ -96,9 +99,13 @@ export default function DailyManifestPage() {
 
   const handleMarkDelivered = async (order: Order) => {
     if (order.status === 'DELIVERED') return;
-    const confirmed = window.confirm(
-      `آیا از ثبت تحویل موفق سفارش ${order.orderNumber} (${order.address?.recipientName || 'مشتری'}) اطمینان دارید؟ ممکن است پیامک اطلاع‌رسانی برای مشتری ارسال شود.`
-    );
+    const confirmed = await confirm({
+      title: 'تایید تحویل سفارش',
+      description: `آیا از ثبت تحویل موفق سفارش ${order.orderNumber} (${order.address?.recipientName || 'مشتری'}) اطمینان دارید؟ ممکن است پیامک اطلاع‌رسانی برای مشتری ارسال شود.`,
+      confirmLabel: 'ثبت تحویل موفق',
+      cancelLabel: 'انصراف',
+      variant: 'primary',
+    });
     if (!confirmed) return;
 
     setUpdatingOrderId(order.id);
@@ -117,10 +124,9 @@ export default function DailyManifestPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        setStatusFeedback({
-          type: 'error',
-          text: data.error || data.message || 'خطا در تغییر وضعیت سفارش در سرور.',
-        });
+        const msg = data.error || data.message || 'خطا در تغییر وضعیت سفارش در سرور.';
+        setStatusFeedback({ type: 'error', text: msg });
+        toast.error(msg);
         return;
       }
 
@@ -129,15 +135,13 @@ export default function DailyManifestPage() {
       setOrders((prev) =>
         prev.map((o) => (o.id === order.id ? { ...o, status: 'DELIVERED' } : o))
       );
-      setStatusFeedback({
-        type: 'success',
-        text: `سفارش ${order.orderNumber} با موفقیت به عنوان «تحویل داده شد» ثبت گردید.`,
-      });
+      const okMsg = `سفارش ${order.orderNumber} با موفقیت به عنوان «تحویل داده شد» ثبت گردید.`;
+      setStatusFeedback({ type: 'success', text: okMsg });
+      toast.success(okMsg);
     } catch {
-      setStatusFeedback({
-        type: 'error',
-        text: 'خطا در ارتباط با سرور. وضعیت سفارش تغییر نکرد.',
-      });
+      const errMsg = 'خطا در ارتباط با سرور. وضعیت سفارش تغییر نکرد.';
+      setStatusFeedback({ type: 'error', text: errMsg });
+      toast.error(errMsg);
     } finally {
       setUpdatingOrderId(null);
     }

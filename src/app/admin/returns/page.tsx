@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { farmStore } from '@/lib/db-store';
 import { ReturnRequest, ReturnStatus } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   RotateCcw,
   AlertCircle,
@@ -25,6 +27,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminReturnsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReturnStatus>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,15 +60,31 @@ export default function AdminReturnsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveReview = (e: React.FormEvent) => {
+  const handleSaveReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRequest) return;
+
+    if (newStatus === 'REFUNDED' || newStatus === 'REJECTED') {
+      const ok = await confirm({
+        title: newStatus === 'REFUNDED' ? 'تایید استرداد وجه مرجوعی' : 'تایید رد درخواست مرجوعی',
+        description:
+          newStatus === 'REFUNDED'
+            ? `آیا از ثبت استرداد مبلغ ${formatToman(selectedRequest.refundAmount)} برای سفارش ${selectedRequest.orderNumber} اطمینان دارید؟`
+            : `آیا از رد ادعای مرجوعی سفارش ${selectedRequest.orderNumber} اطمینان دارید؟`,
+        confirmLabel: newStatus === 'REFUNDED' ? 'تایید استرداد وجه' : 'رد درخواست',
+        cancelLabel: 'انصراف',
+        variant: newStatus === 'REJECTED' ? 'danger' : 'warning',
+      });
+      if (!ok) return;
+    }
 
     const updated = farmStore.updateReturnStatus(selectedRequest.id, newStatus, adminNote);
     if (updated) {
       loadReturns();
       setIsModalOpen(false);
-      showToast(`وضعیت مرجوعی سفارش ${selectedRequest.orderNumber} با موفقیت به‌روزرسانی شد.`);
+      const msg = `وضعیت مرجوعی سفارش ${selectedRequest.orderNumber} با موفقیت به‌روزرسانی شد.`;
+      showToast(msg);
+      toast.success(msg);
     }
   };
 
@@ -356,33 +376,21 @@ export default function AdminReturnsPage() {
         </div>
       </div>
 
-      {/* Review Modal */}
-      {isModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-[#E6E1D5] shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F3EFE6]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-800">
-                  <RotateCcw className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#2C4A2E]">
-                    بررسی درخواست مرجوعی کالا
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    سفارش {selectedRequest.orderNumber} - {selectedRequest.customerName}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveReview} className="space-y-4 text-xs sm:text-sm">
+      {/* Review Modal (Native <dialog>) */}
+      <Dialog
+        open={Boolean(isModalOpen && selectedRequest)}
+        onClose={() => setIsModalOpen(false)}
+        title="بررسی درخواست مرجوعی کالا"
+        description={
+          selectedRequest
+            ? `سفارش ${selectedRequest.orderNumber} - ${selectedRequest.customerName}`
+            : undefined
+        }
+        icon={<RotateCcw className="w-5 h-5 text-amber-800" />}
+        size="lg"
+      >
+        {selectedRequest && (
+          <form onSubmit={handleSaveReview} className="space-y-4 text-xs sm:text-sm">
               {/* Product and Claim Details */}
               <div className="p-4 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
                 <div className="flex items-center justify-between">
@@ -504,9 +512,8 @@ export default function AdminReturnsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 }

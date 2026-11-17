@@ -4,7 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { farmStore } from '@/lib/db-store';
 import { Order, OrderStatus, Product, OrderItem } from '@/types';
 import { formatToman, toPersianDigits, isValidIranPhone } from '@/lib/formatters';
-import { getOrderStatusMeta } from '@/lib/site-config';
+import { getOrderStatusMeta, SITE_CONFIG } from '@/lib/site-config';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   ShoppingBag,
   Truck,
@@ -27,6 +29,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminOrdersPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [smsNotification, setSmsNotification] = useState<string | null>(null);
@@ -65,6 +69,20 @@ export default function AdminOrdersPage() {
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const statusLabel = getOrderStatusMeta(newStatus).label;
+    if (newStatus === 'CANCELLED' || newStatus === 'DELIVERED' || newStatus === 'OUT_FOR_DELIVERY') {
+      const ok = await confirm({
+        title: `تغییر وضعیت سفارش به «${statusLabel}»`,
+        description:
+          newStatus === 'CANCELLED'
+            ? 'آیا از لغو این سفارش اطمینان دارید؟ ممکن است اطلاع‌رسانی برای مشتری ثبت شود.'
+            : `آیا از تغییر وضعیت سفارش به «${statusLabel}» اطمینان دارید؟ ممکن است پیامک اطلاع‌رسانی برای مشتری ارسال شود.`,
+        confirmLabel: `تغییر به ${statusLabel}`,
+        cancelLabel: 'انصراف',
+        variant: newStatus === 'CANCELLED' ? 'danger' : 'primary',
+      });
+      if (!ok) return;
+    }
+
     try {
       const res = await fetch('/api/admin', {
         method: 'POST',
@@ -76,19 +94,23 @@ export default function AdminOrdersPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        setSmsNotification(`خطا: ${data.error || data.message || 'تغییر وضعیت سفارش مجاز نیست.'}`);
+        const errMsg = data.error || data.message || 'تغییر وضعیت سفارش مجاز نیست.';
+        setSmsNotification(`خطا: ${errMsg}`);
+        toast.error(errMsg);
         setTimeout(() => setSmsNotification(null), 5000);
         return;
       }
       const updated = await farmStore.updateOrderStatus(orderId, newStatus);
       fetchOrdersAndProducts();
       const phone = updated?.address?.phone || updated?.user?.phone || '';
-      setSmsNotification(
-        `وضعیت سفارش به «${statusLabel}» تغییر یافت${phone ? ` (شماره تماس مشتری: ${toPersianDigits(phone)})` : ''}.`
-      );
+      const okMsg = `وضعیت سفارش به «${statusLabel}» تغییر یافت${phone ? ` (شماره تماس مشتری: ${toPersianDigits(phone)})` : ''}.`;
+      setSmsNotification(okMsg);
+      toast.success(okMsg);
       setTimeout(() => setSmsNotification(null), 5000);
     } catch {
-      setSmsNotification('خطا در ارتباط با سرور؛ وضعیت سفارش تغییر نکرد.');
+      const errMsg = 'خطا در ارتباط با سرور؛ وضعیت سفارش تغییر نکرد.';
+      setSmsNotification(errMsg);
+      toast.error(errMsg);
       setTimeout(() => setSmsNotification(null), 5000);
     }
   };
@@ -148,22 +170,22 @@ export default function AdminOrdersPage() {
     e.preventDefault();
 
     if (!customerName.trim()) {
-      alert('لطفاً نام مشتری را وارد کنید.');
+      toast.error('لطفاً نام مشتری را وارد کنید.');
       return;
     }
 
     if (!isValidIranPhone(customerPhone)) {
-      alert('لطفاً شماره تلفن همراه معتبر وارد نمایید.');
+      toast.error('لطفاً شماره تلفن همراه معتبر وارد نمایید.');
       return;
     }
 
     if (!streetAddress.trim()) {
-      alert('لطفاً نشانی دقیق شیراز را وارد فرمایید.');
+      toast.error('لطفاً نشانی دقیق شیراز را وارد فرمایید.');
       return;
     }
 
     if (orderItemsList.length === 0) {
-      alert('لطفاً حداقل یک محصول به لیست سفارش اضافه کنید.');
+      toast.error('لطفاً حداقل یک محصول به لیست سفارش اضافه کنید.');
       return;
     }
 
@@ -659,33 +681,16 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* 1. Modal: Create Manual Order by Admin */}
-      {isManualOrderModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-[#E6E1D5] shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F3EFE6]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
-                  <ShoppingBag className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-[#2C4A2E]">
-                    ثبت سفارش دستی جدید توسط ادمین
-                  </h3>
-                  <p className="text-[11px] text-gray-500">
-                    برای خریدارانی که امکان ثبت آنلاین ندارند (با ارسال خودکار پیامک تایید)
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsManualOrderModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateManualOrder} className="space-y-4 text-xs">
+      {/* 1. Modal: Create Manual Order by Admin (Native <dialog>) */}
+      <Dialog
+        open={isManualOrderModalOpen}
+        onClose={() => setIsManualOrderModalOpen(false)}
+        title="ثبت سفارش دستی جدید توسط ادمین"
+        description="برای خریدارانی که امکان ثبت آنلاین ندارند"
+        icon={<ShoppingBag className="w-5 h-5" />}
+        size="2xl"
+      >
+        <form onSubmit={handleCreateManualOrder} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">نام و نام خانوادگی مشتری:</label>
@@ -975,43 +980,36 @@ export default function AdminOrdersPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Dialog>
 
-      {/* 2. Official Printable Invoice Modal */}
-      {selectedInvoiceOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-8 border border-[#E6E1D5] shadow-2xl space-y-6 my-8 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none">
-            {/* Header / Actions */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200 no-print">
-              <span className="text-xs font-bold text-[#2C4A2E]">پیش‌نمایش فاکتور رسمی</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handlePrintInvoice}
-                  className="px-4 py-2 rounded-xl bg-[#2C4A2E] text-white font-bold text-xs flex items-center gap-2 hover:bg-[#1E3520] cursor-pointer"
-                >
-                  <Printer className="w-4 h-4 text-[#D4A373]" />
-                  <span>پرینت فاکتور (A4/A5)</span>
-                </button>
-                <button
-                  onClick={() => setSelectedInvoiceOrder(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Printable Official Invoice Body */}
+      {/* 2. Official Printable Invoice Modal (Native <dialog>) */}
+      <Dialog
+        open={Boolean(selectedInvoiceOrder)}
+        onClose={() => setSelectedInvoiceOrder(null)}
+        title="پیش‌نمایش فاکتور رسمی"
+        icon={<FileText className="w-5 h-5" />}
+        size="2xl"
+        className="print:border-none print:shadow-none print:max-w-none"
+        headerActions={
+          <button
+            type="button"
+            onClick={handlePrintInvoice}
+            className="px-4 py-2 rounded-xl bg-farm-primary text-white font-bold text-xs flex items-center gap-2 hover:bg-farm-primary-dark cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-farm-accent" />
+            <span>پرینت فاکتور (A4/A5)</span>
+          </button>
+        }
+      >
+        {selectedInvoiceOrder && (
             <div className="p-6 border-2 border-gray-800 rounded-2xl space-y-6 text-black print:border-black print:rounded-none">
               {/* Invoice Head */}
               <div className="flex items-start justify-between pb-4 border-b-2 border-black">
                 <div>
                   <h2 className="text-lg font-black">مزارع ارگانیک و محلی «پروفارم شیراز»</h2>
                   <p className="text-xs mt-1">صورت‌حساب فروش رسمی کالا و خدمات</p>
-                  <p className="text-[10px] text-gray-600 mt-0.5">
-                    انبار مرکزی پروفارم: شیراز، بلوار ارم | تلفن: ۰۷۱-۳۲۲۲۰۰۰۰
+                  <p className="text-[11px] text-gray-600 mt-0.5">
+                    انبار مرکزی پروفارم: شیراز، بلوار ارم | تلفن: {SITE_CONFIG.contact.supportPhoneDisplay}
                   </p>
                 </div>
                 <div className="text-left text-xs font-mono space-y-1">
@@ -1108,9 +1106,8 @@ export default function AdminOrdersPage() {
                 <div>امضای تحویل‌گیرنده سفارش</div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 }
