@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
+@import "tailwindcss";
+
+:root {
+  --font-vazirmatn: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Pro Farm Organic Color Tokens */
+  --farm-bg: #F9F8F5;
+  --farm-bg-warm: #F3EFE6;
+  --farm-primary: #2C4A2E;
+  --farm-primary-light: #3D643F;
+  --farm-primary-dark: #1E3520;
+  --farm-accent: #D4A373;
+  --farm-accent-warm: #E76F51;
+  --farm-border: #E6E1D5;
+  --farm-surface: #FFFFFF;
+  --farm-text: #212529;
+  --farm-text-muted: #6C757D;
+  
+  /* Pro Gold / Emerald Glow */
+  --pro-gold-start: #D4AF37;
+  --pro-gold-end: #F3E5AB;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  font-family: var(--font-vazirmatn);
+  background-color: var(--farm-bg);
+  color: var(--farm-text);
+  direction: rtl;
+  text-align: right;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+/* Inside Profarm Admin Android App: Hide duplicate web mobile headers & duplicate bottom bars */
+.in-profarm-app header.md\:hidden,
+.in-profarm-app nav.md\:hidden,
+.in-profarm-app [data-admin-mobile-header],
+.in-profarm-app [data-admin-mobile-nav] {
+  display: none !important;
+}
+
+.in-profarm-app main {
+  padding-bottom: 2rem !important;
+}
+
+/* Custom modern scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F3EFE6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C4BAA9;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2C4A2E;
+}
+
+/* Glassmorphic utilities */
+.glass-nav {
+  background: rgba(249, 248, 245, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(230, 225, 213, 0.8);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--farm-border);
+}
+
+/* Pro Member Golden Gradient Shimmer */
+.pro-badge-glow {
+  background: linear-gradient(135deg, #2C4A2E 0%, #1a301c 50%, #B8860B 100%);
+  box-shadow: 0 4px 15px rgba(212, 163, 115, 0.25);
+}
+
+.pro-gold-border {
+  border: 1.5px solid #D4A373;
+  box-shadow: 0 0 12px rgba(212, 163, 115, 0.2);
+}
+
+/* Mobile Hero Centering Helper */
+@media (max-width: 1023px) {
+  .hero-mobile-center {
+    text-align: center !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .hero-mobile-center-text {
+    text-align: center !important;
+  }
+}
+
+/* Modern Web Performance: Defer offscreen rendering */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 400px;
+}
+
+/* Organic Soft Shadows */
+.shadow-farm {
+  box-shadow: 0 10px 25px -5px rgba(44, 74, 46, 0.06), 0 8px 10px -6px rgba(44, 74, 46, 0.04);
+}
+
+.shadow-farm-hover {
+  box-shadow: 0 20px 30px -10px rgba(44, 74, 46, 0.12), 0 12px 14px -6px rgba(44, 74, 46, 0.08);
+}
+
+/* Print view for driver daily delivery manifest */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 12pt;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+
+/* Animated Floating and Glow Helpers */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1.5deg);
+  }
+}
+
+@keyframes floatGentleAlt {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(8px) rotate(-1.5deg);
+  }
+}
+
+@keyframes pulseGlowSlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.06);
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 6s ease-in-out infinite;
+}
+
+.animate-float-gentle-alt {
+  animation: floatGentleAlt 8s ease-in-out infinite;
+}
+
+.animate-pulse-glow-slow {
+  animation: pulseGlowSlow 5s ease-in-out infinite;
+}
+
+/* Tab & Mode Switch Transitions (Hardware-Accelerated 60/120 FPS) */
+@keyframes modeSwitchSlideIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes modeTitleFade {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-mode-switch {
+  animation: modeSwitchSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-mode-title {
+  animation: modeTitleFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+

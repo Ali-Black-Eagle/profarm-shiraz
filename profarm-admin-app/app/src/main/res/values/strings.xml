@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">پروفارم | پنل مدیریت</string>
+    <string name="dashboard">داشبورد</string>
+    <string name="orders">سفارش‌ها</string>
+    <string name="logistics">پیک و لجستیک شیراز</string>
+    <string name="products">محصولات و انبار</string>
+    <string name="settings">تنظیمات سرور</string>
+    <string name="login_title">ورود به پنل مدیریت مزارع پروفارم</string>
+    <string name="phone_number">شماره موبایل مدیر (09170000000)</string>
+    <string name="password">کلمه عبور اختصاصی مدیر</string>
+    <string name="remember_me">مرا به خاطر بسپار (ورود همیشگی و خودکار)</string>
+    <string name="login_button">ورود به پنل مدیریت</string>
+    <string name="server_url">آدرس سرور فروشگاه</string>
+    <string name="connecting">در حال برقراری ارتباط با سرور...</string>
+    <string name="connection_error">عدم برقراری ارتباط با سرور کامپیوتر</string>
+    <string name="retry">تلاش مجدد</string>
+</resources>

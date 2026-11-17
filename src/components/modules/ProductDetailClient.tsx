@@ -1,0 +1,1527 @@
+'use client';
+
+import React, { useState, useEffect, use } from 'react';
+import Link from 'next/link';
+import { notFound, useSearchParams } from 'next/navigation';
+import { farmStore } from '@/lib/db-store';
+import { INITIAL_PRODUCTS } from '@/lib/initial-data';
+import { Product, ProductReview } from '@/types';
+import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/hooks/useAuth';
+import { formatToman, toPersianDigits, safeJsonLdStringify } from '@/lib/formatters';
+import { ProductCard } from '@/components/modules/ProductCard';
+import {
+  Sparkles,
+  Truck,
+  ShieldCheck,
+  Package,
+  Plus,
+  Minus,
+  CheckCircle2,
+  ChevronRight,
+  Scale,
+  Maximize2,
+  Warehouse,
+  ShoppingBag,
+  Star,
+  Flame,
+  Info,
+  Check,
+  X,
+  HelpCircle,
+  ThumbsUp,
+  ThumbsDown,
+  CornerDownLeft,
+  Share2,
+  MapPin,
+  Calendar,
+  AlertCircle,
+  ChevronDown,
+  Award,
+  Lock,
+} from 'lucide-react';
+
+interface ProductDetailClientProps {
+  slug: string;
+  initialProduct?: Product;
+}
+
+export default function ProductDetailClient({
+  slug,
+  initialProduct,
+}: ProductDetailClientProps) {
+  const searchParams = useSearchParams();
+  const { user, isAuthenticated } = useAuth();
+  const { items, addItem, updateQuantity } = useCart();
+
+  // Load product from farmStore or initial data
+  const [product, setProduct] = useState<Product | undefined>(() => {
+    return (
+      initialProduct ||
+      farmStore.getProductBySlug(slug) ||
+      INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug)
+    );
+  });
+
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [activeTab, setActiveTab] = useState<'specs' | 'nutrition' | 'faqs' | 'reviews'>('specs');
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [selectedImage, setSelectedImage] = useState<string>('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Review Form Modal State
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isEligibilityModalOpen, setIsEligibilityModalOpen] = useState(false);
+  const [ineligibilityReason, setIneligibilityReason] = useState<string>('');
+
+  // Review Input Fields
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewPros, setReviewPros] = useState<string[]>([]);
+  const [proInput, setProInput] = useState('');
+  const [reviewCons, setReviewCons] = useState<string[]>([]);
+  const [conInput, setConInput] = useState('');
+  const [isRecommended, setIsRecommended] = useState<boolean>(true);
+  const [reviewSubmittedSuccess, setReviewSubmittedSuccess] = useState(false);
+
+  // Sticky Bar visibility
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  useEffect(() => {
+    const currentProd =
+      initialProduct ||
+      farmStore.getProductBySlug(slug) ||
+      INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+    setProduct(currentProd);
+
+    if (currentProd) {
+      setSelectedImage(currentProd.images[0] || '/images/prod-eggs.jpg');
+      setReviews(farmStore.getProductReviews(currentProd.slug, true));
+    }
+  }, [slug, initialProduct]);
+
+  // Check URL query ?review=true (from post-delivery SMS)
+  useEffect(() => {
+    if (searchParams.get('review') === 'true' && product) {
+      setActiveTab('reviews');
+      // Scroll to reviews section
+      setTimeout(() => {
+        const el = document.getElementById('reviews-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        handleOpenReviewModal();
+      }, 500);
+    }
+  }, [searchParams, product]);
+
+  // Scroll listener for sticky bottom bar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 500) {
+        setShowStickyBar(true);
+      } else {
+        setShowStickyBar(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  if (!product) {
+    notFound();
+  }
+
+  const cartItem = items.find((i) => i.product.id === product.id);
+  const [selectedQty, setSelectedQty] = useState(1);
+
+  // Synchronize selectedQty with cart quantity if item exists in cart
+  useEffect(() => {
+    if (cartItem) {
+      setSelectedQty(cartItem.quantity);
+    }
+  }, [cartItem]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleAddToCart = () => {
+    addItem(product, selectedQty);
+    showToast(`تعداد ${toPersianDigits(selectedQty)} بسته با موفقیت به سبد خرید افزوده شد.`);
+  };
+
+  const handleIncreaseQty = () => {
+    const maxStock = product.stock || 1;
+    if (cartItem) {
+      const next = Math.min(maxStock, cartItem.quantity + 1);
+      if (next !== cartItem.quantity) {
+        updateQuantity(product.id, next);
+        showToast(`تعداد سفارش به ${toPersianDigits(next)} بسته افزایش یافت.`);
+      }
+    } else {
+      setSelectedQty((prev) => Math.min(maxStock, prev + 1));
+    }
+  };
+
+  const handleDecreaseQty = () => {
+    if (cartItem) {
+      const next = cartItem.quantity - 1;
+      if (next <= 0) {
+        updateQuantity(product.id, 0);
+        setSelectedQty(1);
+        showToast('محصول از سبد خرید حذف شد.');
+      } else {
+        updateQuantity(product.id, next);
+        showToast(`تعداد سفارش به ${toPersianDigits(next)} بسته کاهش یافت.`);
+      }
+    } else {
+      setSelectedQty((prev) => Math.max(1, prev - 1));
+    }
+  };
+
+  // Review Eligibility Check & Modal Opening
+  const handleOpenReviewModal = () => {
+    if (!user || !user.id) {
+      setIneligibilityReason('جهت ثبت نظر برای این کالا ابتدا باید وارد حساب کاربری خود شوید.');
+      setIsEligibilityModalOpen(true);
+      return;
+    }
+
+    const check = farmStore.canUserReviewProduct(user.id, product.slug);
+    if (!check.canReview) {
+      setIneligibilityReason(
+        check.reason ||
+          'تنها خریدارانی که این کالا را خریداری کرده و سفارش آنها تحویل داده شده است، امکان ثبت نظر دارند.'
+      );
+      setIsEligibilityModalOpen(true);
+      return;
+    }
+
+    // Eligible! Open the review form
+    setIsReviewModalOpen(true);
+  };
+
+  const handleAddPro = () => {
+    if (proInput.trim()) {
+      setReviewPros((prev) => [...prev, proInput.trim()]);
+      setProInput('');
+    }
+  };
+
+  const handleRemovePro = (idx: number) => {
+    setReviewPros((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddCon = () => {
+    if (conInput.trim()) {
+      setReviewCons((prev) => [...prev, conInput.trim()]);
+      setConInput('');
+    }
+  };
+
+  const handleRemoveCon = (idx: number) => {
+    setReviewCons((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!reviewComment.trim()) {
+      alert('لطفاً متن نظر خود را وارد فرمایید.');
+      return;
+    }
+
+    const check = farmStore.canUserReviewProduct(user.id, product.slug);
+    if (!check.canReview) {
+      alert(check.reason || 'امکان ثبت نظر وجود ندارد.');
+      return;
+    }
+
+    const res = farmStore.addProductReview({
+      productId: product.id,
+      productSlug: product.slug,
+      productTitle: product.title,
+      userId: user.id,
+      userName: user.name || 'خریدار پروفارم',
+      userPhone: user.phone,
+      rating: reviewRating,
+      title: reviewTitle.trim() || undefined,
+      comment: reviewComment.trim(),
+      isVerifiedBuyer: true,
+      orderId: check.orderId,
+      pros: reviewPros,
+      cons: reviewCons,
+      isRecommended,
+      status: 'PENDING',
+    });
+
+    if (res) {
+      setReviewSubmittedSuccess(true);
+      setTimeout(() => {
+        setIsReviewModalOpen(false);
+        setReviewSubmittedSuccess(false);
+        // Reset form
+        setReviewRating(5);
+        setReviewTitle('');
+        setReviewComment('');
+        setReviewPros([]);
+        setReviewCons([]);
+        showToast('دیدگاه شما با موفقیت ثبت شد و پس از تایید مدیریت منتشر می‌شود.');
+      }, 2500);
+    }
+  };
+
+  // Calculations for Ratings
+  const totalApprovedReviews = reviews.length;
+  const averageRating =
+    totalApprovedReviews > 0
+      ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalApprovedReviews).toFixed(1)
+      : '5.0';
+
+  // Related products from same category or fallback
+  const relatedProducts = farmStore
+    .getProducts()
+    .filter((p) => p.id !== product.id && (p.category === product.category || p.isOrganicCertified))
+    .slice(0, 4);
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
+  const productUrl = `${baseUrl}/products/${product.slug}`;
+  const absoluteImages = product.images.map((img) =>
+    img.startsWith('http') ? img : `${baseUrl}${img}`
+  );
+
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    image: absoluteImages,
+    description: product.description,
+    sku: product.id,
+    mpn: product.slug,
+    brand: {
+      '@type': 'Brand',
+      name: 'پروفارم شیراز',
+    },
+    category: product.category,
+    offers: {
+      '@type': 'Offer',
+      url: productUrl,
+      priceCurrency: 'IRT',
+      price: product.price,
+      priceValidUntil: '2027-12-31',
+      availability:
+        (product.stock || 0) > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      seller: {
+        '@type': 'Organization',
+        name: 'پروفارم شیراز',
+      },
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: averageRating,
+      reviewCount: Math.max(1, totalApprovedReviews).toString(),
+      bestRating: '5',
+      worstRating: '1',
+    },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'صفحه اصلی',
+        item: baseUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'محصولات ارگانیک',
+        item: `${baseUrl}/products`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: product.category,
+        item: `${baseUrl}/products?category=${encodeURIComponent(product.category)}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 4,
+        name: product.title,
+        item: productUrl,
+      },
+    ],
+  };
+
+  const isAvailable =
+    product.status !== 'COMING_SOON' &&
+    product.status !== 'OUT_OF_STOCK' &&
+    (product.stock || 0) > 0;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[#1E3520] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#D4A373]/30 flex items-center gap-3 animate-fade-in text-sm font-bold whitespace-nowrap">
+          <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Google SEO JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbSchema) }}
+      />
+
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+        <Link href="/" className="hover:text-[#2C4A2E] transition-colors">
+          صفحه اصلی
+        </Link>
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <Link href="/products" className="hover:text-[#2C4A2E] transition-colors">
+          محصولات ارگانیک
+        </Link>
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <Link
+          href={`/products?category=${encodeURIComponent(product.category)}`}
+          className="hover:text-[#2C4A2E] transition-colors"
+        >
+          {product.category}
+        </Link>
+        <ChevronRight className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <span className="text-[#2C4A2E] font-bold truncate max-w-xs">{product.title}</span>
+      </nav>
+
+      {/* ================= HERO SECTION ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
+        {/* Left: Image Gallery */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="relative aspect-4/3 sm:aspect-square w-full rounded-3xl overflow-hidden bg-white border border-[#E6E1D5] shadow-farm group">
+            <img
+              src={selectedImage || product.images[0]}
+              alt={product.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+
+            {/* Badges on image */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+              {product.isOrganicCertified && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-md text-[#2C4A2E] font-bold text-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
+                  <span>تاییدیه ۱۰۰٪ ارگانیک فارس</span>
+                </span>
+              )}
+              {product.originLocation && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#2C4A2E]/90 backdrop-blur-md shadow-md text-white font-bold text-xs">
+                  <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>{product.originLocation}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Thumbnails */}
+          {product.images.length > 1 && (
+            <div className="flex items-center gap-3 overflow-x-auto pb-2">
+              {product.images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImage(img)}
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                    selectedImage === img
+                      ? 'border-[#2C4A2E] ring-2 ring-[#2C4A2E]/20 scale-102'
+                      : 'border-gray-200 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt={`تصویر ${idx + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Key Info, Highlights & Purchase Controls */}
+        <div className="lg:col-span-6 space-y-6">
+          {/* Header & Badges */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-xl bg-amber-500/10 text-amber-800 text-xs font-bold">
+                {product.category}
+              </span>
+              <span className="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-800 text-xs font-bold flex items-center gap-1">
+                <Truck className="w-3 h-3 text-emerald-600" />
+                <span>تحویل با پیک اختصاصی در شیراز</span>
+              </span>
+              {product.shelfLife && (
+                <span className="px-3 py-1 rounded-xl bg-blue-50 text-blue-800 text-xs font-bold flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-blue-600" />
+                  <span>ماندگاری: {product.shelfLife}</span>
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#2C4A2E] leading-snug">
+              {product.title}
+            </h1>
+
+            {/* Ratings Summary */}
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-4 h-4 ${
+                      star <= Math.round(Number(averageRating))
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-gray-200 fill-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs font-black text-gray-800 flex items-baseline gap-1">
+                <span>{toPersianDigits(averageRating)}</span>
+                <span className="text-gray-400 font-normal">از ۵</span>
+              </span>
+              <span className="text-gray-300">•</span>
+              <button
+                onClick={() => {
+                  setActiveTab('reviews');
+                  const el = document.getElementById('reviews-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="text-xs text-[#2C4A2E] hover:underline font-bold cursor-pointer"
+              >
+                {toPersianDigits(totalApprovedReviews)} دیدگاه خریداران واقعی
+              </button>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-medium">
+            {product.description}
+          </p>
+
+          {/* Key Highlights Checklist */}
+          {product.highlights && product.highlights.length > 0 && (
+            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-2.5">
+              <span className="text-xs font-bold text-[#2C4A2E] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
+                <span>مزایای برجسته و ویژگی‌های ممتاز این محصول:</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                {product.highlights.map((hl, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="p-0.5 rounded-full bg-emerald-600 text-white mt-0.5 shrink-0">
+                      <Check className="w-2.5 h-2.5" />
+                    </span>
+                    <span>{hl}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Specs Pill Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-white border border-[#E6E1D5] text-xs">
+            {product.packSize && (
+              <div className="space-y-1">
+                <span className="text-gray-400 flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                  <span>فرمت بسته‌بندی:</span>
+                </span>
+                <span className="font-bold text-[#2C4A2E]">{product.packSize}</span>
+              </div>
+            )}
+
+            {Boolean(product.weightKg != null && Number(product.weightKg) > 0) && (
+              <div className="space-y-1">
+                <span className="text-gray-400 flex items-center gap-1">
+                  <Scale className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                  <span>وزن خالص:</span>
+                </span>
+                <span className="font-bold text-[#2C4A2E]">
+                  {toPersianDigits(product.weightKg)} کیلوگرم
+                </span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <span className="text-gray-400 flex items-center gap-1">
+                <Warehouse className="w-3.5 h-3.5 text-[#2C4A2E]" />
+                <span>موجودی انبار شیراز:</span>
+              </span>
+              <span
+                className={`font-bold ${
+                  product.status === 'COMING_SOON'
+                    ? 'text-purple-700'
+                    : product.status === 'OUT_OF_STOCK' || (product.stock || 0) <= 0
+                    ? 'text-rose-600'
+                    : (product.stock || 0) <= 5
+                    ? 'text-amber-600'
+                    : 'text-emerald-700'
+                }`}
+              >
+                {product.status === 'COMING_SOON'
+                  ? '⌛ به زودی در مزرعه'
+                  : product.status === 'OUT_OF_STOCK' || (product.stock || 0) <= 0
+                  ? '✕ اتمام موجودی'
+                  : `✓ ${toPersianDigits(product.stock)} بسته موجود`}
+              </span>
+            </div>
+          </div>
+
+          {/* Stock Urgency Meter */}
+          {isAvailable && (product.stock || 0) <= 8 && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                تنها {toPersianDigits(product.stock)} بسته در انبار شیراز باقی مانده است! سفارش‌های
+                امروز در اولویت ارسال قرار دارند.
+              </span>
+            </div>
+          )}
+
+          {/* Price & Purchase Box */}
+          <div className="p-6 rounded-3xl bg-white border border-[#E6E1D5] shadow-farm space-y-5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-gray-500 font-bold">قیمت واحد کالا:</span>
+              <div className="text-left">
+                <span className="text-3xl font-black text-[#2C4A2E]">
+                  {formatToman(product.price)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {product.status === 'COMING_SOON' ? (
+                <button
+                  disabled
+                  className="w-full py-4 px-6 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed"
+                >
+                  <span>⌛ به زودی در برداشت بعدی مزارع شیراز عرضه خواهد شد</span>
+                </button>
+              ) : product.status === 'OUT_OF_STOCK' || (product.stock || 0) <= 0 ? (
+                <button
+                  disabled
+                  className="w-full py-4 px-6 rounded-2xl bg-gray-100 border border-gray-200 text-gray-500 text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed"
+                >
+                  <span>✕ در حال حاضر موجودی این کالا به اتمام رسیده است</span>
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 bg-[#F9F8F5] border border-[#E6E1D5] rounded-2xl p-1.5">
+                    <button
+                      type="button"
+                      onClick={handleIncreaseQty}
+                      disabled={
+                        cartItem
+                          ? cartItem.quantity >= (product.stock || 1)
+                          : selectedQty >= (product.stock || 1)
+                      }
+                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-[#2C4A2E] hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      aria-label="افزایش تعداد"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-black text-[#2C4A2E]">
+                      {toPersianDigits(cartItem ? cartItem.quantity : selectedQty)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleDecreaseQty}
+                      disabled={!cartItem && selectedQty <= 1}
+                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      aria-label="کاهش تعداد"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {cartItem ? (
+                    <Link
+                      href="/cart"
+                      className="flex-1 py-4 px-6 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
+                    >
+                      <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
+                      <span>رفتن به سبد خرید</span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      className="flex-1 py-4 px-6 rounded-2xl bg-[#2C4A2E] text-white text-sm font-bold hover:bg-[#1E3520] active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer hover:shadow-lg"
+                    >
+                      <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
+                      <span>
+                        {selectedQty > 1
+                          ? `افزودن ${toPersianDigits(selectedQty)} عدد به سبد خرید`
+                          : 'افزودن به سبد خرید'}
+                      </span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Trust Guarantees */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-[#2C4A2E] shrink-0" />
+              <div>
+                <div className="font-bold text-gray-900 text-xs">ضمانت ۱۰۰٪ مرجوعی</div>
+                <div className="text-[10px] text-gray-500">بازگشت وجه در صورت عدم رضایت</div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] flex items-center gap-2.5">
+              <Truck className="w-5 h-5 text-[#2C4A2E] shrink-0" />
+              <div>
+                <div className="font-bold text-gray-900 text-xs">پیک اختصاصی شیراز</div>
+                <div className="text-[10px] text-gray-500">ارسال با زنجیره سرد بهداشتی</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= TABS SYSTEM ================= */}
+      <div id="reviews-section" className="pt-8 border-t border-[#E6E1D5] space-y-6">
+        {/* Tab Buttons (Responsive 4-column segmented control on mobile, horizontal pill bar on desktop) */}
+        <div className="grid grid-cols-4 gap-1 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 sm:bg-transparent sm:border-0 sm:border-b sm:border-gray-200 sm:p-0 sm:flex sm:items-center sm:gap-2 sm:rounded-none">
+          <button
+            type="button"
+            onClick={() => setActiveTab('specs')}
+            className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
+              activeTab === 'specs'
+                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="text-[11px] sm:text-sm leading-tight">
+              <span className="sm:hidden">مشخصات</span>
+              <span className="hidden sm:inline">مشخصات فنی و شناسنامه</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('nutrition')}
+            className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
+              activeTab === 'nutrition'
+                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
+            <span className="text-[11px] sm:text-sm leading-tight">
+              <span className="sm:hidden">ارزش غذایی</span>
+              <span className="hidden sm:inline">ارزش غذایی و نگهداری</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('faqs')}
+            className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
+              activeTab === 'faqs'
+                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="text-[11px] sm:text-sm leading-tight">
+              <span className="sm:hidden">سوالات ({toPersianDigits(product.faqs?.length || 0)})</span>
+              <span className="hidden sm:inline">سوالات متداول ({toPersianDigits(product.faqs?.length || 0)})</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reviews')}
+            className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
+              activeTab === 'reviews'
+                ? 'bg-[#2C4A2E] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-white/80 sm:hover:bg-gray-100'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 fill-amber-400 shrink-0" />
+            <span className="text-[11px] sm:text-sm leading-tight">
+              <span className="sm:hidden">نظرات ({toPersianDigits(totalApprovedReviews)})</span>
+              <span className="hidden sm:inline">دیدگاه‌ها و نظرات ({toPersianDigits(totalApprovedReviews)})</span>
+            </span>
+          </button>
+        </div>
+
+        {/* TAB 1: Specifications */}
+        {activeTab === 'specs' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+            <div>
+              <h3 className="text-lg font-black text-[#2C4A2E]">
+                جدول مشخصات فنی و ویژگی‌های تولید
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                اطلاعات شناسنامه‌ای تنظیم‌شده توسط کارشناسان ارگانیک مزارع پروفارم شیراز
+              </p>
+            </div>
+
+            <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
+              {/* Origin Location */}
+              {product.originLocation && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs bg-gray-50/50">
+                  <span className="font-bold text-gray-500">محل دقیق تولید و برداشت:</span>
+                  <span className="col-span-2 sm:col-span-3 font-bold text-gray-900">
+                    {product.originLocation}
+                  </span>
+                </div>
+              )}
+
+              {/* Shelf Life */}
+              {product.shelfLife && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs">
+                  <span className="font-bold text-gray-500">مدت زمان ماندگاری:</span>
+                  <span className="col-span-2 sm:col-span-3 font-bold text-gray-900">
+                    {product.shelfLife}
+                  </span>
+                </div>
+              )}
+
+              {/* Pack Size */}
+              {product.packSize && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs bg-gray-50/50">
+                  <span className="font-bold text-gray-500">نوع بسته‌بندی:</span>
+                  <span className="col-span-2 sm:col-span-3 font-bold text-gray-900">
+                    {product.packSize}
+                  </span>
+                </div>
+              )}
+
+              {/* Weight */}
+              {Boolean(product.weightKg != null && Number(product.weightKg) > 0) && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs">
+                  <span className="font-bold text-gray-500">وزن خالص:</span>
+                  <span className="col-span-2 sm:col-span-3 font-bold text-gray-900">
+                    {toPersianDigits(product.weightKg)} کیلوگرم
+                  </span>
+                </div>
+              )}
+
+              {/* Dynamic Specifications configured by Admin */}
+              {product.specifications &&
+                product.specifications.map((spec, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className={`grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs ${
+                      sIdx % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'
+                    }`}
+                  >
+                    <span className="font-bold text-gray-500">{spec.key}:</span>
+                    <span className="col-span-2 sm:col-span-3 font-bold text-gray-900">
+                      {spec.value}
+                    </span>
+                  </div>
+                ))}
+
+              {/* Organic Certification */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 p-3.5 text-xs bg-emerald-50/30">
+                <span className="font-bold text-emerald-800">گواهینامه سلامت:</span>
+                <span className="col-span-2 sm:col-span-3 font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>تاییدیه سلامت و عدم استفاده از سموم شیمیایی و هورمون‌های سنتزی</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: Nutritional Info & Storage */}
+        {activeTab === 'nutrition' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+            <div>
+              <h3 className="text-lg font-black text-[#2C4A2E]">
+                ارزش غذایی تقریبی و دستورالعمل نگهداری
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                اطلاعات ثبت‌شده جهت آگاهی و سلامت تغذیه مصرف‌کنندگان
+              </p>
+            </div>
+
+            {/* Nutrition Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center space-y-1">
+                <span className="text-xs text-gray-500 font-bold block">انرژی / کالری</span>
+                <span className="text-2xl font-black text-amber-700">
+                  {toPersianDigits(product.nutritionalInfo?.calories || '۷۲')}
+                </span>
+                <span className="text-[10px] text-gray-400 block">کیلوکالری در هر ۱۰۰ گرم</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 text-center space-y-1">
+                <span className="text-xs text-gray-500 font-bold block">پروتئین خالص</span>
+                <span className="text-2xl font-black text-blue-700">
+                  {toPersianDigits(product.nutritionalInfo?.protein || '۶.۳')}
+                </span>
+                <span className="text-[10px] text-gray-400 block">گرم در هر ۱۰۰ گرم</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200/80 text-center space-y-1">
+                <span className="text-xs text-gray-500 font-bold block">چربی کل</span>
+                <span className="text-2xl font-black text-rose-700">
+                  {toPersianDigits(product.nutritionalInfo?.fat || '۴.۸')}
+                </span>
+                <span className="text-[10px] text-gray-400 block">گرم چربی طبیعی</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-center space-y-1">
+                <span className="text-xs text-gray-500 font-bold block">کربوهیدرات</span>
+                <span className="text-2xl font-black text-emerald-700">
+                  {toPersianDigits(product.nutritionalInfo?.carbs || '۰.۵')}
+                </span>
+                <span className="text-[10px] text-gray-400 block">گرم در هر ۱۰۰ گرم</span>
+              </div>
+            </div>
+
+            {/* Storage Instructions Banner */}
+            <div className="p-5 rounded-2xl bg-[#F9F8F5] border border-[#E6E1D5] space-y-2">
+              <span className="text-xs font-bold text-[#2C4A2E] flex items-center gap-1.5">
+                <Info className="w-4 h-4" />
+                <span>بهترین شرایط نگهداری جهت حفظ حداکثر طراوت و ارزش غذایی:</span>
+              </span>
+              <p className="text-xs text-gray-700 leading-relaxed pr-5">
+                {product.storageInstructions ||
+                  'در دمای ۲ الی ۶ درجه سانتی‌گراد درون یخچال نگهداری شود. دور از تابش مستقیم نور خورشید و رطوبت قرار گیرد.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: FAQs */}
+        {activeTab === 'faqs' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs space-y-6">
+            <div>
+              <h3 className="text-lg font-black text-[#2C4A2E]">
+                سوالات متداول مشتریان درباره این محصول
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                پاسخ به رایج‌ترین پرسش‌های مطرح‌شده توسط خریداران شیراز
+              </p>
+            </div>
+
+            {(!product.faqs || product.faqs.length === 0) ? (
+              <div className="p-8 text-center text-xs text-gray-400 bg-[#F9F8F5] rounded-2xl border border-gray-200">
+                در حال حاضر سوال متداولی برای این محصول ثبت نشده است. در صورت نیاز می‌توانید با
+                پشتیبانی پروفارم به شماره ۰۷۱-۳۶۲۸۰۰۰۰ تماس بگیرید.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {product.faqs.map((faq, fIdx) => {
+                  const isOpen = openFaqIndex === fIdx;
+                  return (
+                    <div
+                      key={fIdx}
+                      className="rounded-2xl border border-gray-200 overflow-hidden transition-all"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaqIndex(isOpen ? null : fIdx)}
+                        className="w-full p-4 text-right flex items-center justify-between gap-3 bg-gray-50/50 hover:bg-gray-100/70 transition-colors cursor-pointer"
+                      >
+                        <span className="font-bold text-gray-900 text-xs sm:text-sm">
+                          {faq.question}
+                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-gray-500 transition-transform ${
+                            isOpen ? 'rotate-180 text-[#2C4A2E]' : ''
+                          }`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="p-4 bg-white text-xs text-gray-700 leading-relaxed border-t border-gray-100 font-medium">
+                          {faq.answer}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: Reviews & Verified Buyer Moderation */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-6">
+            {/* Reviews Summary & Call to Action */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D5] shadow-xs flex flex-col md:flex-row gap-6 items-center justify-between">
+              {/* Score Left */}
+              <div className="flex items-center gap-5">
+                <div className="text-center p-4 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15">
+                  <div className="text-4xl font-black text-[#2C4A2E]">
+                    {toPersianDigits(averageRating)}
+                  </div>
+                  <div className="flex items-center justify-center gap-0.5 mt-1 text-amber-400 fill-amber-400">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-3.5 h-3.5 fill-amber-400" />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-gray-400 mt-1 block">از ۵ امتیاز رضایت</span>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-gray-900">
+                    دیدگاه‌ها و نظرات خریداران واقعی
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    تنها خریداران تایید شده که سفارش آنها تحویل شده است مجاز به ثبت نظر می‌باشند.
+                  </p>
+                  <div className="text-xs text-emerald-800 font-bold flex items-center gap-1.5 pt-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>۱۰۰٪ نظرات توسط خریداران واقعی مزارع شیراز ثبت شده‌اند</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Review Button */}
+              <button
+                type="button"
+                onClick={handleOpenReviewModal}
+                className="px-6 py-3.5 rounded-2xl bg-[#2C4A2E] hover:bg-[#1E3520] text-white text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-2 cursor-pointer hover:scale-102"
+              >
+                <Star className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
+                <span>ثبت نظر برای این محصول (ویژه خریداران)</span>
+              </button>
+            </div>
+
+            {/* List of Approved Reviews */}
+            {reviews.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-[#E6E1D5]">
+                <Star className="w-12 h-12 text-amber-300 fill-amber-100 mx-auto mb-3" />
+                <h4 className="font-bold text-gray-800 text-sm">هنوز نظری برای این کالا ثبت نشده است</h4>
+                <p className="text-xs text-gray-400 mt-1">
+                  اگر این محصول را دریافت کرده‌اید، اولین خریدار باشید که نظر خود را به اشتراک می‌گذارد.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((rev) => (
+                  <div
+                    key={rev.id}
+                    className="bg-white rounded-3xl border border-[#E6E1D5] p-6 space-y-3.5 shadow-xs"
+                  >
+                    {/* Reviewer Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-full bg-[#2C4A2E]/10 text-[#2C4A2E] flex items-center justify-center font-bold text-xs">
+                          {rev.userName ? rev.userName.charAt(0) : 'خ'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-xs sm:text-sm">
+                              {rev.userName}
+                            </span>
+                            {rev.isVerifiedBuyer && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                <span>خریدار تایید شده</span>
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-gray-400 mt-0.5 block">
+                            ثبت شده در {rev.createdAt}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Stars */}
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${
+                              s <= rev.rating
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-gray-200 fill-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Review Title & Body */}
+                    <div className="space-y-1.5">
+                      {rev.title && (
+                        <h5 className="font-bold text-gray-900 text-xs sm:text-sm">{rev.title}</h5>
+                      )}
+                      <p className="text-gray-700 text-xs leading-relaxed font-medium">
+                        {rev.comment}
+                      </p>
+                    </div>
+
+                    {/* Pros and Cons */}
+                    {((rev.pros && rev.pros.length > 0) || (rev.cons && rev.cons.length > 0)) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        {rev.pros && rev.pros.length > 0 && (
+                          <div className="space-y-1">
+                            {rev.pros.map((p, pIdx) => (
+                              <div
+                                key={pIdx}
+                                className="flex items-center gap-1.5 text-xs text-emerald-900"
+                              >
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>{p}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {rev.cons && rev.cons.length > 0 && (
+                          <div className="space-y-1">
+                            {rev.cons.map((c, cIdx) => (
+                              <div
+                                key={cIdx}
+                                className="flex items-center gap-1.5 text-xs text-rose-900"
+                              >
+                                <X className="w-3 h-3 text-rose-500" />
+                                <span>{c}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Recommendation */}
+                    {rev.isRecommended !== undefined && (
+                      <div className="text-[11px] font-bold pt-1">
+                        {rev.isRecommended ? (
+                          <span className="text-emerald-700 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>خرید این کالا را به دیگران پیشنهاد می‌کنم</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 flex items-center gap-1">
+                            <X className="w-3.5 h-3.5 text-rose-400" />
+                            <span>خرید این کالا را پیشنهاد نمی‌کنم</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Official Farm Reply */}
+                    {rev.adminResponse && (
+                      <div className="p-3.5 rounded-2xl bg-[#2C4A2E]/5 border border-[#2C4A2E]/15 space-y-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#2C4A2E]">
+                          <CornerDownLeft className="w-3.5 h-3.5" />
+                          <span>پاسخ رسمی پشتیبانی مزارع پروفارم شیراز:</span>
+                        </div>
+                        <p className="text-xs text-gray-800 pr-5 leading-relaxed font-medium">
+                          {rev.adminResponse}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ================= RELATED PRODUCTS ================= */}
+      {relatedProducts.length > 0 && (
+        <div className="pt-8 border-t border-[#E6E1D5] space-y-6">
+          <div>
+            <span className="text-xs font-bold text-[#D4A373] tracking-wide">
+              پیشنهادات ویژه مزرعه
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-[#2C4A2E]">
+              سایر محصولات ارگانیک منتخب
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: INELIGIBLE BUYER RULE NOTICE ================= */}
+      {isEligibilityModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-[#E6E1D5] shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+              <Lock className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h4 className="text-base font-black text-gray-900">
+                قوانین ثبت دیدگاه در مزارع پروفارم
+              </h4>
+              <p className="text-xs text-gray-600 leading-relaxed">{ineligibilityReason}</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-500 space-y-1">
+              <div className="font-bold text-gray-700 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>چرا فقط خریداران واقعی؟</span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                جهت اطمینان از اصالت دیدگاه‌ها و جلوگیری از نظرات غیرواقعی، سامانه پروفارم ثبت نظر را
+                منحصر به افرادی نموده است که کالا را سفارش داده و آن را دریافت نموده‌اند.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsEligibilityModalOpen(false)}
+              className="w-full py-3 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors cursor-pointer"
+            >
+              متوجه شدم
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: SUBMIT VERIFIED REVIEW ================= */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-[#E6E1D5] shadow-2xl my-8">
+            {reviewSubmittedSuccess ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <h4 className="text-lg font-black text-gray-900">دیدگاه شما با موفقیت ثبت گردید</h4>
+                <p className="text-xs text-gray-600 max-w-xs mx-auto leading-relaxed">
+                  نظر ارزشمند شما پس از بررسی و تایید کارشناس در صفحه این محصول منتشر خواهد شد. از
+                  مشارکت شما در ارتقای کیفیت محصولات سپاسگزاریم.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                    <h4 className="text-base font-black text-gray-900">
+                      ثبت تجربه خرید: {product.title}
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="p-1 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Rating Selector */}
+                <div className="text-center py-2 space-y-2">
+                  <span className="text-xs font-bold text-gray-700 block">
+                    امتیاز شما به کیفیت و طراوت این محصول:
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className="p-1 cursor-pointer transition-transform hover:scale-120"
+                      >
+                        <Star
+                          className={`w-7 h-7 ${
+                            star <= reviewRating
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-gray-200 fill-gray-200'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-amber-700">
+                    {reviewRating === 5
+                      ? 'عالی و بی‌نقص'
+                      : reviewRating === 4
+                      ? 'بسیار خوب'
+                      : reviewRating === 3
+                      ? 'معمولی'
+                      : reviewRating === 2
+                      ? 'ضعیف'
+                      : 'بسیار ضعیف'}
+                  </span>
+                </div>
+
+                {/* Review Title */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    عنوان دیدگاه شما:
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewTitle}
+                    onChange={(e) => setReviewTitle(e.target.value)}
+                    placeholder="مثلاً: طعم اصیل زرده، بسته‌بندی عالی..."
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                  />
+                </div>
+
+                {/* Review Comment */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    متن دیدگاه و توضیحات کامل: *
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="تجربه خود از عطر، طعم، بسته‌بندی و تحویل این محصول را بنویسید..."
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E] leading-relaxed"
+                  />
+                </div>
+
+                {/* Pros Tag Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-700">
+                    نقاط قوت از نظر شما:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={proInput}
+                      onChange={(e) => setProInput(e.target.value)}
+                      placeholder="مثلاً: طراوت فوق‌العاده"
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddPro();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddPro}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold cursor-pointer"
+                    >
+                      + افزودن
+                    </button>
+                  </div>
+                  {reviewPros.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {reviewPros.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200"
+                        >
+                          <span>{p}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePro(idx)}
+                            className="cursor-pointer hover:text-emerald-950"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Cons Tag Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-700">
+                    نقاط ضعف از نظر شما:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={conInput}
+                      onChange={(e) => setConInput(e.target.value)}
+                      placeholder="مثلاً: قیمت نسبتاً بالا"
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-[#2C4A2E]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCon();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCon}
+                      className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-bold cursor-pointer"
+                    >
+                      + افزودن
+                    </button>
+                  </div>
+                  {reviewCons.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {reviewCons.map((c, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 text-xs font-bold border border-rose-200"
+                        >
+                          <span>{c}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCon(idx)}
+                            className="cursor-pointer hover:text-rose-950"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recommendation Radio */}
+                <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                  <span className="block text-xs font-bold text-gray-700">
+                    آیا خرید این کالا را به دیگران توصیه می‌کنید؟
+                  </span>
+                  <div className="flex items-center gap-6">
+                    <label className="flex items-center gap-2 text-xs font-bold text-emerald-800 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={isRecommended === true}
+                        onChange={() => setIsRecommended(true)}
+                        className="text-[#2C4A2E]"
+                      />
+                      <span>بله، پیشنهاد می‌کنم</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs font-bold text-rose-800 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={isRecommended === false}
+                        onChange={() => setIsRecommended(false)}
+                        className="text-[#2C4A2E]"
+                      />
+                      <span>خیر، پیشنهاد نمی‌کنم</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Notice */}
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-[11px] leading-relaxed border border-amber-200">
+                  توجه: به منظور رعایت ادب و استانداردهای فروشگاه، دیدگاه‌ها پس از تایید توسط ادمین
+                  در صفحه محصول نمایش داده می‌شوند.
+                </div>
+
+                {/* Submit & Cancel */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-100 cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] shadow-md cursor-pointer transition-all hover:scale-102"
+                  >
+                    ثبت نهایی دیدگاه
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= STICKY BOTTOM ACTION BAR ================= */}
+      {showStickyBar && isAvailable && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E6E1D5] py-3 px-4 sm:px-8 shadow-2xl animate-fade-in">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={product.images[0]}
+                alt={product.title}
+                className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
+              />
+              <div className="truncate">
+                <div className="font-bold text-gray-900 text-xs sm:text-sm truncate">
+                  {product.title}
+                </div>
+                <div className="text-xs font-black text-[#2C4A2E] mt-0.5">
+                  {formatToman(product.price)}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-[#F9F8F5] border border-[#E6E1D5] rounded-xl p-1">
+                <button
+                  type="button"
+                  onClick={handleIncreaseQty}
+                  disabled={
+                    cartItem
+                      ? cartItem.quantity >= (product.stock || 1)
+                      : selectedQty >= (product.stock || 1)
+                  }
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-[#2C4A2E] hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  aria-label="افزایش تعداد"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-6 text-center text-xs sm:text-sm font-black text-[#2C4A2E]">
+                  {toPersianDigits(cartItem ? cartItem.quantity : selectedQty)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDecreaseQty}
+                  disabled={!cartItem && selectedQty <= 1}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-[#2C4A2E] hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  aria-label="کاهش تعداد"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {cartItem ? (
+                <Link
+                  href="/cart"
+                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
+                  <span>رفتن به سبد خرید</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
+                  <span>
+                    {selectedQty > 1
+                      ? `افزودن ${toPersianDigits(selectedQty)} عدد`
+                      : 'افزودن به سبد خرید'}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

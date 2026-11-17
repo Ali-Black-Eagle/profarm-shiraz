@@ -1,0 +1,298 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id                     String          @id @default(cuid())
+  phone                  String          @unique
+  username               String?
+  name                   String?
+  email                  String?         @unique
+  password               String?
+  authProvider           String          @default("PHONE_OTP") // PHONE_OTP, PASSWORD, GOOGLE
+  isPhoneVerified        Boolean         @default(false)
+  avatarUrl              String?
+  nationalId             String?
+  birthDate              String?
+  smsNotificationEnabled Boolean         @default(true)
+  role                   Role            @default(USER)
+  isProMember            Boolean         @default(false)
+  tier                   String          @default("FREE") // FREE, PLUS, PRO
+  isPlusMember           Boolean         @default(false)
+  plusExpiresAt          String?
+  proExpiresAt           String?
+  eggDiscountUsed        Int             @default(0)
+  addresses              Address[]
+  orders                 Order[]
+  reviews                ProductReview[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model Product {
+  id                  String          @id @default(cuid())
+  title               String
+  slug                String          @unique
+  description         String
+  category            String          // لبنیات، تخم‌مرغ، عسل، سبزیجات، پروتئین، خشکبار
+  price               Int             // قیمت به تومان
+  costPrice           Int?            // قیمت تمام شده/خرید از مزرعه
+  packSize            String?         // مثال: "بسته ۳۰ عددی"، "شیشه ۵۰۰ گرمی"
+  weightKg            Float?
+  dimensions          String?
+  stock               Int             @default(0)
+  status              String          @default("AVAILABLE") // AVAILABLE, OUT_OF_STOCK, COMING_SOON
+  images              String[]
+  isOrganicCertified  Boolean         @default(false)
+  isBulkEligible      Boolean         @default(false)
+  minBulkQuantity     Int             @default(5)
+  specifications      Json?
+  highlights          String[]
+  storageInstructions String?
+  nutritionalInfo     Json?
+  faqs                Json?
+  originLocation      String?
+  shelfLife           String?
+  seoTitle            String?
+  seoDescription      String?
+  seoKeywords         String[]
+  canonicalUrl        String?
+  orderItems          OrderItem[]
+  reviews             ProductReview[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model Address {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipientName String
+  phone         String
+  province      String   @default("فارس")
+  city          String   // "شیراز" یا شهر دیگر
+  postalCode    String
+  streetAddress String
+  unit          String?
+  isShiraz      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  orders        Order[]
+  createdAt     DateTime @default(now())
+}
+
+model DeliverySlot {
+  id              String   @id @default(cuid())
+  date            String   // مثال: "1405-06-18" یا تاریخ میلادی
+  dayOfWeek       String   // "یکشنبه", "چهارشنبه", ...
+  timeWindow      String   // "15:00 - 21:00"
+  maxCapacity     Int      @default(30)
+  currentBookings Int      @default(0)
+  orders          Order[]
+  createdAt       DateTime @default(now())
+}
+
+model Order {
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  addressId        String
+  address          Address       @relation(fields: [addressId], references: [id])
+  deliverySlotId   String?
+  deliverySlot     DeliverySlot? @relation(fields: [deliverySlotId], references: [id])
+  totalAmount      Int           // مبلغ نهایی پرداختی به تومان
+  status           OrderStatus   @default(PENDING_PAYMENT)
+  isBulkOrder      Boolean       @default(false)
+  bulkNotes        String?
+  isSubscription   Boolean       @default(false)
+  subscriptionPlan String?       // PLUS, PRO
+  settlementStatus String?       // SETTLED, PENDING, REFUNDED
+  settlementRef    String?       // شماره پیگیری یا ارجاع شاپرک
+  items            OrderItem[]
+  payment          Payment?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  unitPrice  Int
+  totalPrice Int
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String        @unique
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount    Int
+  gateway   String        @default("ZARINPAL")
+  authority String?       @unique
+  refId     String?
+  status    PaymentStatus @default(INITIATED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Coupon {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  title             String
+  description       String?
+  targetType        String   @default("ALL_PRODUCTS") // ALL_PRODUCTS, SPECIFIC_PRODUCT, SHIPPING
+  targetProductId   String?
+  targetProductName String?
+  discountType      String   @default("PERCENTAGE") // PERCENTAGE, FIXED_AMOUNT
+  discountValue     Int
+  minOrderAmount    Int?
+  maxDiscountAmount Int?
+  usageLimit        Int?
+  usageCount        Int      @default(0)
+  isActive          Boolean  @default(true)
+  expiresAt         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ProductReview {
+  id            String   @id @default(cuid())
+  productId     String
+  productSlug   String
+  productTitle  String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName      String
+  userPhone     String?
+  userAvatar    String?
+  rating        Int      @default(5)
+  title         String?
+  comment       String
+  isVerifiedBuyer Boolean @default(false)
+  pros          String[]
+  cons          String[]
+  isRecommended Boolean  @default(true)
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  adminResponse String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ReturnRequest {
+  id            String   @id @default(cuid())
+  orderNumber   String
+  customerName  String
+  customerPhone String
+  productTitle  String?
+  quantity      Int?
+  reason        String
+  reasonTitle   String?
+  description   String
+  refundAmount  Int      @default(0)
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, REFUNDED
+  adminNotes    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model BulkInquiry {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String
+  city        String
+  companyName String?
+  message     String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+}
+
+model SiteContent {
+  id        String   @id @default("singleton")
+  content   Json
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionSettings {
+  id        String   @id @default("singleton")
+  settings  Json
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentSettings {
+  id        String   @id @default("singleton")
+  settings  Json
+  updatedAt DateTime @updatedAt
+}
+
+model SmsEventTemplate {
+  id                 String   @id
+  title              String
+  category           String
+  description        String
+  template           String
+  isEnabled          Boolean  @default(true)
+  availableVariables Json?
+  updatedAt          DateTime @updatedAt
+}
+
+model SmsBroadcast {
+  id             String   @id @default(cuid())
+  title          String
+  message        String
+  targetSegment  String
+  recipientCount Int      @default(0)
+  customNumbers  String[]
+  status         String   @default("SENT")
+  sentAt         String
+  createdAt      DateTime @default(now())
+}
+
+model EmailMessageLog {
+  id             String   @id @default(cuid())
+  to             String
+  recipientName  String?
+  subject        String
+  body           String
+  status         String   @default("SENT") // SENT, FAILED
+  fallbackForSms Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}

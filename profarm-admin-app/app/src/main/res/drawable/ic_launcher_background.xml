@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Deep Organic Forest Green Base Gradient -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="0"
+                android:endX="54"
+                android:endY="108"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#2C4E30" />
+                <item android:offset="0.6" android:color="#1B381F" />
+                <item android:offset="1.0" android:color="#0F2412" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Subtle Golden/Light Green Circular Horizon Ring -->
+    <path
+        android:pathData="M54,54m-42,0a42,42 0 1,1 84,0a42,42 0 1,1 -84,0"
+        android:strokeWidth="1.2"
+        android:strokeColor="#25D4AF37"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M54,54m-48,0a48,48 0 1,1 96,0a48,48 0 1,1 -96,0"
+        android:strokeWidth="0.8"
+        android:strokeColor="#12FFFFFF"
+        android:fillColor="#00000000" />
+
+    <!-- Organic Farm Cultivation Soil Arcs at Bottom -->
+    <path
+        android:pathData="M18,94 C34,86 74,86 90,94"
+        android:strokeWidth="1.5"
+        android:strokeColor="#25D4AF37"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M24,100 C38,94 70,94 84,100"
+        android:strokeWidth="1.5"
+        android:strokeColor="#15D4AF37"
+        android:fillColor="#00000000" />
+</vector>

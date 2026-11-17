@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Elegant Outer Golden Shield Border -->
+    <path
+        android:pathData="M 32,36 C 43,32 49,30 54,27 C 59,30 65,32 76,36 C 76,55 71,71 54,81 C 37,71 32,55 32,36 Z"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="32"
+                android:startY="27"
+                android:endX="76"
+                android:endY="81"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FCEBA4" />
+                <item android:offset="0.5" android:color="#D4AF37" />
+                <item android:offset="1.0" android:color="#AA820A" />
+            </gradient>
+        </aapt:attr>
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="27"
+                android:endX="54"
+                android:endY="81"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#1AFFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Shield Inset Line -->
+    <path
+        android:pathData="M 36,40 C 45,36 50,34 54,32 C 58,34 63,36 72,40 C 72,55 68,67 54,75 C 40,67 36,55 36,40 Z"
+        android:strokeWidth="0.8"
+        android:strokeColor="#40D4AF37"
+        android:fillColor="#00000000" />
+
+    <!-- Left Organic Sprout Leaf (Spring Green Gradient) -->
+    <path
+        android:pathData="M 54,60 C 42,57 37,45 42,39 C 48,37 53,47 54,60 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="39"
+                android:startY="38"
+                android:endX="54"
+                android:endY="60"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#86EFAC" />
+                <item android:offset="1.0" android:color="#16A34A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Right Organic Sprout Leaf (Golden Harvest Green Gradient) -->
+    <path
+        android:pathData="M 54,54 C 57,41 68,36 70,41 C 70,49 61,52 54,54 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="37"
+                android:endX="70"
+                android:endY="54"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FDE047" />
+                <item android:offset="1.0" android:color="#22C55E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Central Bud / Sprout Core -->
+    <path
+        android:pathData="M 54,68 L 54,44 C 52,38 54,35 54,35 C 54,35 56,38 54,44 Z"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Golden Crown Star At Top Crest -->
+    <path
+        android:pathData="M 54,23 L 55.5,25.5 L 58,26 L 56,28 L 56.5,30.5 L 54,29 L 51.5,30.5 L 52,28 L 50,26 L 52.5,25.5 Z"
+        android:fillColor="#FCEBA4" />
+
+    <!-- Base Harvest Dots -->
+    <path
+        android:pathData="M 48,72 A 1.5,1.5 0 1,1 51,72 A 1.5,1.5 0 1,1 48,72 Z"
+        android:fillColor="#D4AF37" />
+    <path
+        android:pathData="M 57,72 A 1.5,1.5 0 1,1 60,72 A 1.5,1.5 0 1,1 57,72 Z"
+        android:fillColor="#D4AF37" />
+</vector>

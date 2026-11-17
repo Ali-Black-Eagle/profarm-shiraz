@@ -1,0 +1,69 @@
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: profarm-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-profarm_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-profarm_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - profarm-network
+
+  # 2. Profarm Next.js Production Web Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: profarm-app
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-profarm_db}?schema=public
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://profarm-shiraz.ir}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ZARINPAL_MERCHANT_ID=${ZARINPAL_MERCHANT_ID}
+      - ZARINPAL_SANDBOX=${ZARINPAL_SANDBOX:-false}
+      - SNAPPPAY_CLIENT_ID=${SNAPPPAY_CLIENT_ID}
+      - SNAPPPAY_CLIENT_SECRET=${SNAPPPAY_CLIENT_SECRET}
+      - SNAPPPAY_BASE_URL=${SNAPPPAY_BASE_URL:-https://api.snapppay.ir/api/online/v1}
+      - SMS_PROVIDER=${SMS_PROVIDER:-KAVENEGAR}
+      - SMS_API_KEY=${SMS_API_KEY}
+      - SMS_SENDER_LINE=${SMS_SENDER_LINE:-10008585}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-مزارع ارگانیک پروفارم شیراز}
+    volumes:
+      - farm_data:/app/.data
+    networks:
+      - profarm-network
+
+volumes:
+  postgres_data:
+    driver: local
+  farm_data:
+    driver: local
+
+networks:
+  profarm-network:
+    driver: bridge
