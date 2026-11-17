@@ -444,8 +444,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               {/* Backdrop Overlay */}
               <div
                 onClick={closeMobileMenu}
-                className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
-                  mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                className={`fixed inset-0 z-50 bg-black/60 transition-[opacity,visibility] duration-300 ${
+                  mobileMenuOpen
+                    ? 'opacity-100 pointer-events-auto backdrop-blur-xs'
+                    : 'opacity-0 pointer-events-none invisible'
                 }`}
                 aria-hidden="true"
               />

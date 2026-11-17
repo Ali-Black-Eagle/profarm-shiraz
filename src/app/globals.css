@@ -295,7 +295,7 @@ dialog::backdrop {
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: none;
   }
 }
 
@@ -306,7 +306,7 @@ dialog::backdrop {
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
@@ -317,7 +317,7 @@ dialog::backdrop {
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
@@ -340,7 +340,7 @@ dialog::backdrop {
   }
 
   .animate-in {
-    animation: enterFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: enterFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   .fade-in {
@@ -368,7 +368,7 @@ dialog::backdrop {
   }
 
   .animate-fade-in {
-    animation: enterFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: enterFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   .slide-in-from-top-2 {
@@ -376,17 +376,15 @@ dialog::backdrop {
   }
 
   .animate-mode-switch {
-    animation: modeSwitchSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    will-change: opacity, transform;
+    animation: modeSwitchSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   .animate-mode-title {
-    animation: modeTitleFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    will-change: opacity, transform;
+    animation: modeTitleFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   dialog.profarm-dialog[open] {
-    animation: enterFadeIn 190ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: enterFadeIn 190ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
     --enter-scale: 0.96;
     --enter-y: 0.5rem;
   }
