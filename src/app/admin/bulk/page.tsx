@@ -18,8 +18,11 @@ import {
   Filter,
 } from 'lucide-react';
 import { toPersianDigits } from '@/lib/formatters';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 
 export default function AdminBulkPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [inquiries, setInquiries] = useState<BulkInquiry[]>([]);
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'REVIEWED' | 'COMPLETED'>('ALL');
   const [isLoading, setIsLoading] = useState(false);
@@ -75,34 +78,46 @@ export default function AdminBulkPage() {
 
     // 2. Call API
     try {
-      await fetch('/api/bulk-inquiries', {
+      const res = await fetch('/api/bulk-inquiries', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: newStatus }),
       });
+      if (!res.ok) {
+        toast.error('خطا در ذخیره وضعیت استعلام در سرور.');
+        return;
+      }
       showToast('وضعیت استعلام با موفقیت بروزرسانی شد.');
-    } catch (e) {
-      console.error('Failed to update status on server:', e);
-      showToast('وضعیت در حافظه مرورگر بروز شد.');
+      toast.success('وضعیت استعلام با موفقیت بروزرسانی شد.');
+    } catch {
+      toast.error('خطا در ارتباط با سرور؛ وضعیت در سرور ذخیره نشد.');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('آیا از حذف این درخواست خرید عمده اطمینان دارید؟')) return;
+    const ok = await confirm({
+      title: 'حذف استعلام خرید عمده',
+      description: 'آیا از حذف دائمی این درخواست خرید عمده اطمینان دارید؟',
+      confirmLabel: 'حذف درخواست',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
-    // 1. Optimistic delete
-    farmStore.deleteBulkInquiry(id);
-    setInquiries((prev) => prev.filter((inq) => inq.id !== id));
-
-    // 2. Call API
     try {
-      await fetch(`/api/bulk-inquiries?id=${id}`, {
+      const res = await fetch(`/api/bulk-inquiries?id=${id}`, {
         method: 'DELETE',
       });
+      if (!res.ok) {
+        toast.error('خطا در حذف استعلام از سرور.');
+        return;
+      }
+      farmStore.deleteBulkInquiry(id);
+      setInquiries((prev) => prev.filter((inq) => inq.id !== id));
       showToast('استعلام با موفقیت حذف شد.');
-    } catch (e) {
-      console.error('Failed to delete on server:', e);
-      showToast('استعلام از حافظه مرورگر حذف شد.');
+      toast.success('استعلام با موفقیت حذف شد.');
+    } catch {
+      toast.error('خطا در ارتباط با سرور؛ استعلام حذف نشد.');
     }
   };
 

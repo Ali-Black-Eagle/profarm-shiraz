@@ -42,8 +42,12 @@ import {
   generateProductSeoDescription,
   generateProductSeoKeywords,
 } from '@/lib/seo-utils';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 
 export default function AdminProductsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -134,34 +138,44 @@ export default function AdminProductsPage() {
       setCategory(newCategoryInput.trim());
       setNewCategoryInput('');
       showToast(res.message);
+      toast.success(res.message);
     } else {
-      alert(res.message);
+      toast.error(res.message);
     }
   };
 
-  const handleDeleteCategory = (catName: string) => {
+  const handleDeleteCategory = async (catName: string) => {
     const productsInCat = products.filter((p) => p.category === catName).length;
-    if (productsInCat > 0) {
-      if (
-        !confirm(
-          `توجه: ${toPersianDigits(productsInCat)} محصول در این دسته‌بندی تعریف شده است. آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`
-        )
-      ) {
-        return;
-      }
-    } else {
-      if (!confirm(`آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`)) return;
-    }
+    const ok = await confirm({
+      title: 'حذف دسته‌بندی محصول',
+      description:
+        productsInCat > 0
+          ? `توجه: ${toPersianDigits(productsInCat)} محصول در این دسته‌بندی تعریف شده است. آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`
+          : `آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`,
+      confirmLabel: 'حذف دسته‌بندی',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (!ok) return;
     const res = farmStore.deleteCategory(catName);
     setCategories([...res.categories]);
     showToast(res.message);
+    toast.success(res.message);
   };
 
-  const handleResetCategories = () => {
-    if (confirm('آیا از بازنشانی دسته‌بندی‌ها به مقادیر اولیه اطمینان دارید؟')) {
+  const handleResetCategories = async () => {
+    const ok = await confirm({
+      title: 'بازنشانی دسته‌بندی‌ها',
+      description: 'آیا از بازنشانی دسته‌بندی‌ها به مقادیر اولیه اطمینان دارید؟',
+      confirmLabel: 'بازنشانی پیش‌فرض',
+      cancelLabel: 'انصراف',
+      variant: 'warning',
+    });
+    if (ok) {
       const defs = farmStore.resetCategories();
       setCategories([...defs]);
       showToast('دسته‌بندی‌ها به حالت پیش‌فرض بازنشانی شدند.');
+      toast.success('دسته‌بندی‌ها به حالت پیش‌فرض بازنشانی شدند.');
     }
   };
 
@@ -259,7 +273,7 @@ export default function AdminProductsPage() {
 
   const handleAutoGenerateSeo = () => {
     if (!title.trim()) {
-      alert('لطفاً ابتدا عنوان محصول را در بالای فرم بنویسید.');
+      toast.error('لطفاً ابتدا عنوان محصول را در بالای فرم بنویسید.');
       return;
     }
     const autoSlug = generateSeoSlug(title, products.map((p) => p.slug));
@@ -359,7 +373,7 @@ export default function AdminProductsPage() {
     e.preventDefault();
 
     if (!title.trim()) {
-      alert('لطفاً عنوان محصول را وارد کنید.');
+      toast.error('لطفاً عنوان محصول را وارد کنید.');
       return;
     }
 
@@ -795,33 +809,16 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Add / Edit Advanced Product Modal with Image Upload & Multi-image Gallery */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 border border-[#E6E1D5] shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F3EFE6]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#2C4A2E]/10 flex items-center justify-center text-[#2C4A2E]">
-                  <Package className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#2C4A2E]">
-                    {isEditing ? 'ویرایش پیشرفته اطلاعات محصول' : 'افزودن محصول ارگانیک جدید به انبار'}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    مشخصات کالا، بسته‌بندی، قیمت، و گالری تصاویر
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProduct} className="space-y-6 text-sm">
+      {/* Add / Edit Advanced Product Modal (Native <dialog>) */}
+      <Dialog
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={isEditing ? 'ویرایش پیشرفته اطلاعات محصول' : 'افزودن محصول ارگانیک جدید به انبار'}
+        description="مشخصات کالا، بسته‌بندی، قیمت، و گالری تصاویر"
+        icon={<Package className="w-5 h-5" />}
+        size="3xl"
+      >
+        <form onSubmit={handleSaveProduct} className="space-y-6 text-sm">
               {/* Product Basic Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Title */}
@@ -1584,36 +1581,18 @@ export default function AdminProductsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Dialog>
 
-      {/* Category Management Modal */}
-      {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto border border-[#E6E1D5] shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#E6E1D5]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#D4A373]/20 flex items-center justify-center text-[#D4A373]">
-                  <FolderTree className="w-5 h-5 text-[#2C4A2E]" />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg text-[#2C4A2E]">
-                    مدیریت دسته‌بندی‌های محصولات
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    افزودن دسته‌های جدید کالا، ویرایش و حذف دسته‌ها
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCategoryModalOpen(false)}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Category Management Modal (Native <dialog>) */}
+      <Dialog
+        open={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        title="مدیریت دسته‌بندی‌های محصولات"
+        description="افزودن دسته‌های جدید کالا، ویرایش و حذف دسته‌ها"
+        icon={<FolderTree className="w-5 h-5" />}
+        size="xl"
+      >
+        <div className="space-y-6">
 
             {/* Add New Category Form */}
             <form onSubmit={handleAddCategory} className="space-y-3 bg-[#F9F8F5] p-4 rounded-2xl border border-[#E6E1D5]">
@@ -1689,14 +1668,13 @@ export default function AdminProductsPage() {
               <button
                 type="button"
                 onClick={() => setIsCategoryModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl bg-[#2C4A2E] text-white text-xs font-bold hover:bg-[#1E3520] transition-colors cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors cursor-pointer"
               >
                 تایید و بستن
               </button>
             </div>
-          </div>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { farmStore } from '@/lib/db-store';
 import { Coupon, CouponTargetType, CouponDiscountType, Product } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { Dialog } from '@/components/ui/Dialog';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   TicketPercent,
   Plus,
@@ -30,6 +32,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminCouponsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | CouponTargetType>('ALL');
@@ -131,12 +135,21 @@ export default function AdminCouponsPage() {
     }
   };
 
-  const handleDeleteCoupon = (id: string, code: string, e: React.MouseEvent) => {
+  const handleDeleteCoupon = async (id: string, code: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`آیا از حذف کامل کد تخفیف «${code}» اطمینان دارید؟`)) {
+    const ok = await confirm({
+      title: 'حذف کد تخفیف',
+      description: `آیا از حذف کامل کد تخفیف «${code}» اطمینان دارید؟`,
+      confirmLabel: 'حذف کد تخفیف',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (ok) {
       farmStore.deleteCoupon(id);
       refreshData();
-      showToast(`کد تخفیف «${code}» با موفقیت حذف گردید.`);
+      const msg = `کد تخفیف «${code}» با موفقیت حذف گردید.`;
+      showToast(msg);
+      toast.success(msg);
     }
   };
 
@@ -144,15 +157,15 @@ export default function AdminCouponsPage() {
     e.preventDefault();
 
     if (!formCode.trim()) {
-      alert('لطفاً کد تخفیف را وارد کنید.');
+      toast.error('لطفاً کد تخفیف را وارد کنید.');
       return;
     }
     if (!formTitle.trim()) {
-      alert('لطفاً عنوان کد تخفیف را مشخص فرمایید.');
+      toast.error('لطفاً عنوان کد تخفیف را مشخص فرمایید.');
       return;
     }
     if (formDiscountValue === '' || Number(formDiscountValue) <= 0) {
-      alert('مقدار تخفیف باید عددی بزرگتر از صفر باشد.');
+      toast.error('مقدار تخفیف باید عددی بزرگتر از صفر باشد.');
       return;
     }
 
@@ -184,7 +197,7 @@ export default function AdminCouponsPage() {
       // Check duplicate code
       const existing = farmStore.getCouponByCode(payload.code);
       if (existing) {
-        alert('این کد تخفیف قبلاً تعریف شده است.');
+        toast.error('این کد تخفیف قبلاً تعریف شده است.');
         return;
       }
       farmStore.createCoupon(payload);
@@ -566,35 +579,16 @@ export default function AdminCouponsPage() {
         </div>
       )}
 
-      {/* Create / Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 border border-[#E6E1D5] shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-[#2C4A2E] flex items-center justify-center">
-                  <TicketPercent className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-gray-900">
-                    {editingCoupon ? 'ویرایش کد تخفیف' : 'تعریف کد تخفیف جدید'}
-                  </h3>
-                  <p className="text-[11px] text-gray-500">
-                    تنظیم قوانین تخفیف برای سفارشات، حمل و نقل یا اقلام خاص
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleSubmitForm} className="space-y-5 text-xs">
+      {/* Create / Edit Modal (Native <dialog>) */}
+      <Dialog
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingCoupon ? 'ویرایش کد تخفیف' : 'تعریف کد تخفیف جدید'}
+        description="تنظیم قوانین تخفیف برای سفارشات، حمل و نقل یا اقلام خاص"
+        icon={<TicketPercent className="w-5 h-5" />}
+        size="xl"
+      >
+        <form onSubmit={handleSubmitForm} className="space-y-5 text-xs">
               {/* Code & Random Generator */}
               <div>
                 <label className="block text-gray-700 font-bold mb-1">
@@ -877,9 +871,7 @@ export default function AdminCouponsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Dialog>
     </div>
   );
 }
