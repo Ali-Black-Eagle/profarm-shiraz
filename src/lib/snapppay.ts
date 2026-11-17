@@ -41,6 +41,16 @@ export interface SnappPayVerifyOptions {
   orderNumber: string;
 }
 
+export const SNAPPPAY_DEFAULT_BASE_URL = 'https://api.snapppay.ir/api/online/v1';
+
+/**
+ * SECURITY: credentials may only be sent to snapppay.ir over https.
+ * Accepts https://snapppay.ir and any subdomain, with no userinfo, port or other host.
+ */
+export function isAllowedSnappPayBaseUrl(url: unknown): url is string {
+  return typeof url === 'string' && /^https:\/\/([a-z0-9-]+\.)*snapppay\.ir(\/|$)/i.test(url.trim());
+}
+
 export interface SnappPayVerifyResult {
   success: boolean;
   refId?: string;

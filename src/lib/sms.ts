@@ -57,6 +57,14 @@ export function getActiveSmsConfig() {
 }
 
 /**
+ * The plain OTP code may appear in an API response only in non-production with the MOCK provider.
+ * Real deployments never expose it.
+ */
+function canExposeDebugOtp(): boolean {
+  return process.env.NODE_ENV !== 'production' && getActiveSmsConfig().provider === 'MOCK';
+}
+
+/**
  * Dispatches real SMS through Kavenegar REST API
  */
 async function sendViaKavenegar(
@@ -284,14 +292,16 @@ export async function checkDistributedRateLimit(
 /**
  * Generates and sends a 5-digit OTP to the phone number
  */
-export async function sendOtp(rawPhone: string, fallbackEmail?: string | null): Promise<SendOtpResult> {
+export async function sendOtp(rawPhone: string, accountEmail?: string | null): Promise<SendOtpResult> {
+  // SECURITY: accountEmail must be the email already stored on the account for this phone
+  // (resolved by the caller from the store). It is never taken from the request body.
   const phone = normalizePhoneNumber(rawPhone);
 
   const rateCheck = await checkDistributedRateLimit(phone);
   if (!rateCheck.allowed) {
     // If rate limited on SMS and fallback email is provided, deliver OTP safely to user email with strict independent rate limiting
-    if (fallbackEmail && isValidEmail(fallbackEmail)) {
-      const emailRateCheck = await checkDistributedRateLimit(`otp_email:${fallbackEmail.toLowerCase()}`, 3, 600);
+    if (accountEmail && isValidEmail(accountEmail)) {
+      const emailRateCheck = await checkDistributedRateLimit(`otp_email:${accountEmail.toLowerCase()}`, 3, 600);
       if (!emailRateCheck.allowed) {
         return {
           success: false,
@@ -304,7 +314,7 @@ export async function sendOtp(rawPhone: string, fallbackEmail?: string | null): 
       const expiresAt = Date.now() + OTP_TTL_MS;
       otpStore.set(phone, { phone, code, expiresAt, attempts: 0 });
       await triggerFallbackEmail({
-        to: fallbackEmail,
+        to: accountEmail,
         subject: 'کد تایید ورود و احراز هویت پروفارم شیراز (جایگزین پیامک)',
         text: `کد تایید ورود و احراز هویت شما:\n\n${code}\n\nاین کد تا ۲ دقیقه معتبر است.`,
         fallbackForSms: true,
@@ -312,7 +322,7 @@ export async function sendOtp(rawPhone: string, fallbackEmail?: string | null): 
       return {
         success: true,
         message: 'کد تایید از طریق ایمیل برای شما ارسال شد.',
-        debugCode: (process.env.NODE_ENV !== 'production' || process.env.SMS_PROVIDER === 'MOCK') ? code : undefined,
+        debugCode: canExposeDebugOtp() ? code : undefined,
       };
     }
 
@@ -352,10 +362,10 @@ export async function sendOtp(rawPhone: string, fallbackEmail?: string | null): 
   );
 
   // Optional dual-dispatch / fallback to email if email provided or if SMS failed
-  if (fallbackEmail && isValidEmail(fallbackEmail)) {
+  if (accountEmail && isValidEmail(accountEmail)) {
     try {
       await triggerFallbackEmail({
-        to: fallbackEmail,
+        to: accountEmail,
         subject: 'کد تایید ورود و تایید حساب پروفارم شیراز',
         text: `کد تایید شما برای ورود یا تایید شماره در مزارع ارگانیک پروفارم شیراز:\n\n${code}\n\nاین کد تا ۲ دقیقه دارای اعتبار است.`,
         fallbackForSms: !realSmsResult.success,
@@ -368,7 +378,7 @@ export async function sendOtp(rawPhone: string, fallbackEmail?: string | null): 
   return {
     success: true,
     message: 'کد تایید ۵ رقمی برای شماره شما ارسال شد.',
-    debugCode: (process.env.NODE_ENV !== 'production' || process.env.SMS_PROVIDER === 'MOCK') ? code : undefined,
+    debugCode: canExposeDebugOtp() ? code : undefined,
   };
 }
 
@@ -433,7 +443,7 @@ export async function sendOrderStatusSms(
   phone: string,
   orderNumber: string,
   statusFarsi: string,
-  fallbackEmail?: string | null
+  accountEmail?: string | null
 ): Promise<boolean> {
   const maskedPhone = maskPhoneNumber(phone);
   const message = `پروفارم شیراز\nمشتری گرامی، وضعیت سفارش ${orderNumber} به «${statusFarsi}» تغییر یافت.\nپیگیری: profarm.ir`;
@@ -453,10 +463,10 @@ export async function sendOrderStatusSms(
   }
 
   // Automatic Email Fallback
-  if ((smsFailed || fallbackEmail) && fallbackEmail && isValidEmail(fallbackEmail)) {
+  if ((smsFailed || accountEmail) && accountEmail && isValidEmail(accountEmail)) {
     try {
       await triggerFallbackEmail({
-        to: fallbackEmail,
+        to: accountEmail,
         subject: `بروزرسانی وضعیت سفارش ${orderNumber} - مزارع ارگانیک پروفارم شیراز`,
         text: message,
         fallbackForSms: true,
@@ -475,7 +485,7 @@ export async function sendOrderStatusSms(
 export async function sendCustomSms(
   phone: string,
   message: string,
-  fallbackEmail?: string | null
+  accountEmail?: string | null
 ): Promise<boolean> {
   const maskedPhone = maskPhoneNumber(phone);
   let smsFailed = false;
@@ -494,10 +504,10 @@ export async function sendCustomSms(
   }
 
   // Automatic Email Fallback
-  if ((smsFailed || fallbackEmail) && fallbackEmail && isValidEmail(fallbackEmail)) {
+  if ((smsFailed || accountEmail) && accountEmail && isValidEmail(accountEmail)) {
     try {
       await triggerFallbackEmail({
-        to: fallbackEmail,
+        to: accountEmail,
         subject: 'پیام اختصاصی از مزارع ارگانیک پروفارم شیراز',
         text: message,
         fallbackForSms: true,

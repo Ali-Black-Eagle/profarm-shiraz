@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyPayment } from '@/lib/zarinpal';
 import { verifySnappPayPayment } from '@/lib/snapppay';
 import { farmStore } from '@/lib/db-store';
+import { isMockGatewayEnabled, verifyMockAuthority, MOCK_AUTHORITY_PREFIX } from '@/lib/mock-gateway';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -127,25 +128,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/checkout?error=invalid_authority', req.url));
   }
 
-  const isMock =
-    searchParams.get('mockSuccess') === 'true' &&
-    (process.env.NODE_ENV !== 'production' ||
-      process.env.ZARINPAL_SANDBOX === 'true' ||
-      !process.env.ZARINPAL_MERCHANT_ID ||
-      process.env.ZARINPAL_MERCHANT_ID === '00000000-0000-0000-0000-000000000000' ||
-      process.env.ZARINPAL_MERCHANT_ID.length < 30);
-
-  const verifyResult = isMock
-    ? {
-        success: true,
-        refId: 'MOCK-REF-' + Date.now(),
-        message: 'پرداخت تستی با موفقیت ثبت شد.',
-      }
-    : await verifyPayment({
-        authority,
-        amount: amountToVerify,
-        orderId: orderNumber,
-      });
+  // Mock authorities (dev only) are accepted only when the mock gateway is enabled, and only with a
+  // valid HMAC for this order and its server-side total. The query string cannot enable them.
+  let verifyResult: { success: boolean; refId?: string; message?: string };
+  if (authority.startsWith(MOCK_AUTHORITY_PREFIX)) {
+    const mockCheck = isMockGatewayEnabled()
+      ? verifyMockAuthority(authority, orderNumber, amountToVerify)
+      : null;
+    if (!mockCheck) {
+      console.warn(`[Security Alert] Invalid mock payment authority for order ${orderNumber}.`);
+      return NextResponse.redirect(new URL('/checkout?error=invalid_payment_authority', req.url));
+    }
+    verifyResult = {
+      success: true,
+      refId: 'MOCK-' + mockCheck.timestamp,
+      message: 'پرداخت تستی با موفقیت ثبت شد.',
+    };
+  } else {
+    verifyResult = await verifyPayment({
+      authority,
+      amount: amountToVerify,
+      orderId: orderNumber,
+    });
+  }
 
   if (verifyResult.success) {
     const refId = verifyResult.refId || 'REF-' + Date.now();

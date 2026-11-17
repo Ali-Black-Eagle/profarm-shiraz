@@ -12,6 +12,7 @@ import {
   DEFAULT_PAYMENT_SETTINGS,
 } from '../src/lib/db-store';
 import { hashPassword } from '../src/lib/password';
+import { resolveInitialAdminPassword, saveGeneratedAdminCredentials } from '../src/lib/admin-bootstrap';
 
 const prisma = new PrismaClient();
 
@@ -104,7 +105,16 @@ async function main() {
 
   // 5. Seed Users & Default Addresses
   console.log('👤 Seeding Users & Addresses...');
-  const adminPassword = hashPassword(process.env.ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD || 'Admin@ProFarm2026!#Shiraz');
+  // SECURITY: no hard-coded admin password. Production must set ADMIN_PASSWORD. Development generates one
+  // (saved to "admin userpass.txt" only, never printed).
+  const resolvedAdmin = resolveInitialAdminPassword();
+  if (!resolvedAdmin.password) {
+    throw new Error('ADMIN_PASSWORD (or ADMIN_INITIAL_PASSWORD) must be set before seeding in production.');
+  }
+  if (resolvedAdmin.generated) {
+    saveGeneratedAdminCredentials(resolvedAdmin.password);
+  }
+  const adminPassword = hashPassword(resolvedAdmin.password);
   const demoUserPassword = hashPassword('user123');
   const plusUserPassword = hashPassword('plus123');
   const proUserPassword = hashPassword('pro123');

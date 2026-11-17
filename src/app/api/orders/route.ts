@@ -8,6 +8,9 @@ import { getSessionFromRequest } from '@/lib/session';
 import { normalizePhoneNumber, calculateCartDiscounts } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { isDayAllowedForUser } from '@/lib/jalali';
+import { requireAdmin } from '@/lib/admin-auth';
+import { apiErrorResponse } from '@/lib/api-errors';
+import { isMockGatewayEnabled, createMockAuthority } from '@/lib/mock-gateway';
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromRequest(req);
@@ -22,7 +25,10 @@ export async function GET(req: NextRequest) {
   const orderNumberParam = searchParams.get('orderNumber')?.trim();
 
   const allOrders = farmStore.getOrders();
-  if (session.role === 'ADMIN') {
+
+  // Admin branch only when the stored account is still ADMIN (a token claim alone is not trusted)
+  const adminAuth = session.role === 'ADMIN' ? requireAdmin(req) : null;
+  if (adminAuth && !(adminAuth instanceof NextResponse)) {
     if (orderNumberParam) {
       const single = allOrders.find(
         (o) => o.orderNumber === orderNumberParam || o.id === orderNumberParam
@@ -32,16 +38,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, orders: allOrders });
   }
 
-  // Filter for authenticated user only (safeguard against empty session phone matching)
-  const cleanSessionPhone = session.phone ? normalizePhoneNumber(session.phone) : '';
-  const userOrders = allOrders.filter(
-    (o) =>
-      o.userId === session.userId ||
-      (cleanSessionPhone && cleanSessionPhone.length >= 10 && (
-        (o.address?.phone && normalizePhoneNumber(o.address.phone) === cleanSessionPhone) ||
-        (o.user?.phone && normalizePhoneNumber(o.user.phone) === cleanSessionPhone)
-      ))
-  );
+  // SECURITY: customers see only orders linked to their account id.
+  // Phone numbers on addresses or user snapshots are never used for matching.
+  const userOrders = allOrders.filter((o) => o.userId === session.userId);
 
   if (orderNumberParam) {
     const matchedOrder = userOrders.find(
@@ -120,28 +119,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Resolve Authenticated User & Delivery Recipient Details
-    const cleanPhone = normalizePhoneNumber(phone || '');
-    const cleanSessionPhone = normalizePhoneNumber(session.phone || '');
-
-    let user = session.userId
-      ? farmStore.getAllUsers().find((u) => u.id === session.userId)
-      : farmStore.getUserByPhone(cleanSessionPhone || session.phone);
-
-    if (!user && (cleanPhone || cleanSessionPhone)) {
-      user = farmStore.getUserByPhone(cleanPhone || cleanSessionPhone);
-    }
+    // 2. Resolve the account strictly by the id in the session.
+    // SECURITY: the phone typed at checkout never links or attaches to an account.
+    const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
+    const user = farmStore.getAllUsers().find((u) => u.id === session.userId);
 
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'حساب کاربری شما یافت نشد. لطفاً مجدداً وارد شوید.' },
         { status: 401 }
       );
-    }
-
-    // If user's phone was just verified on checkout and needs syncing
-    if (!user.phone && cleanPhone) {
-      user.phone = cleanPhone;
     }
 
     const subSettings = farmStore.getSubscriptionSettings();
@@ -393,6 +380,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // DEV ONLY: mock gateway (lib/mock-gateway.ts). Never active outside NODE_ENV=development with PAYMENT_MOCK_GATEWAY=1.
+    if (isMockGatewayEnabled()) {
+      const mockAuthority = createMockAuthority(orderNumber, finalTotalAmount);
+      farmStore.attachPaymentToOrder(orderNumber, {
+        id: `pay-${Date.now()}`,
+        orderId: orderNumber,
+        amount: finalTotalAmount,
+        gateway: 'zarinpal',
+        authority: mockAuthority,
+        status: 'INITIATED',
+        createdAt: new Date().toISOString(),
+      });
+
+      return NextResponse.json({
+        success: true,
+        order: newOrder,
+        authority: mockAuthority,
+        paymentUrl: `/checkout/mock-gateway?orderNumber=${encodeURIComponent(orderNumber)}&Authority=${encodeURIComponent(mockAuthority)}&amount=${finalTotalAmount}`,
+        gateway: 'zarinpal',
+      });
+    }
+
     const paymentReq = await requestPayment({
       amount: finalTotalAmount,
       description: `سفارش محصولات ارگانیک شیراز کد ${orderNumber}`,
@@ -429,11 +438,7 @@ export async function POST(req: NextRequest) {
       paymentUrl: paymentReq.paymentUrl,
       gateway: 'zarinpal',
     });
-  } catch (error: any) {
-    console.error('Create order error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای سرور در ایجاد سفارش' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'orders/post', 'خطای سرور در ایجاد سفارش');
   }
 }

@@ -60,14 +60,28 @@ export function isSessionRevoked(identifier?: string | null): boolean {
  * Retrieves the cryptographic secret key for signing session tokens.
  * Enforces strong environment variable presence in production.
  */
+// Placeholder / previously hard-coded secrets that must never be used for signing
+const KNOWN_WEAK_SECRETS = new Set([
+  'profarm_shiraz_super_secret_jwt_key_2026',
+  'replace_with_a_secure_random_32_char_secret_key', // .env.example placeholder
+  'your_strong_random_secret_jwt_key_here_min_32_characters', // ARCHITECTURE.md placeholder
+]);
+
 export function getSessionSecret(): string {
-  const envSecret = process.env.NEXTAUTH_SECRET || process.env.SESSION_SECRET;
-  if (envSecret && envSecret.trim() !== '' && envSecret !== 'profarm_shiraz_super_secret_jwt_key_2026') {
-    return envSecret.trim();
-  }
+  const envSecret = (process.env.NEXTAUTH_SECRET || process.env.SESSION_SECRET || '').trim();
+  const isUsable = envSecret !== '' && !KNOWN_WEAK_SECRETS.has(envSecret);
 
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('CRITICAL SECURITY ERROR: NEXTAUTH_SECRET or SESSION_SECRET must be securely configured in production!');
+    if (!isUsable || envSecret.length < 32) {
+      throw new Error(
+        'CRITICAL SECURITY ERROR: NEXTAUTH_SECRET or SESSION_SECRET must be set to a unique random value of at least 32 characters in production!'
+      );
+    }
+    return envSecret;
+  }
+
+  if (isUsable) {
+    return envSecret;
   }
 
   // In development, create and preserve a process-isolated ephemeral 32-byte cryptographic secret
@@ -236,6 +250,61 @@ export function setSessionCookie(
     maxAge: expiresInDays * 24 * 60 * 60,
   });
   return token;
+}
+
+// ---------------------------------------------------------------------------
+// Phone proof: short-lived token issued after a successful OTP verification.
+// Proves that the caller controlled the phone number when registering with it.
+// Uses a distinct prefix and a domain-separated HMAC so it can never be accepted as a session.
+// ---------------------------------------------------------------------------
+
+const PHONE_PROOF_PREFIX = 'pp';
+const PHONE_PROOF_TTL_SECONDS = 10 * 60;
+
+function phoneProofMac(data: string): string {
+  return crypto
+    .createHmac('sha256', getSessionSecret())
+    .update(`phone-proof:${data}`)
+    .digest('base64url');
+}
+
+/** Issues a signed proof that `phone` was verified by OTP. Valid for 10 minutes. */
+export function signPhoneProof(phone: string): string {
+  const payload = {
+    phone,
+    purpose: 'phone-proof',
+    exp: Math.floor(Date.now() / 1000) + PHONE_PROOF_TTL_SECONDS,
+  };
+  const body = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64url');
+  const data = `${PHONE_PROOF_PREFIX}.${body}`;
+  return `${data}.${phoneProofMac(data)}`;
+}
+
+/** Returns true only when the token is a valid, unexpired proof for exactly this phone. */
+export function verifyPhoneProof(token: unknown, phone: string): boolean {
+  if (typeof token !== 'string' || !phone) return false;
+  const parts = token.split('.');
+  if (parts.length !== 3 || parts[0] !== PHONE_PROOF_PREFIX) return false;
+
+  const data = `${parts[0]}.${parts[1]}`;
+  const expectedBuf = Buffer.from(phoneProofMac(data));
+  const givenBuf = Buffer.from(parts[2]);
+  if (givenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(givenBuf, expectedBuf)) {
+    return false;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+    const now = Math.floor(Date.now() / 1000);
+    return (
+      payload.purpose === 'phone-proof' &&
+      payload.phone === phone &&
+      typeof payload.exp === 'number' &&
+      payload.exp >= now
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -1,39 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
+import { apiErrorResponse } from '@/lib/api-errors';
 import { sendEmail, isValidEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: ورود به عنوان مدیر ارشد الزامی است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const logs = farmStore.getEmailLogs();
     return NextResponse.json({ success: true, logs });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطا در بارگذاری تاریخچه ایمیل‌ها' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'admin/email GET', 'خطا در بارگذاری تاریخچه ایمیل‌ها');
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: این عملیات منحصراً در اختیار مدیر ارشد سیستم است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json();
     const { target, recipientEmail, recipientName, subject, content } = body;
@@ -150,10 +138,7 @@ export async function POST(req: NextRequest) {
       { success: false, message: 'نوع هدف ارسال ایمیل نامعتبر است.' },
       { status: 400 }
     );
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای سرور در ارسال ایمیل' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'admin/email POST', 'خطای سرور در ارسال ایمیل');
   }
 }

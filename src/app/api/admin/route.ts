@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { isValidOrderStatusTransition } from '@/lib/order-utils';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: لطفا ابتدا وارد حساب مدیر شوید.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type');
@@ -43,13 +38,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: این عملیات منحصراً در اختیار مدیر ارشد سیستم است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json();
     const { action, payload } = body;
@@ -107,11 +97,7 @@ export async function POST(req: NextRequest) {
       if (!targetUser) {
         return NextResponse.json({ success: false, message: 'کاربر مورد نظر یافت نشد.' }, { status: 404 });
       }
-      const isSelf =
-        targetUser.id === session.userId ||
-        (session.phone &&
-          targetUser.phone &&
-          normalizePhoneNumber(targetUser.phone) === normalizePhoneNumber(session.phone));
+      const isSelf = targetUser.id === auth.user.id;
       if (isSelf && role !== 'ADMIN') {
         return NextResponse.json(
           { success: false, message: 'مدیر سیستم نمی‌تواند سطح دسترسی حساب خود را عزل کند.' },

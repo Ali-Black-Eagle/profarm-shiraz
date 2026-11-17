@@ -67,7 +67,8 @@ import {
   generateProductSeoKeywords,
 } from './seo-utils';
 import { hashPassword, verifyPassword, needsPasswordRehash } from './password';
-import { getDeduplicatedPerks, normalizePhoneNumber } from './formatters';
+import { getDeduplicatedPerks, normalizePhoneNumber, isValidEmail } from './formatters';
+import { BusinessError } from './api-errors';
 
 export function sanitizeUser(user: User): User {
   const { password, ...safeUser } = user;
@@ -450,6 +451,8 @@ class FarmDataStore {
   private products: Product[] = [...INITIAL_PRODUCTS];
   private orders: Order[] = [...INITIAL_ADMIN_ORDERS];
   private users: Map<string, User> = new Map();
+  // Generated dev admin password waiting to be saved (set only when no admin is stored yet)
+  private pendingAdminCredentials: { user: User; password: string } | null = null;
   private bulkInquiries: BulkInquiry[] = [];
   private categories: string[] = [...INITIAL_CATEGORIES];
   private slotBookings: Map<string, number> = new Map();
@@ -1430,17 +1433,20 @@ class FarmDataStore {
     let plusPasswordHash = '';
     let proPasswordHash = '';
 
+    let generatedAdminPassword: string | null = null;
     if (!this.isBrowser()) {
-      let adminPass: string = process.env.ADMIN_INITIAL_PASSWORD || process.env.ADMIN_PASSWORD || '';
-      if (!adminPass || adminPass.trim() === '' || (process.env.NODE_ENV === 'production' && adminPass === 'admin')) {
-        if (process.env.NODE_ENV === 'production') {
-          adminPass = crypto.randomBytes(16).toString('hex');
-          console.warn('[SECURITY CRITICAL] ADMIN_INITIAL_PASSWORD is not set or default in production! Generated secure random password:', adminPass);
-        } else {
-          adminPass = 'Admin@ProFarm2026!#Shiraz';
-        }
+      // SECURITY: no hard-coded admin password. See lib/admin-bootstrap.ts for the resolution order.
+      const { resolveInitialAdminPassword } = require('./admin-bootstrap') as typeof import('./admin-bootstrap');
+      const resolvedAdmin = resolveInitialAdminPassword();
+      if (resolvedAdmin.password) {
+        adminPasswordHash = hashPassword(resolvedAdmin.password);
+        if (resolvedAdmin.generated) generatedAdminPassword = resolvedAdmin.password;
+      } else {
+        // Production without ADMIN_PASSWORD: refuse to create a known password.
+        // The seeded admin gets an unguessable hash until ADMIN_PASSWORD is configured.
+        console.error('[SECURITY] ADMIN_PASSWORD is not set. The initial admin account has no usable password until it is configured.');
+        adminPasswordHash = hashPassword(crypto.randomBytes(32).toString('hex'));
       }
-      adminPasswordHash = hashPassword(adminPass);
       if (process.env.NODE_ENV !== 'production') {
         userPasswordHash = hashPassword('user123');
         plusPasswordHash = hashPassword('plus123');
@@ -1480,6 +1486,9 @@ class FarmDataStore {
     };
     if (adminUser.phone) this.users.set(adminUser.phone, adminUser);
     if (adminUser.id) this.users.set(adminUser.id, adminUser);
+    if (generatedAdminPassword) {
+      this.pendingAdminCredentials = { user: adminUser, password: generatedAdminPassword };
+    }
 
     // SECURITY: Demo users (regular, plus, pro) are strictly seeded in non-production development/test only
     if (process.env.NODE_ENV !== 'production') {
@@ -1726,6 +1735,20 @@ class FarmDataStore {
     this.populateInitialBulkInquiries();
     this.initFromLocalStorage();
     this.loadServerState();
+    this.finalizeAdminBootstrap();
+  }
+
+  /**
+   * Persists a freshly generated dev admin password only when the seeded admin is the active
+   * account. If the stored data already has an admin, its password is never replaced.
+   */
+  private finalizeAdminBootstrap(): void {
+    const pending = this.pendingAdminCredentials;
+    this.pendingAdminCredentials = null;
+    if (!pending || this.isBrowser()) return;
+    if (this.users.get('usr-admin') !== pending.user) return;
+    const { saveGeneratedAdminCredentials } = require('./admin-bootstrap') as typeof import('./admin-bootstrap');
+    saveGeneratedAdminCredentials(pending.password);
   }
 
   // --- PRODUCTS ---
@@ -2627,6 +2650,8 @@ class FarmDataStore {
     name: string;
     email?: string;
     phone?: string;
+    /** true only when the caller verified the phone with an OTP (phoneProof) */
+    phoneVerified?: boolean;
     username?: string;
     password?: string;
   }): User {
@@ -2635,7 +2660,7 @@ class FarmDataStore {
     const cleanPhone = params.phone ? normalizePhoneNumber(params.phone) : undefined;
 
     if (!cleanEmail && !cleanPhone) {
-      throw new Error('لطفاً ایمیل معتبر یا شماره تلفن همراه خود را وارد نمایید.');
+      throw new BusinessError('لطفاً ایمیل معتبر یا شماره تلفن همراه خود را وارد نمایید.');
     }
 
     // Auto-generate username: email or phone (no separate username required)
@@ -2647,9 +2672,9 @@ class FarmDataStore {
       const existingByEmail = this.getUserByEmail(cleanEmail);
       if (existingByEmail) {
         if (existingByEmail.role === 'ADMIN') {
-          throw new Error('این ایمیل متعلق به حساب مدیر سیستم است و امکان ثبت‌نام مجدد ندارد.');
+          throw new BusinessError('این ایمیل متعلق به حساب مدیر سیستم است و امکان ثبت‌نام مجدد ندارد.', 409);
         }
-        throw new Error('حساب کاربری دیگری با این آدرس ایمیل از قبل ثبت شده است. لطفاً وارد شوید.');
+        throw new BusinessError('حساب کاربری دیگری با این آدرس ایمیل از قبل ثبت شده است. لطفاً وارد شوید.', 409);
       }
     }
 
@@ -2658,9 +2683,9 @@ class FarmDataStore {
       const existingByPhone = this.getUserByPhone(cleanPhone);
       if (existingByPhone) {
         if (existingByPhone.role === 'ADMIN') {
-          throw new Error('این شماره متعلق به حساب مدیر سیستم است و امکان ثبت‌نام مجدد ندارد.');
+          throw new BusinessError('این شماره متعلق به حساب مدیر سیستم است و امکان ثبت‌نام مجدد ندارد.', 409);
         }
-        throw new Error('حساب کاربری با این شماره تلفن از قبل وجود دارد. لطفاً وارد شوید.');
+        throw new BusinessError('حساب کاربری با این شماره تلفن از قبل وجود دارد. لطفاً وارد شوید.', 409);
       }
     }
 
@@ -2668,7 +2693,7 @@ class FarmDataStore {
     const user: User = {
       id: userId,
       phone: cleanPhone || '',
-      isPhoneVerified: false,
+      isPhoneVerified: Boolean(cleanPhone && params.phoneVerified),
       username: autoUsername,
       email: cleanEmail || null,
       name: params.name?.trim() || 'کاربر گرامی',
@@ -2738,58 +2763,97 @@ class FarmDataStore {
     };
   }
 
+  /**
+   * Updates the profile of the account with the given id. Only whitelisted fields are applied.
+   * Email and username must stay unique (case-insensitive). A password change on an account that
+   * already has a password requires `currentPassword`. Changing the email clears isEmailVerified.
+   */
   updateUserProfile(
-    userIdOrPhone: string,
+    userId: string,
     updates: {
       name?: string;
       username?: string;
-      email?: string;
+      email?: string | null;
       password?: string;
-      nationalId?: string;
-      birthDate?: string;
+      currentPassword?: string;
+      nationalId?: string | null;
+      birthDate?: string | null;
       smsNotificationEnabled?: boolean;
     }
-  ): { success: boolean; user?: User; message?: string } {
+  ): { success: boolean; user?: User; message?: string; status?: number } {
     this.getAllUsers();
-    const cleanId = normalizePhoneNumber(userIdOrPhone);
-    const user = Array.from(this.users.values()).find(
-      (u) =>
-        u.id === userIdOrPhone ||
-        (u.phone && normalizePhoneNumber(u.phone) === cleanId) ||
-        (u.username && u.username.toLowerCase() === userIdOrPhone.toLowerCase())
-    );
+    const user = Array.from(this.users.values()).find((u) => u.id === userId);
 
     if (!user) {
-      return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.' };
+      return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
     }
 
-    if (updates.username && updates.username.trim()) {
+    const allUsers = Array.from(this.users.values()).filter((u, idx, arr) => arr.indexOf(u) === idx);
+
+    // Username uniqueness
+    if (typeof updates.username === 'string' && updates.username.trim()) {
       const cleanUname = updates.username.trim().toLowerCase();
-      const existing = Array.from(this.users.values()).find(
+      const existing = allUsers.find(
         (u) => u.id !== user.id && u.username && u.username.toLowerCase() === cleanUname
       );
       if (existing) {
-        return { success: false, message: 'این نام کاربری قبلاً توسط کاربر دیگری انتخاب شده است.' };
+        return { success: false, message: 'این نام کاربری قبلاً توسط کاربر دیگری انتخاب شده است.', status: 409 };
       }
-      user.username = updates.username.trim();
     }
 
-    if (updates.name && updates.name.trim()) user.name = updates.name.trim();
-    if (updates.email !== undefined) user.email = updates.email ? updates.email.trim() : null;
-    if (updates.nationalId !== undefined) user.nationalId = updates.nationalId ? updates.nationalId.trim() : null;
-    if (updates.birthDate !== undefined) user.birthDate = updates.birthDate ? updates.birthDate.trim() : null;
-    if (updates.smsNotificationEnabled !== undefined) user.smsNotificationEnabled = updates.smsNotificationEnabled;
-
-    if (updates.password && updates.password.trim()) {
-      if (updates.password.trim().length < 4) {
-        return { success: false, message: 'کلمه عبور باید حداقل ۴ کاراکتر باشد.' };
+    // Email uniqueness and format
+    let nextEmail: string | null | undefined = undefined;
+    if (updates.email !== undefined) {
+      const cleanEmail = typeof updates.email === 'string' ? updates.email.trim().toLowerCase() : '';
+      if (cleanEmail) {
+        if (!isValidEmail(cleanEmail)) {
+          return { success: false, message: 'فرمت آدرس ایمیل نامعتبر است.', status: 400 };
+        }
+        const takenBy = allUsers.find(
+          (u) => u.id !== user.id && u.email && u.email.trim().toLowerCase() === cleanEmail
+        );
+        if (takenBy) {
+          return { success: false, message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت شده است.', status: 409 };
+        }
       }
-      user.password = hashPassword(updates.password.trim());
+      nextEmail = cleanEmail || null;
+    }
+
+    // Password change (validated before anything is mutated)
+    let nextPasswordHash: string | undefined = undefined;
+    if (typeof updates.password === 'string' && updates.password.trim()) {
+      const newPassword = updates.password.trim();
+      if (newPassword.length < 8) {
+        return { success: false, message: 'کلمه عبور باید حداقل ۸ کاراکتر باشد.', status: 400 };
+      }
+      if (user.password) {
+        const currentPassword = typeof updates.currentPassword === 'string' ? updates.currentPassword.trim() : '';
+        if (!currentPassword || !verifyPassword(currentPassword, user.password)) {
+          return { success: false, message: 'کلمه عبور فعلی وارد شده نادرست است.', status: 403 };
+        }
+      }
+      nextPasswordHash = hashPassword(newPassword);
+    }
+
+    if (typeof updates.name === 'string' && updates.name.trim()) user.name = updates.name.trim();
+    if (typeof updates.username === 'string' && updates.username.trim()) user.username = updates.username.trim();
+    if (nextEmail !== undefined) {
+      if ((nextEmail || null) !== (user.email ? user.email.trim().toLowerCase() : null)) {
+        user.isEmailVerified = false;
+      }
+      user.email = nextEmail;
+    }
+    if (updates.nationalId !== undefined) user.nationalId = updates.nationalId ? String(updates.nationalId).trim() : null;
+    if (updates.birthDate !== undefined) user.birthDate = updates.birthDate ? String(updates.birthDate).trim() : null;
+    if (typeof updates.smsNotificationEnabled === 'boolean') user.smsNotificationEnabled = updates.smsNotificationEnabled;
+    if (nextPasswordHash) {
+      user.password = nextPasswordHash;
       user.authProvider = 'PASSWORD';
     }
 
     if (user.phone) this.users.set(user.phone, user);
     if (user.id) this.users.set(user.id, user);
+    if (user.email) this.users.set(user.email.toLowerCase(), user);
     this.saveUsers();
 
     return { success: true, user: sanitizeUser(user), message: 'اطلاعات حساب کاربری با موفقیت به‌روزرسانی شد.' };
@@ -2798,32 +2862,42 @@ class FarmDataStore {
   getOrCreateGoogleUser(googleUser: { email: string; name?: string; picture?: string }): User {
     this.getAllUsers();
     const cleanEmail = googleUser.email.trim().toLowerCase();
-    let user = Array.from(this.users.values()).find(
-      (u) => u.email && u.email.toLowerCase() === cleanEmail
+    const usersWithEmail = Array.from(this.users.values()).filter(
+      (u, idx, arr) => arr.indexOf(u) === idx && u.email && u.email.trim().toLowerCase() === cleanEmail
     );
 
     // SECURITY: Prevent privilege escalation via Google Auth
-    // Under no circumstance can an unverified OAuth claim hijack or access an ADMIN account.
-    if (user && user.role === 'ADMIN') {
+    // Under no circumstance can an OAuth claim hijack or access an ADMIN account.
+    if (usersWithEmail.some((u) => u.role === 'ADMIN')) {
       console.warn(`[Security Alert] Blocked OAuth login attempt targeting admin email: ${cleanEmail}`);
-      throw new Error('ورود با حساب گوگل برای مدیران سیستم مجاز نمی‌باشد. لطفاً از فرم اختصاصی ورود مدیریت استفاده نمایید.');
+      throw new BusinessError(
+        'ورود با حساب گوگل برای مدیران سیستم مجاز نمی‌باشد. لطفاً از فرم اختصاصی ورود مدیریت استفاده نمایید.',
+        403
+      );
     }
 
-    if (!user) {
-      user = {
-        id: `usr-g-${Date.now()}`,
-        phone: '',
-        name: googleUser.name || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        avatarUrl: googleUser.picture,
-        authProvider: 'GOOGLE',
-        role: 'USER', // Strictly USER role
-        isProMember: false,
-        createdAt: new Date().toISOString(),
-      };
-      this.users.set(user.id, user);
-      this.saveUsers();
+    // Link only to an account whose email was verified by Google (isEmailVerified is set only here).
+    // An account that merely claims the email (password registration, profile edit) is never linked,
+    // so a pre-registered email cannot take over a Google login.
+    const verifiedUser = usersWithEmail.find((u) => u.isEmailVerified === true);
+    if (verifiedUser) {
+      return verifiedUser;
     }
+
+    const user: User = {
+      id: `usr-g-${Date.now()}`,
+      phone: '',
+      name: googleUser.name || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      isEmailVerified: true,
+      avatarUrl: googleUser.picture,
+      authProvider: 'GOOGLE',
+      role: 'USER', // Strictly USER role
+      isProMember: false,
+      createdAt: new Date().toISOString(),
+    };
+    this.users.set(user.id, user);
+    this.saveUsers();
     return user;
   }
 
@@ -3268,12 +3342,13 @@ class FarmDataStore {
           (p) => p.id === item.productId || p.slug === item.productId
         );
         if (!prod) {
-          throw new Error(`محصول درخواستی با شناسه «${item.productId}» در فروشگاه یافت نشد.`);
+          throw new BusinessError(`محصول درخواستی با شناسه «${item.productId}» در فروشگاه یافت نشد.`);
         }
         const availableStock = prod.stock ?? 0;
         if (availableStock < item.quantity) {
-          throw new Error(
-            `INSUFFICIENT_STOCK: متاسفانه موجودی محصول «${prod.title}» کافی نیست. موجودی فعلی: ${availableStock} عدد، تعداد درخواستی: ${item.quantity} عدد.`
+          throw new BusinessError(
+            `INSUFFICIENT_STOCK: متاسفانه موجودی محصول «${prod.title}» کافی نیست. موجودی فعلی: ${availableStock} عدد، تعداد درخواستی: ${item.quantity} عدد.`,
+            409
           );
         }
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,26 +26,15 @@ export async function GET() {
         },
       }
     );
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'خطا در دریافت تنظیمات اشتراک‌ها',
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'subscriptions GET', 'خطا در دریافت تنظیمات اشتراک‌ها');
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: تغییر تنظیمات اشتراک فقط برای مدیر مجاز است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json().catch(() => ({}));
     const newSettings = body.settings || body.payload?.settings || body;
@@ -64,13 +54,7 @@ export async function POST(req: NextRequest) {
       settings: updated,
       stats,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'خطای سرور در ذخیره تنظیمات اشتراک',
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'subscriptions POST', 'خطای سرور در ذخیره تنظیمات اشتراک');
   }
 }

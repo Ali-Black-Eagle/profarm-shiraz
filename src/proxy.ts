@@ -12,6 +12,16 @@ export function proxy(request: NextRequest) {
     const secFetchSite = request.headers.get('sec-fetch-site');
     const referer = request.headers.get('referer');
 
+    // 0.0 SECURITY: a state-changing API call that carries no Origin, Referer or Fetch Metadata
+    // did not come from a browser page. Reject it. The payment callback and webhooks are exempt.
+    const csrfExempt = pathname === '/api/payment/verify' || pathname.includes('/webhook');
+    if (!csrfExempt && !origin && !referer && !secFetchSite) {
+      return NextResponse.json(
+        { success: false, message: 'درخواست نامعتبر است: منبع درخواست مشخص نیست (CSRF).' },
+        { status: 403 }
+      );
+    }
+
     // 0.1 Block any cross-site request detected via modern W3C Fetch Metadata
     if (secFetchSite === 'cross-site') {
       return NextResponse.json(

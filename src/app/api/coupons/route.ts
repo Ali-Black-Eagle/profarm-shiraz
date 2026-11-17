@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
 import { checkDistributedRateLimit } from '@/lib/sms';
+import { getSecureClientIp } from '@/lib/formatters';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +13,8 @@ export async function GET(request: Request) {
     // If a code query is provided, validate it directly (allowed for customers)
     if (codeToValidate) {
       // SECURITY: Rate limit coupon validation to prevent brute-force attacks (15 attempts / 5 mins)
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anon';
+      // The IP comes from edge/proxy headers that clients cannot spoof (see getSecureClientIp).
+      const ip = getSecureClientIp(request);
       const rateCheck = await checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
       if (!rateCheck.allowed) {
         return NextResponse.json(
@@ -38,19 +41,13 @@ export async function GET(request: Request) {
     }
 
     // Listing all coupons requires ADMIN privileges
-    const session = getSessionFromRequest(request);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: مشاهده لیست کدهای تخفیف منحصراً در اختیار ادمین است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(request);
+    if (auth instanceof NextResponse) return auth;
 
     const coupons = farmStore.getCoupons();
     return NextResponse.json({ success: true, coupons });
-  } catch (error) {
-    console.error('Error fetching coupons:', error);
-    return NextResponse.json({ success: false, message: 'خطا در دریافت لیست کدهای تخفیف' }, { status: 500 });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'coupons GET', 'خطا در دریافت لیست کدهای تخفیف');
   }
 }
 
@@ -61,7 +58,7 @@ export async function POST(request: Request) {
     // Check if this is a validation request (allowed for customers)
     if (body.action === 'validate') {
       // SECURITY: Rate limit coupon validation to prevent brute-force attacks (15 attempts / 5 mins)
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anon';
+      const ip = getSecureClientIp(request);
       const rateCheck = await checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
       if (!rateCheck.allowed) {
         return NextResponse.json(
@@ -79,13 +76,8 @@ export async function POST(request: Request) {
     }
 
     // Otherwise it's coupon creation -> requires ADMIN
-    const session = getSessionFromRequest(request);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: ایجاد کد تخفیف جدید تنها برای مدیر مجاز است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(request);
+    if (auth instanceof NextResponse) return auth;
 
     const {
       code,
@@ -136,21 +128,15 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true, coupon: created });
-  } catch (error) {
-    console.error('Error in coupons POST:', error);
-    return NextResponse.json({ success: false, message: 'خطا در پردازش درخواست' }, { status: 500 });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'coupons POST', 'خطا در پردازش درخواست');
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const session = getSessionFromRequest(request);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: ویرایش کد تخفیف منحصراً در اختیار مدیر است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(request);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
     const { id, action, ...updates } = body;
@@ -173,21 +159,15 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ success: true, coupon: updated });
-  } catch (error) {
-    console.error('Error updating coupon:', error);
-    return NextResponse.json({ success: false, message: 'خطا در ویرایش کد تخفیف' }, { status: 500 });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'coupons PATCH', 'خطا در ویرایش کد تخفیف');
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const session = getSessionFromRequest(request);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: حذف کد تخفیف منحصراً در اختیار مدیر است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(request);
+    if (auth instanceof NextResponse) return auth;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -198,8 +178,7 @@ export async function DELETE(request: Request) {
 
     const deleted = farmStore.deleteCoupon(id);
     return NextResponse.json({ success: deleted });
-  } catch (error) {
-    console.error('Error deleting coupon:', error);
-    return NextResponse.json({ success: false, message: 'خطا در حذف کد تخفیف' }, { status: 500 });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'coupons DELETE', 'خطا در حذف کد تخفیف');
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,23 +38,15 @@ export async function GET(req: NextRequest) {
       products,
       count: products.length,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطا در دریافت لیست محصولات' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'products GET', 'خطا در دریافت لیست محصولات');
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: ویرایش کالا تنها در اختیار مدیر ارشد سیستم است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json().catch(() => ({}));
     const { id, updates } = body;
@@ -114,7 +107,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, product: updated });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message || 'خطا در ویرایش محصول' }, { status: 500 });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'products POST', 'خطا در ویرایش محصول');
   }
 }

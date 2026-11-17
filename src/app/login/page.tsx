@@ -364,8 +364,8 @@ function LoginFormContent() {
       return;
     }
 
-    if (!password || password.length < 4) {
-      setErrorMessage('کلمه عبور باید حداقل ۴ کاراکتر باشد.');
+    if (!password || password.length < 8) {
+      setErrorMessage('کلمه عبور باید حداقل ۸ کاراکتر باشد.');
       return;
     }
 

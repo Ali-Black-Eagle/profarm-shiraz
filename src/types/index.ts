@@ -19,6 +19,8 @@ export interface User {
   password?: string | null;
   authProvider?: 'PHONE_OTP' | 'PASSWORD' | 'GOOGLE';
   isPhoneVerified?: boolean;
+  /** true only when the email was verified by the identity provider (Google) */
+  isEmailVerified?: boolean;
   avatarUrl?: string | null;
   nationalId?: string | null;
   birthDate?: string | null;

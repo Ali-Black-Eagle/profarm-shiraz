@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { sendOtp, verifyOtp, checkDistributedRateLimit } from '@/lib/sms';
 import { setSessionCookie } from '@/lib/session';
+import { getSecureClientIp } from '@/lib/formatters';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 interface PasswordRateLimit {
   attempts: number;
@@ -14,21 +16,12 @@ const g = (typeof globalThis !== 'undefined' ? globalThis : global) as unknown a
 const passwordLimitStore = g.__PROFARM_PWD_RATELIMIT_STORE__ || (g.__PROFARM_PWD_RATELIMIT_STORE__ = new Map<string, PasswordRateLimit>());
 const ipLimitStore = g.__PROFARM_IP_RATELIMIT_STORE__ || (g.__PROFARM_IP_RATELIMIT_STORE__ = new Map<string, PasswordRateLimit>());
 
+// Lockout is keyed by `${ip}:${identifier}`: failures from one IP only lock that IP for that account.
 const MAX_PWD_ATTEMPTS = 5;
-const MAX_IP_ATTEMPTS = 20; // 20 failed login attempts per IP per window
+// Looser separate cap for all failures from one IP (credential stuffing across many accounts)
+const MAX_IP_ATTEMPTS = 30;
 const PWD_WINDOW_MS = 10 * 60 * 1000; // 10 minutes lockout
 const PWD_WINDOW_SECONDS = 600;
-
-function getClientIp(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const ip = forwarded.split(',')[0].trim();
-    if (ip) return ip;
-  }
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  return '127.0.0.1';
-}
 
 async function checkIpRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
   const cleanIp = ip.trim();
@@ -216,10 +209,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { phone, identifier, username, password, code } = body;
-    const userIdentifier = identifier || username || phone;
+    const rawIdentifier = identifier || username || phone;
+    const userIdentifier = typeof rawIdentifier === 'string' ? rawIdentifier.trim() : '';
 
     // Check IP-level rate limiting to prevent DoS against admin account and credential stuffing
-    const clientIp = getClientIp(req);
+    const clientIp = getSecureClientIp(req);
     const ipCheck = await checkIpRateLimit(clientIp);
     if (!ipCheck.allowed) {
       return NextResponse.json(
@@ -232,8 +226,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Password Login Mode (with Brute-Force Rate Limiting)
-    if (password && userIdentifier) {
-      const rateCheck = await checkPasswordRateLimit(userIdentifier);
+    if (password && typeof password === 'string' && userIdentifier) {
+      // Lockout key combines IP and identifier so one IP cannot lock the account for everyone
+      const lockoutKey = `${clientIp}:${userIdentifier}`;
+      const rateCheck = await checkPasswordRateLimit(lockoutKey);
       if (!rateCheck.allowed) {
         return NextResponse.json(
           {
@@ -246,7 +242,7 @@ export async function POST(req: NextRequest) {
 
       const user = farmStore.verifyUserPassword(userIdentifier, password);
       if (!user) {
-        await recordFailedPasswordAttempt(userIdentifier);
+        await recordFailedPasswordAttempt(lockoutKey);
         await recordFailedIpAttempt(clientIp);
         return NextResponse.json(
           { success: false, message: 'شماره تلفن/ایمیل یا رمز عبور وارد شده نادرست است.' },
@@ -255,7 +251,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Success! Clear failed attempts
-      await clearPasswordRateLimit(userIdentifier);
+      await clearPasswordRateLimit(lockoutKey);
 
       const safeUser = sanitizeUser(user);
       const res = NextResponse.json({
@@ -337,11 +333,7 @@ export async function POST(req: NextRequest) {
       { success: false, message: 'شماره تلفن یا شناسه کاربری الزامی است.' },
       { status: 400 }
     );
-  } catch (error: any) {
-    console.error('Login route error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای ورود به سیستم' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'auth/login', 'خطای ورود به سیستم. لطفاً دوباره تلاش نمایید.');
   }
 }

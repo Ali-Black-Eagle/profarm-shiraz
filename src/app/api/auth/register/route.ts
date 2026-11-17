@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
-import { setSessionCookie } from '@/lib/session';
+import { setSessionCookie, verifyPhoneProof } from '@/lib/session';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { isValidEmail } from '@/lib/email';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { name, email, phone, password } = body;
+    const { name, email, phone, password, phoneProof } = body;
 
-    const cleanName = (name || '').trim();
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanPhone = phone ? normalizePhoneNumber(phone) : '';
-    const cleanPassword = (password || '').trim();
+    const cleanName = (typeof name === 'string' ? name : '').trim();
+    const cleanEmail = (typeof email === 'string' ? email : '').trim().toLowerCase();
+    const cleanPhone = typeof phone === 'string' && phone.trim() ? normalizePhoneNumber(phone) : '';
+    const cleanPassword = (typeof password === 'string' ? password : '').trim();
 
     if (!cleanName || cleanName.length < 2) {
       return NextResponse.json(
@@ -30,6 +31,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SECURITY: a phone number can only be attached to a new account after an OTP verification
+    // for that exact number (phoneProof issued by POST /api/auth/otp, valid for 10 minutes).
+    if (cleanPhone && !verifyPhoneProof(phoneProof, cleanPhone)) {
+      return NextResponse.json(
+        { success: false, message: 'شماره همراه شما تایید نشده است. لطفاً ابتدا شماره خود را با کد پیامکی تایید کنید.' },
+        { status: 400 }
+      );
+    }
+
     if (cleanEmail && !isValidEmail(cleanEmail)) {
       return NextResponse.json(
         { success: false, message: 'فرمت آدرس ایمیل نامعتبر است (مانند user@example.com).' },
@@ -37,9 +47,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (cleanPassword && cleanPassword.length < 4) {
+    if (cleanPassword && cleanPassword.length < 8) {
       return NextResponse.json(
-        { success: false, message: 'رمز عبور باید حداقل ۴ کاراکتر باشد.' },
+        { success: false, message: 'رمز عبور باید حداقل ۸ کاراکتر باشد.' },
         { status: 400 }
       );
     }
@@ -51,6 +61,7 @@ export async function POST(req: NextRequest) {
       name: cleanName,
       email: cleanEmail || undefined,
       phone: cleanPhone || undefined,
+      phoneVerified: Boolean(cleanPhone),
       username: autoUsername,
       password: cleanPassword || undefined,
     });
@@ -72,10 +83,7 @@ export async function POST(req: NextRequest) {
     });
 
     return res;
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطا در ثبت‌نام و ساخت حساب کاربری' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'auth/register', 'خطا در ثبت‌نام و ساخت حساب کاربری');
   }
 }

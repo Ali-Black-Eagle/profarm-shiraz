@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireAdmin } from '@/lib/admin-auth';
 import { checkDistributedRateLimit } from '@/lib/sms';
-import { normalizePhoneNumber } from '@/lib/formatters';
+import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export async function GET(req: NextRequest) {
-  const session = getSessionFromRequest(req);
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json(
-      { success: false, message: 'دسترسی غیرمجاز: مشاهده استعلام‌های عمده منحصراً در اختیار مدیر است.' },
-      { status: 403 }
-    );
-  }
+  const auth = requireAdmin(req);
+  if (auth instanceof NextResponse) return auth;
 
   const inquiries = farmStore.getBulkInquiries();
   return NextResponse.json({ success: true, inquiries });
@@ -45,7 +41,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPhone = normalizePhoneNumber(phone);
+    const cleanPhone = normalizePhoneNumber(String(phone));
     if (!cleanPhone || cleanPhone.length < 10) {
       return NextResponse.json(
         { success: false, message: 'شماره تلفن وارد شده معتبر نیست.' },
@@ -53,8 +49,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // SECURITY: Rate limiting - Max 5 inquiries per 15 minutes per IP/Phone
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anon';
+    // SECURITY: Rate limiting - Max 5 inquiries per 15 minutes per IP/Phone (spoof-resistant IP)
+    const ip = getSecureClientIp(req);
     const rateCheck = await checkDistributedRateLimit(`inquiry:${cleanPhone || ip}`, 5, 900);
     if (!rateCheck.allowed) {
       return NextResponse.json(
@@ -75,24 +71,15 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, inquiry });
-  } catch (error: any) {
-    console.error('Bulk inquiry submission error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطا در ثبت استعلام عمده' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'bulk-inquiries POST', 'خطا در ثبت استعلام عمده');
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: تغییر وضعیت استعلام تنها توسط مدیر مجاز است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body = await req.json();
     const { id, status } = body;
@@ -113,23 +100,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, inquiry: updated });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای سرور در ویرایش وضعیت استعلام' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'bulk-inquiries PATCH', 'خطای سرور در ویرایش وضعیت استعلام');
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, message: 'دسترسی غیرمجاز: حذف استعلام تنها توسط مدیر مجاز است.' },
-        { status: 403 }
-      );
-    }
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -143,10 +122,7 @@ export async function DELETE(req: NextRequest) {
 
     farmStore.deleteBulkInquiry(id);
     return NextResponse.json({ success: true, message: 'استعلام با موفقیت حذف شد.' });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای سرور در حذف استعلام' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'bulk-inquiries DELETE', 'خطای سرور در حذف استعلام');
   }
 }

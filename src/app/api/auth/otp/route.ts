@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendOtp, verifyOtp, checkDistributedRateLimit } from '@/lib/sms';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
-import { setSessionCookie, getSessionFromRequest } from '@/lib/session';
+import { setSessionCookie, getSessionFromRequest, signPhoneProof } from '@/lib/session';
 import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { action, phone, code, name, fallbackEmail } = body;
-    const cleanPhone = normalizePhoneNumber(phone || '');
+    const { action, phone, code, name } = body;
+    const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
 
     if (!cleanPhone) {
       return NextResponse.json(
@@ -18,13 +19,6 @@ export async function POST(req: NextRequest) {
     }
 
     const session = getSessionFromRequest(req);
-
-    // Resolve fallback email if available
-    let emailForFallback = fallbackEmail;
-    if (!emailForFallback && session?.userId) {
-      const sessionUser = farmStore.getAllUsers().find((u) => u.id === session.userId);
-      if (sessionUser?.email) emailForFallback = sessionUser.email;
-    }
 
     if (action === 'send' || action === 'send-checkout-otp' || action === 'send-checkout-phone') {
       // SECURITY: IP-level rate limiting to prevent SMS toll fraud & SMS bombing (resistant to X-Forwarded-For spoofing)
@@ -40,7 +34,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const result = await sendOtp(cleanPhone, emailForFallback);
+      // SECURITY: the only email a code may fall back to is the one already stored on the account
+      // that owns this phone. The request body and the session are never used for this.
+      const accountEmail = farmStore.getUserByPhone(cleanPhone)?.email || null;
+      const result = await sendOtp(cleanPhone, accountEmail);
       return NextResponse.json(result);
     }
 
@@ -129,7 +126,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Get or create customer user (with optional registered name)
-      const user = farmStore.getOrCreateUser(verifyResult.phone || cleanPhone, name);
+      const user = farmStore.getOrCreateUser(verifyResult.phone || cleanPhone, typeof name === 'string' ? name : undefined);
       if (!user) {
         return NextResponse.json(
           { success: false, message: 'خطا در ثبت یا بازیابی حساب کاربری.' },
@@ -144,6 +141,8 @@ export async function POST(req: NextRequest) {
         success: true,
         message: 'ورود موفقیت‌آمیز بود.',
         user: safeUser,
+        // Short-lived proof that this phone was verified by OTP (used by POST /api/auth/register)
+        phoneProof: signPhoneProof(cleanPhone),
       });
 
       setSessionCookie(res, {
@@ -162,11 +161,7 @@ export async function POST(req: NextRequest) {
       { success: false, message: 'عملیات درخواستی نامعتبر است.' },
       { status: 400 }
     );
-  } catch (error: any) {
-    console.error('OTP API Error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطای سرور' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'auth/otp', 'خطای سرور در پردازش کد تایید.');
   }
 }

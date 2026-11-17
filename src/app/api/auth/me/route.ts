@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/session';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
+import { apiErrorResponse } from '@/lib/api-errors';
+
+// Fields a customer may change through POST /api/auth/me. Anything else (role, tier, phone,
+// email verification, subscription data, ...) is ignored.
+const PROFILE_FIELDS = [
+  'name',
+  'username',
+  'email',
+  'nationalId',
+  'birthDate',
+  'smsNotificationEnabled',
+  'password',
+  'currentPassword',
+] as const;
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromRequest(req);
@@ -14,17 +28,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Fetch full user record from farmStore
-  let fullUser = farmStore.getUserByPhone(session.phone);
-  if (!fullUser) {
-    fullUser = farmStore.getAllUsers().find((u) => u.id === session.userId);
-  }
-
-  // Gracefully recover if user record was deleted or reloaded
-  if (!fullUser && session.phone) {
-    fullUser = farmStore.getOrCreateUser(session.phone, session.name);
-  }
-
+  // SECURITY: look up strictly by the account id from the token. Never re-create an account from the token.
+  const fullUser = farmStore.getAllUsers().find((u) => u.id === session.userId);
   if (!fullUser) {
     return NextResponse.json(
       {
@@ -58,17 +63,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const result = farmStore.updateUserProfile(session.userId || session.phone, body);
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { success: false, message: 'اطلاعات ارسالی نامعتبر است.' },
+        { status: 400 }
+      );
+    }
+
+    const updates: Record<string, unknown> = {};
+    for (const key of PROFILE_FIELDS) {
+      if (key in body) updates[key] = body[key];
+    }
+
+    const result = farmStore.updateUserProfile(session.userId, updates as Parameters<typeof farmStore.updateUserProfile>[1]);
     if (!result.success) {
-      return NextResponse.json(result, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: result.message },
+        { status: result.status ?? 400 }
+      );
     }
     return NextResponse.json({ success: true, user: result.user, message: result.message });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, message: err.message || 'خطا در به‌روزرسانی اطلاعات حساب' },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    return apiErrorResponse(err, 'auth/me', 'خطا در به‌روزرسانی اطلاعات حساب');
   }
 }
-

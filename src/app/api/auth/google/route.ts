@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { setSessionCookie } from '@/lib/session';
+import { apiErrorResponse } from '@/lib/api-errors';
 
 interface VerifiedGooglePayload {
   email: string;
@@ -126,11 +127,7 @@ export async function POST(req: NextRequest) {
     });
 
     return res;
-  } catch (error: any) {
-    console.error('Google Auth API Error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'خطا در ارتباط با حساب گوگل' },
-      { status: 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'auth/google', 'خطا در ارتباط با حساب گوگل');
   }
 }
