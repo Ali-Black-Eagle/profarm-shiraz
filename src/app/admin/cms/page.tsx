@@ -42,10 +42,13 @@ import {
   Globe,
 } from 'lucide-react';
 import CmsLiveEditor from '@/components/modules/CmsLiveEditor';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 
 type TabKey = 'hero' | 'images' | 'trust' | 'sections';
 
 export default function AdminCmsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<TabKey>('hero');
   const [previewTab, setPreviewTab] = useState<'hero' | 'trust'>('hero');
   const [content, setContent] = useState<SiteContent>({ ...DEFAULT_SITE_CONTENT });
@@ -82,7 +85,7 @@ export default function AdminCmsPage() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('حجم فایل انتخابی نباید بیش از ۵ مگابایت باشد.');
+      toast.error('حجم فایل انتخابی نباید بیش از ۵ مگابایت باشد.');
       return;
     }
 
@@ -152,11 +155,14 @@ export default function AdminCmsPage() {
   };
 
   const handleReset = async () => {
-    if (
-      confirm(
-        'آیا از بازنشانی کلیه متون، تصاویر و بخش‌های محتوایی سایت به مقادیر اولیه اطمینان دارید؟'
-      )
-    ) {
+    const ok = await confirm({
+      title: 'بازنشانی محتوای سایت به پیش‌فرض',
+      description: 'آیا از بازنشانی کلیه متون، تصاویر و بخش‌های محتوایی سایت به مقادیر اولیه اطمینان دارید؟',
+      confirmLabel: 'بازنشانی پیش‌فرض',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         const res = await fetch('/api/admin', {
           method: 'POST',
@@ -165,16 +171,22 @@ export default function AdminCmsPage() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
-          setToastMessage(`خطا: ${data.error || 'بازنشانی در سرور انجام نشد.'}`);
+          const errMsg = data.error || 'بازنشانی در سرور انجام نشد.';
+          setToastMessage(`خطا: ${errMsg}`);
+          toast.error(errMsg);
           setTimeout(() => setToastMessage(null), 5000);
           return;
         }
         const resetContent = farmStore.resetSiteContent();
         setContent({ ...resetContent });
-        setToastMessage('کلیه متون و بخش‌های سایت به حالت پیش‌فرض اولیه بازنشانی شدند.');
+        const okMsg = 'کلیه متون و بخش‌های سایت به حالت پیش‌فرض اولیه بازنشانی شدند.';
+        setToastMessage(okMsg);
+        toast.success(okMsg);
         setTimeout(() => setToastMessage(null), 5000);
       } catch {
-        setToastMessage('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
+        const errMsg = 'خطا در ارتباط با سرور؛ بازنشانی انجام نشد.';
+        setToastMessage(errMsg);
+        toast.error(errMsg);
         setTimeout(() => setToastMessage(null), 5000);
       }
     }

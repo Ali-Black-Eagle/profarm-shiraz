@@ -14,6 +14,7 @@ import {
   User,
 } from '@/types';
 import { toPersianDigits } from '@/lib/formatters';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
   Send,
   MessageSquare,
@@ -123,6 +124,8 @@ class SmsPageErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 }
 
 function AdminSmsPageContent() {
+  const toast = useToast();
+  const confirm = useConfirm();
   // Main Navigation Tab: 'EVENTS' | 'GATEWAY' | 'BROADCAST' | 'EMAIL'
   const [activeTab, setActiveTab] = useState<'EVENTS' | 'GATEWAY' | 'BROADCAST' | 'EMAIL'>('EVENTS');
 
@@ -307,14 +310,22 @@ function AdminSmsPageContent() {
   };
 
   // Reset to default factory template
-  const handleResetEventTemplate = () => {
-    if (confirm('آیا از بازنشانی متن این پیامک به حالت پیش‌فرض کارخانه اطمینان دارید؟')) {
+  const handleResetEventTemplate = async () => {
+    const ok = await confirm({
+      title: 'بازنشانی قالب پیامک',
+      description: 'آیا از بازنشانی متن این پیامک به حالت پیش‌فرض کارخانه اطمینان دارید؟',
+      confirmLabel: 'بازنشانی قالب',
+      cancelLabel: 'انصراف',
+      variant: 'warning',
+    });
+    if (ok) {
       const reset = farmStore.resetSmsEventTemplate(selectedEventId);
       if (reset) {
         setEventTemplates([...farmStore.getSmsEventTemplates()]);
         setEditingTemplateText(reset.template);
         setIsEventEnabled(reset.isEnabled);
         showToast(`قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.`);
+        toast.success('قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.');
       }
     }
   };
@@ -343,18 +354,19 @@ function AdminSmsPageContent() {
         setGatewaySettings({ ...data.settings });
         farmStore.updateSmsSettings(data.settings);
         showToast(`تنظیمات وب‌سرویس API سامانه ${getProviderName(data.settings.provider)} با موفقیت در سرور ذخیره شد.`);
+        toast.success(`تنظیمات سامانه ${getProviderName(data.settings.provider)} با موفقیت ذخیره شد.`);
         return;
       }
-      alert(data.error || data.message || 'خطا در ذخیره تنظیمات پیامک در سرور.');
+      toast.error(data.error || data.message || 'خطا در ذخیره تنظیمات پیامک در سرور.');
     } catch {
-      alert('خطا در ارتباط با سرور؛ تنظیمات پیامک ذخیره نشد.');
+      toast.error('خطا در ارتباط با سرور؛ تنظیمات پیامک ذخیره نشد.');
     }
   };
 
   // Test send via configured SMS Gateway (explicitly labeled when simulated)
   const handleTestGatewaySend = () => {
     if (!testPhoneNumber.trim()) {
-      alert('لطفاً شماره موبایل تست را وارد کنید.');
+      toast.error('لطفاً شماره موبایل تست را وارد کنید.');
       return;
     }
     setIsTestingGateway(true);
@@ -436,16 +448,25 @@ function AdminSmsPageContent() {
     }
   };
 
-  const handleSendManualBroadcast = (e: React.FormEvent) => {
+  const handleSendManualBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
-      alert('لطفاً عنوان و متن پیامک را کامل کنید.');
+      toast.error('لطفاً عنوان و متن پیامک را کامل کنید.');
       return;
     }
 
+    const recipientCount = Math.max(1, getBroadcastRecipientEstimate());
+    const ok = await confirm({
+      title: 'تایید ارسال کمپین پیامکی انبوه',
+      description: `آیا از ثبت و ارسال کمپین «${broadcastTitle}» برای حدود ${toPersianDigits(recipientCount)} مخاطب اطمینان دارید؟`,
+      confirmLabel: 'ارسال کمپین پیامکی',
+      cancelLabel: 'انصراف',
+      variant: 'warning',
+    });
+    if (!ok) return;
+
     setIsSendingBroadcast(true);
     setTimeout(() => {
-      const recipientCount = Math.max(1, getBroadcastRecipientEstimate());
       const customNumbers = targetSegment === 'CUSTOM' ? customNumbersInput.trim() : undefined;
 
       farmStore.createSmsBroadcast({
@@ -461,27 +482,40 @@ function AdminSmsPageContent() {
       setBroadcastTitle('');
       setBroadcastMessage('');
       if (targetSegment === 'CUSTOM') setCustomNumbersInput('');
-      showToast(`کمپین پیامکی «${broadcastTitle}» با موفقیت برای ${toPersianDigits(recipientCount)} شماره در صف ارسال قرار گرفت.`);
-    }, 600);
+      const msg = `کمپین پیامکی «${broadcastTitle}» با موفقیت برای ${toPersianDigits(recipientCount)} شماره در صف ارسال قرار گرفت.`;
+      showToast(msg);
+      toast.success(msg);
+    }, 500);
   };
 
   const handleSendAdminEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailSubject.trim()) {
-      alert('لطفاً موضوع ایمیل را وارد فرمایید.');
+      toast.error('لطفاً موضوع ایمیل را وارد فرمایید.');
       return;
     }
     if (!emailContent.trim()) {
-      alert('لطفاً متن پیام ایمیل را وارد فرمایید.');
+      toast.error('لطفاً متن پیام ایمیل را وارد فرمایید.');
       return;
     }
     if (emailTarget === 'CUSTOM' && !emailRecipientInput.trim()) {
-      alert('لطفاً آدرس ایمیل گیرنده را وارد فرمایید.');
+      toast.error('لطفاً آدرس ایمیل گیرنده را وارد فرمایید.');
       return;
     }
     if (emailTarget === 'USER' && !selectedUserEmail.trim()) {
-      alert('لطفاً کاربر دریافت‌کننده را انتخاب نمایید.');
+      toast.error('لطفاً کاربر دریافت‌کننده را انتخاب نمایید.');
       return;
+    }
+
+    if (emailTarget !== 'CUSTOM' && emailTarget !== 'USER') {
+      const ok = await confirm({
+        title: 'تایید ارسال ایمیل گروهی',
+        description: `آیا از ارسال ایمیل گروهی با موضوع «${emailSubject}» به گروه انتخاب‌شده اطمینان دارید؟`,
+        confirmLabel: 'ارسال ایمیل گروهی',
+        cancelLabel: 'انصراف',
+        variant: 'warning',
+      });
+      if (!ok) return;
     }
 
     setIsSendingEmail(true);
@@ -506,7 +540,9 @@ function AdminSmsPageContent() {
         throw new Error(data.message || 'خطا در ارسال ایمیل');
       }
 
-      showToast(data.message || 'ایمیل با موفقیت ارسال شد.');
+      const okMsg = data.message || 'ایمیل با موفقیت ارسال شد.';
+      showToast(okMsg);
+      toast.success(okMsg);
       setEmailSubject('');
       setEmailContent('');
       if (emailTarget === 'CUSTOM') setEmailRecipientInput('');
@@ -518,7 +554,7 @@ function AdminSmsPageContent() {
         setEmailLogs(logsData.logs);
       }
     } catch (err: any) {
-      alert(err.message || 'خطا در ارسال ایمیل');
+      toast.error(err.message || 'خطا در ارسال ایمیل');
     } finally {
       setIsSendingEmail(false);
     }
@@ -537,11 +573,12 @@ function AdminSmsPageContent() {
       if (data.success) {
         setEmailSettings(data.settings);
         showToast('تنظیمات سرور ایمیل (SMTP) با موفقیت ذخیره شد.');
+        toast.success('تنظیمات سرور ایمیل (SMTP) با موفقیت ذخیره شد.');
       } else {
-        alert(data.message || 'خطا در ذخیره تنظیمات ایمیل');
+        toast.error(data.message || 'خطا در ذخیره تنظیمات ایمیل');
       }
     } catch {
-      alert('خطا در برقراری ارتباط با سرور.');
+      toast.error('خطا در برقراری ارتباط با سرور.');
     } finally {
       setIsSavingEmailSettings(false);
     }
@@ -549,7 +586,7 @@ function AdminSmsPageContent() {
 
   const handleTestEmailConnection = async () => {
     if (!emailSettings.smtpHost || !emailSettings.smtpUser) {
-      alert('لطفاً ابتدا هاست SMTP و نام کاربری را وارد فرمایید.');
+      toast.error('لطفاً ابتدا هاست SMTP و نام کاربری را وارد فرمایید.');
       return;
     }
     setIsTestingEmail(true);

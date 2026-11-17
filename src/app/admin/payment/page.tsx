@@ -26,8 +26,11 @@ import {
 import { farmStore } from '@/lib/db-store';
 import { PaymentSettings } from '@/types';
 import { toPersianDigits, formatToman } from '@/lib/formatters';
+import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 
 export default function AdminPaymentSettingsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [settings, setSettings] = useState<PaymentSettings | null>(null);
   const [activeTab, setActiveTab] = useState<'zarinpal' | 'snapppay' | 'general' | 'guide'>('zarinpal');
   const [isSaving, setIsSaving] = useState(false);
@@ -119,14 +122,20 @@ export default function AdminPaymentSettingsPage() {
     }
   };
 
-  const handleReset = () => {
-    if (confirm('آیا از بازنشانی کلیه تنظیمات درگاه به مقادیر اولیه سیستم اطمینان دارید؟')) {
+  const handleReset = async () => {
+    const ok = await confirm({
+      title: 'بازنشانی تنظیمات درگاه پرداخت',
+      description: 'آیا از بازنشانی کلیه تنظیمات درگاه به مقادیر اولیه سیستم اطمینان دارید؟',
+      confirmLabel: 'بازنشانی تنظیمات',
+      cancelLabel: 'انصراف',
+      variant: 'danger',
+    });
+    if (ok) {
       const def = farmStore.resetPaymentSettings();
       setSettings({ ...def });
-      setNotification({
-        type: 'success',
-        message: 'تنظیمات به مقادیر پیش‌فرض کارخانه بازنشانی شد.',
-      });
+      const msg = 'تنظیمات به مقادیر پیش‌فرض کارخانه بازنشانی شد.';
+      setNotification({ type: 'success', message: msg });
+      toast.success(msg);
       setTimeout(() => setNotification(null), 4000);
     }
   };
