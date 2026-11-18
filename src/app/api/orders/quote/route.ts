@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { getOptionalUser } from '@/lib/user-auth';
 import { getSecureClientIp } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { apiErrorResponse } from '@/lib/api-errors';
@@ -40,8 +40,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'اطلاعات ارسالی نامعتبر است.' }, { status: 400 });
     }
 
-    const session = getSessionFromRequest(req);
-    const user = session ? farmStore.getAllUsers().find((u) => u.id === session.userId) ?? null : null;
+    const user = getOptionalUser(req)?.user ?? null;
 
     const slotId =
       typeof body.slotId === 'string'

@@ -629,6 +629,8 @@ export interface GeneralPaymentSettings {
   currency: 'IRT' | 'IRR';
   allowCashOnDelivery: boolean;
   paymentTimeoutMinutes: number;
+  /** Hours a cash-on-delivery order may stay unconfirmed before it is cancelled (integer 1..720, default 48). */
+  codConfirmationHours?: number;
   guideMessage?: string;
 }
 

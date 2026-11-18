@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest, isSessionStale, setSessionCookie } from '@/lib/session';
+import { setSessionCookie } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { getEffectiveTier } from '@/lib/subscription';
@@ -18,34 +19,16 @@ const PROFILE_FIELDS = [
 ] as const;
 
 export async function GET(req: NextRequest) {
-  const session = getSessionFromRequest(req);
-  if (!session) {
+  // Missing, unknown and stale sessions (issued before a password change) are all signed out.
+  // The account is looked up strictly by the id from the token (requireUser). It is never re-created from the token.
+  const auth = requireUser(req);
+  if (auth instanceof NextResponse) {
     return NextResponse.json(
-      {
-        authenticated: false,
-        user: null,
-      },
+      { authenticated: false, message: 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.', user: null },
       { status: 401 }
     );
   }
-
-  // SECURITY: look up strictly by the account id from the token. Never re-create an account from the token.
-  const fullUser = farmStore.getAllUsers().find((u) => u.id === session.userId);
-  if (!fullUser) {
-    return NextResponse.json(
-      {
-        authenticated: false,
-        message: 'حساب کاربری یافت نشد یا غیرفعال شده است.',
-        user: null,
-      },
-      { status: 401 }
-    );
-  }
-
-  // The token was issued before the latest password change: treat as signed out
-  if (isSessionStale(session, fullUser)) {
-    return NextResponse.json({ authenticated: false, message: 'نشست شما منقضی شده است.', user: null }, { status: 401 });
-  }
+  const fullUser = auth.user;
 
   // Sanitize user (stripping password hash, secret salt, etc.)
   const safeUser = sanitizeUser(fullUser);
@@ -67,13 +50,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = getSessionFromRequest(req);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, message: 'لطفاً ابتدا وارد حساب کاربری شوید.' },
-      { status: 401 }
-    );
-  }
+  const auth = requireUser(req);
+  if (auth instanceof NextResponse) return auth;
+  const session = auth.session;
 
   try {
     const body = await req.json().catch(() => null);
@@ -81,14 +60,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'اطلاعات ارسالی نامعتبر است.' },
         { status: 400 }
-      );
-    }
-
-    const current = farmStore.getAllUsers().find((u) => u.id === session.userId);
-    if (!current || isSessionStale(session, current)) {
-      return NextResponse.json(
-        { success: false, message: 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.' },
-        { status: 401 }
       );
     }
 

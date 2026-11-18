@@ -98,6 +98,15 @@ export async function POST(req: NextRequest) {
     // Whitelisted fields only. Anything else in the request body is ignored.
     const timeoutRaw = Number(g.paymentTimeoutMinutes);
     const minAmountRaw = Number(s.minAmount);
+    // Cash-on-delivery confirmation window in whole hours (1..720). Absent keeps the stored value; invalid is refused.
+    const codHours =
+      g.codConfirmationHours === undefined ? current.general?.codConfirmationHours ?? 48 : Number(g.codConfirmationHours);
+    if (!Number.isInteger(codHours) || codHours < 1 || codHours > 720) {
+      return NextResponse.json(
+        { success: false, message: 'مهلت تأیید سفارش پرداخت در محل باید عددی صحیح بین ۱ تا ۷۲۰ ساعت باشد.' },
+        { status: 400 }
+      );
+    }
     const sanitized = {
       zarinpal: {
         enabled: typeof z.enabled === 'boolean' ? z.enabled : Boolean(current.zarinpal?.enabled),
@@ -128,6 +137,7 @@ export async function POST(req: NextRequest) {
           Number.isInteger(timeoutRaw) && timeoutRaw >= 1 && timeoutRaw <= 1440
             ? timeoutRaw
             : current.general?.paymentTimeoutMinutes ?? 15,
+        codConfirmationHours: codHours,
         guideMessage:
           typeof g.guideMessage === 'string' ? g.guideMessage.trim().slice(0, 300) : current.general?.guideMessage,
       },

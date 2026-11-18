@@ -52,6 +52,20 @@ export function isCodOrder(order: Pick<Order, 'payment' | 'paymentMethod'> | nul
   return String(order.payment?.gateway || order.paymentMethod || '').toUpperCase() === 'COD';
 }
 
+/** Payment methods (stored values differ by source) that mean cash or card on delivery. */
+const COD_METHOD_VALUES = ['cod', 'cash', 'card-on-delivery'];
+
+/**
+ * A cash-on-delivery order that nobody has confirmed yet: still PENDING_PAYMENT. Such an order holds stock until
+ * codConfirmationHours pass, after which the expiry sweep cancels it. Manual paid-offline orders are never included.
+ */
+export function isUnconfirmedCodOrder(
+  order: Pick<Order, 'status' | 'payment' | 'paymentMethod'> | null | undefined
+): boolean {
+  if (!order || order.status !== 'PENDING_PAYMENT') return false;
+  return isCodOrder(order) || COD_METHOD_VALUES.includes(String(order.paymentMethod || '').toLowerCase());
+}
+
 /** Online payment confirmed by the gateway (payment.status SUCCESS). */
 export function isOnlinePaid(order: Pick<Order, 'payment'> | null | undefined): boolean {
   return order?.payment?.status === 'SUCCESS';

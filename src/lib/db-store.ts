@@ -87,6 +87,7 @@ import {
   canTransition,
   canTransitionReturn,
   isCodOrder,
+  isUnconfirmedCodOrder,
 } from './order-utils';
 import { getEffectiveTier, getSubscriptionExpiryMs } from './subscription';
 import {
@@ -2448,6 +2449,11 @@ class FarmDataStore {
     this.saveServerState();
   }
 
+  /** The account with this id (password hash included: callers must sanitize before returning it). */
+  getUserById(id: string): User | undefined {
+    return this.getAllUsers().find((u) => u.id === id);
+  }
+
   getUserByPhone(phone: string): User | undefined {
     this.getAllUsers();
     if (!phone) return undefined;
@@ -3239,6 +3245,12 @@ class FarmDataStore {
     return Number.isFinite(v) && v > 0 ? v : 30;
   }
 
+  /** Hours a cash-on-delivery order may stay unconfirmed before the expiry sweep cancels it. Integer 1..720, default 48. */
+  getCodConfirmationHours(): number {
+    const v = Number(this.paymentSettings?.general?.codConfirmationHours);
+    return Number.isInteger(v) && v >= 1 && v <= 720 ? v : 48;
+  }
+
   // --- SLOTS (server is the source of truth: closures and capacity live here, occupancy comes from orders) ---
   /**
    * Orders holding a place on a slot. CANCELLED orders never count. Expired PENDING online orders that have not
@@ -3389,15 +3401,23 @@ class FarmDataStore {
     return Number.isFinite(anchor) ? anchor + timeoutMinutes * 60 * 1000 + PAYMENT_EXPIRY_GRACE_MS : NaN;
   }
 
-  /** True for an unpaid online order (COD never expires) whose payment deadline has passed. */
+  /**
+   * True for an unpaid order whose window has closed. Online: the payment deadline has passed. Cash on delivery: the
+   * order has stayed unconfirmed for codConfirmationHours since it was placed.
+   */
   isPendingPaymentExpired(order: Order, nowMs: number = Date.now(), timeoutMinutes?: number): boolean {
-    if (order.status !== 'PENDING_PAYMENT' || isCodOrder(order)) return false;
+    if (order.status !== 'PENDING_PAYMENT') return false;
+    if (isUnconfirmedCodOrder(order)) {
+      const placedAt = this.timeOf(order.createdAt);
+      return Number.isFinite(placedAt) && nowMs > placedAt + this.getCodConfirmationHours() * 60 * 60 * 1000;
+    }
     const deadline = this.getPaymentDeadlineMs(order, timeoutMinutes ?? this.getPaymentTimeoutMinutes());
     return Number.isFinite(deadline) && nowMs > deadline;
   }
 
   /** Marks one unpaid order as expired and gives back its stock, slot and coupon. The caller holds the order lock. */
   private expireOrder(order: Order): void {
+    const unconfirmedCod = isUnconfirmedCodOrder(order);
     if (order.payment && order.payment.status === 'INITIATED') {
       order.payment = { ...order.payment, status: 'FAILED' };
     }
@@ -3405,6 +3425,41 @@ class FarmDataStore {
     order.cancelledByExpiry = true;
     order.updatedAt = new Date().toISOString();
     this.cancelOrderSideEffects(order);
+    if (unconfirmedCod) this.notifyCodAutoCancelled(order);
+  }
+
+  /** Open cash-on-delivery orders of one account: still unconfirmed and not yet swept. Used for the per-customer cap. */
+  countOpenCodOrders(userId: string, nowMs: number = Date.now()): number {
+    if (!userId) return 0;
+    return this.getOrders().filter(
+      (o) => o.userId === userId && isUnconfirmedCodOrder(o) && !this.isPendingPaymentExpired(o, nowMs)
+    ).length;
+  }
+
+  /** Tells the customer that an unconfirmed cash-on-delivery order was cancelled. Sent in the background; errors are logged. */
+  private notifyCodAutoCancelled(order: Order): void {
+    const phone = order.address?.phone || order.user?.phone;
+    if (!phone) return;
+    const rendered = this.renderEventSms('ORDER_CANCELLED', this.buildOrderSmsVars(order));
+    if (!rendered || !rendered.isEnabled || !rendered.message) return;
+    const targetEmail = this.verifiedOrderEmail(phone, order.user);
+    sendCustomSms(phone, rendered.message, targetEmail).catch((err: unknown) =>
+      console.error('[FarmStore] Cancellation SMS for an unconfirmed COD order failed:', err)
+    );
+  }
+
+  /** Placeholder values for the order SMS templates. */
+  private buildOrderSmsVars(order: Order): Record<string, string> {
+    return {
+      '{customerName}': order.address?.recipientName || order.user?.name || 'مشتری گرامی',
+      '{orderNumber}': order.orderNumber,
+      '{totalAmount}': order.totalAmount.toLocaleString('fa-IR'),
+      '{deliveryDate}': order.deliverySlot?.date || 'چهارشنبه آینده',
+      '{deliveryTime}': '۱۵:۰۰ الی ۲۱:۰۰',
+      '{siteUrl}': 'profarm.ir',
+      '{surveyUrl}': 'profarm.ir',
+      '{supportPhone}': '۰۷۱-۳۶۲۸۰۰۰۰',
+    };
   }
 
   /**
@@ -3851,16 +3906,7 @@ class FarmDataStore {
     // Send configurable automated event SMS based on status
     const phone = order.address?.phone || order.user?.phone;
     if (phone) {
-      const vars: Record<string, string> = {
-        '{customerName}': order.address?.recipientName || order.user?.name || 'مشتری گرامی',
-        '{orderNumber}': order.orderNumber,
-        '{totalAmount}': order.totalAmount.toLocaleString('fa-IR'),
-        '{deliveryDate}': order.deliverySlot?.date || 'چهارشنبه آینده',
-        '{deliveryTime}': '۱۵:۰۰ الی ۲۱:۰۰',
-        '{siteUrl}': 'profarm.ir',
-        '{surveyUrl}': 'profarm.ir',
-        '{supportPhone}': '۰۷۱-۳۶۲۸۰۰۰۰',
-      };
+      const vars = this.buildOrderSmsVars(order);
 
       let eventId: SmsEventType | null = null;
       if (newStatus === 'DELIVERED') {
@@ -3914,7 +3960,7 @@ class FarmDataStore {
 
       const isPaid = ['PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(ord.status);
       const isActivePending =
-        ord.status === 'PENDING_PAYMENT' && (isCodOrder(ord) || !this.isPendingPaymentExpired(ord, now));
+        ord.status === 'PENDING_PAYMENT' && !this.isPendingPaymentExpired(ord, now);
       if (!isPaid && !isActivePending) continue;
 
       for (const item of ord.items || []) {

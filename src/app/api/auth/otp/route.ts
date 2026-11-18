@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendOtp, verifyOtp, checkDistributedRateLimit } from '@/lib/sms';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
-import { setSessionCookie, getSessionFromRequest, signPhoneProof } from '@/lib/session';
+import { setSessionCookie, signPhoneProof } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { getEffectiveTier } from '@/lib/subscription';
@@ -18,8 +19,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    const session = getSessionFromRequest(req);
 
     if (action === 'send' || action === 'send-checkout-otp' || action === 'send-checkout-phone') {
       // SECURITY: IP-level rate limiting to prevent SMS toll fraud & SMS bombing. Skipped when the IP is
@@ -55,12 +54,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Check the session BEFORE consuming the OTP, so an anonymous caller cannot burn codes
-      if (!session) {
-        return NextResponse.json(
-          { success: false, message: 'جهت تایید شماره همراه، ابتدا وارد حساب کاربری شوید.' },
-          { status: 401 }
-        );
-      }
+      const auth = requireUser(req);
+      if (auth instanceof NextResponse) return auth;
 
       // Same verify limits as action 'verify': per IP (when known) and per phone
       const verifyIp = getSecureClientIp(req);
@@ -93,7 +88,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Attach verified phone to user
-      const attachResult = farmStore.attachVerifiedPhoneToUser(session.userId, cleanPhone);
+      const attachResult = farmStore.attachVerifiedPhoneToUser(auth.user.id, cleanPhone);
       if (!attachResult.success || !attachResult.user) {
         return NextResponse.json(
           { success: false, message: attachResult.message || 'خطا در ثبت شماره تلفن' },

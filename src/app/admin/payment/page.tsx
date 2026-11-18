@@ -1062,6 +1062,30 @@ export default function AdminPaymentSettingsPage() {
                   ? 'گزینه «پرداخت در محل با کارت‌خوان» در تسویه‌حساب مشتریان فعال است.'
                   : 'گزینه پرداخت در محل غیرفعال است (تسویه منحصراً پیش از ارسال و آنلاین انجام می‌شود).'}
               </div>
+              <div className="space-y-1.5">
+                <label htmlFor="pay-cod-hours" className="text-xs font-black text-gray-800">
+                  مهلت تأیید سفارش پرداخت در محل (ساعت):
+                </label>
+                <input id="pay-cod-hours"
+                  type="number"
+                  value={settings.general.codConfirmationHours ?? 48}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      general: {
+                        ...settings.general,
+                        codConfirmationHours: Math.min(720, Math.max(1, Math.floor(Number(e.target.value)) || 48)),
+                      },
+                    })
+                  }
+                  min={1}
+                  max={720}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs font-mono outline-hidden focus:border-farm-primary"
+                />
+                <p className="text-xs text-gray-500">
+                  سفارش‌های پرداخت در محل که تا این مدت تأیید نشوند، به‌صورت خودکار لغو و موجودی آن آزاد می‌شود (۱ تا ۷۲۰ ساعت).
+                </p>
+              </div>
             </div>
 
             {/* Payment Timeout */}

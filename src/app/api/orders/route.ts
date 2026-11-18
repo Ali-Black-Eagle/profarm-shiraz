@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { Order, OrderItem, Product } from '@/types';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { isValidIranPhone, normalizeOrderNumberInput, normalizePhoneNumber } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -12,6 +12,9 @@ import { quoteCart } from '@/lib/pricing';
 import { withOrderLock } from '@/lib/order-lock';
 
 const PAYMENT_METHODS = ['zarinpal', 'snapppay', 'cod'];
+
+/** Unconfirmed cash-on-delivery orders one account may have open at the same time. */
+const MAX_OPEN_COD_ORDERS = 3;
 
 function sanitizeText(str?: string | null, maxLen = 200): string {
   if (!str) return '';
@@ -42,13 +45,9 @@ function paginatedOrdersResponse(list: Order[], searchParams: URLSearchParams): 
 }
 
 export async function GET(req: NextRequest) {
-  const session = getSessionFromRequest(req);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, message: 'لطفاً ابتدا وارد حساب کاربری شوید.' },
-      { status: 401 }
-    );
-  }
+  const auth = requireUser(req);
+  if (auth instanceof NextResponse) return auth;
+  const session = auth.session;
 
   const { searchParams } = new URL(req.url);
   const orderNumberParam = normalizeOrderNumberInput(searchParams.get('orderNumber')) || undefined;
@@ -90,13 +89,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // SECURITY: Require valid authenticated session to create orders
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json(
-        { success: false, message: 'جهت ثبت سفارش و پرداخت، لطفاً ابتدا وارد حساب کاربری خود شوید.' },
-        { status: 401 }
-      );
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     // SECURITY: Rate limit order creations (Max 10 orders per 5 minutes per user)
     const rateKey = `order_create:${session.userId}`;
@@ -187,6 +182,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: quote.errors[0], errors: quote.errors },
         { status: 400 }
+      );
+    }
+
+    // Per-customer cap on unconfirmed COD orders. The sweep above already released the expired ones, and nothing
+    // awaits between this check and createOrder, so two requests cannot both pass it.
+    if (method === 'cod' && farmStore.countOpenCodOrders(user.id) >= MAX_OPEN_COD_ORDERS) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'شما ۳ سفارش پرداخت در محل تأیید‌نشده دارید. لطفاً ابتدا سفارش‌های قبلی را پرداخت یا لغو کنید.',
+        },
+        { status: 409 }
       );
     }
 

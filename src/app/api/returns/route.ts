@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { withOrderLock } from '@/lib/order-lock';
 import { publicReturn } from '@/lib/public-api';
@@ -60,10 +60,9 @@ function alreadyRequestedQuantity(orderNumber: string, item: OrderItem): number 
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     const ownOrderNumbers = new Set(
       farmStore
@@ -91,10 +90,9 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     const body = await req.json().catch(() => null);
     const parsed = returnSchema.safeParse(body);

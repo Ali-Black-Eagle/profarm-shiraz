@@ -217,6 +217,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
     currency: 'IRT',
     allowCashOnDelivery: false,
     paymentTimeoutMinutes: 30,
+    codConfirmationHours: 48,
     guideMessage: 'پرداخت امن از طریق درگاه رسمی شاپرک با کلیه کارت‌های عضو شتاب',
   },
   updatedAt: new Date().toISOString(),

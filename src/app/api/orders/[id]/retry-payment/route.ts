@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { normalizeOrderNumberInput } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
@@ -20,10 +20,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id: rawId } = await params;
     const id = normalizeOrderNumberInput(rawId) || rawId;
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     const rate = await checkDistributedRateLimit(`order_retry:${session.userId}`, 10, 300);
     if (!rate.allowed) {

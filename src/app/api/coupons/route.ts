@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { getSecureClientIp } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
-import { getSessionFromRequest } from '@/lib/session';
+import { getOptionalUser } from '@/lib/user-auth';
 import { quoteCart } from '@/lib/pricing';
 import { publicCoupon, publicQuote } from '@/lib/public-api';
 
@@ -78,8 +78,7 @@ function legacyCartItems(cartItems: unknown): { productId: string; quantity: num
 function validateCouponForCart(request: Request, body: any) {
   const code = typeof body.code === 'string' ? body.code.trim() : '';
   const items = Array.isArray(body.items) ? body.items : legacyCartItems(body.cartItems);
-  const session = getSessionFromRequest(request);
-  const user = session ? farmStore.getAllUsers().find((u) => u.id === session.userId) ?? null : null;
+  const user = getOptionalUser(request)?.user ?? null;
   const address = body.address && typeof body.address === 'object' ? body.address : {};
   const city = typeof address.city === 'string' ? address.city : typeof body.city === 'string' ? body.city : undefined;
   const province =

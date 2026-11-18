@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/admin-auth';
+import { farmStore } from '@/lib/db-store';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { isIsoDate, jsonError, jsonOk, pageParams, paginate, parseWith, readObjectBody, textField } from '@/lib/admin-api';
 import {
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
   try {
     const auth = requireAdmin(req);
     if (auth instanceof NextResponse) return auth;
+
+    // Unconfirmed cash-on-delivery orders past their window are cancelled first, so the list and the stock are current
+    await farmStore.releaseExpiredPendingOrdersLocked();
 
     const { searchParams } = new URL(req.url);
     const statusFilter = parseOrderStatusFilter(searchParams.get('status'));

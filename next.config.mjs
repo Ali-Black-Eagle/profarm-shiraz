@@ -1,3 +1,27 @@
+/**
+ * Content-Security-Policy.
+ * Development keeps the permissive policy because the Next.js dev server and React refresh need eval.
+ * Production has no eval, no blanket https: for scripts or connections, and only the payment hosts that the
+ * checkout forms may post to. The site loads no third-party scripts (Google sign-in runs on the server only).
+ */
+function contentSecurityPolicy() {
+  if (process.env.NODE_ENV !== 'production') {
+    return "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'self';";
+  }
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https:",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data: https:",
+    "connect-src 'self' https://accounts.google.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://www.zarinpal.com https://sandbox.zarinpal.com https://payment.zarinpal.com https://payment.snapppay.ir",
+    "frame-ancestors 'self'",
+  ].join('; ') + ';';
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
@@ -52,7 +76,7 @@ const nextConfig = {
       },
       {
         key: 'Content-Security-Policy',
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'self';",
+        value: contentSecurityPolicy(),
       },
     ];
 

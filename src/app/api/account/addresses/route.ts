@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { requireUser } from '@/lib/user-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { isShirazAddress, isValidIranPhone, normalizePhoneNumber, toEnglishDigits } from '@/lib/formatters';
 import type { Address } from '@/types';
@@ -60,10 +60,9 @@ function save(userId: string, list: Address[]): Address[] {
 /** GET /api/account/addresses: the caller's saved addresses (session required). */
 export async function GET(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
     return NextResponse.json({ success: true, addresses: normalizeDefaults(ownAddresses(session.userId)) });
   } catch (error: unknown) {
     return apiErrorResponse(error, 'account/addresses GET', 'خطا در دریافت نشانی‌ها');
@@ -73,10 +72,9 @@ export async function GET(req: NextRequest) {
 /** POST /api/account/addresses: add an address (max 10). The first address becomes the default. */
 export async function POST(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') {
@@ -125,10 +123,9 @@ export async function POST(req: NextRequest) {
 /** PATCH /api/account/addresses: body { id, ...fields }. Only the given fields change. */
 export async function PATCH(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') {
@@ -173,10 +170,9 @@ export async function PATCH(req: NextRequest) {
 /** DELETE /api/account/addresses?id=<id> (or body { id }). Deleting the default promotes the first remaining address. */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });
-    }
+    const auth = requireUser(req);
+    if (auth instanceof NextResponse) return auth;
+    const session = auth.session;
 
     let id = new URL(req.url).searchParams.get('id')?.trim() || '';
     if (!id) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
-import { getSessionFromRequest } from '@/lib/session';
+import { getOptionalUser } from '@/lib/user-auth';
 import { getEffectiveTier } from '@/lib/subscription';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { formatIsoDateToJalali, MAX_BOOKING_DAYS_AHEAD } from '@/lib/jalali';
@@ -20,8 +20,7 @@ export async function GET(req: NextRequest) {
     const parsedDays = daysRaw ? Math.floor(Number(daysRaw)) : NaN;
     const days = Number.isFinite(parsedDays) ? Math.min(MAX_BOOKING_DAYS_AHEAD, Math.max(1, parsedDays)) : 14;
 
-    const session = getSessionFromRequest(req);
-    const user = session ? farmStore.getAllUsers().find((u) => u.id === session.userId) ?? null : null;
+    const user = getOptionalUser(req)?.user ?? null;
     const tier = getEffectiveTier(user);
 
     const slots = farmStore.getAvailableSlotsForUser(user, days).map((slot) => {
