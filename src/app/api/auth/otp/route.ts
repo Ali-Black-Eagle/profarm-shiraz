@@ -37,9 +37,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // SECURITY: the only email a code may fall back to is the one already stored on the account
+      // SECURITY: the only email a code may fall back to is the VERIFIED address already stored on the account
       // that owns this phone. The request body and the session are never used for this.
-      const accountEmail = farmStore.getUserByPhone(cleanPhone)?.email || null;
+      const phoneOwner = farmStore.getUserByPhone(cleanPhone);
+      const accountEmail = phoneOwner?.isEmailVerified === true ? phoneOwner.email || null : null;
       const result = await sendOtp(cleanPhone, accountEmail);
       return NextResponse.json(result);
     }

@@ -40,6 +40,25 @@ export function isValidEmail(email?: string | null): boolean {
   return re.test(clean);
 }
 
+/** True when a live SMTP provider with credentials is configured (sendEmail then really dispatches). */
+function hasSmtpCredentials(settings: EmailProviderSettings): boolean {
+  return Boolean(
+    settings.smtpHost &&
+    settings.smtpUser &&
+    settings.smtpPass &&
+    settings.smtpPass.trim().length > 0
+  );
+}
+
+/**
+ * True when sendEmail only logs the message (MOCK mode: no SMTP provider or no credentials).
+ * Used to decide whether a verification code may be shown in a non-production response.
+ */
+export function isEmailDeliveryMock(): boolean {
+  const settings = getEffectiveEmailSettings();
+  return !(settings.isEnabled && settings.provider === 'SMTP' && hasSmtpCredentials(settings));
+}
+
 /**
  * Escapes text for safe interpolation into HTML (element content and attribute values).
  * Every value placed in the email template goes through this, including names and order fields.

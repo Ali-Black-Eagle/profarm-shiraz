@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { setSessionCookie, verifyPhoneProof } from '@/lib/session';
-import { getSecureClientIp, normalizePhoneNumber } from '@/lib/formatters';
+import { getSecureClientIp, normalizePhoneNumber, toEnglishDigits } from '@/lib/formatters';
 import { isValidEmail } from '@/lib/email';
+import { consumeEmailCode } from '@/lib/email-verification';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { getEffectiveTier } from '@/lib/subscription';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { name, email, phone, password, phoneProof } = body;
+    const { name, email, phone, password, phoneProof, emailCode } = body;
 
     const rawName = typeof name === 'string' ? name : '';
     const rawEmail = typeof email === 'string' ? email : '';
@@ -91,6 +92,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SECURITY: an email is stored only after its 6-digit code was entered (POST /api/auth/email/register-code).
+    // Without a valid code the account is not created. A valid code is used up, so it cannot create a second account.
+    if (cleanEmail) {
+      const codeDigits = toEnglishDigits(typeof emailCode === 'string' ? emailCode : '').replace(/\D/g, '');
+      if (!/^\d{6}$/.test(codeDigits)) {
+        return NextResponse.json(
+          { success: false, message: 'برای ثبت ایمیل، کد تایید ۶ رقمی ارسال‌شده به آن را وارد نمایید.' },
+          { status: 400 }
+        );
+      }
+      const codeCheck = consumeEmailCode('register', cleanEmail, codeDigits, null);
+      if (!codeCheck.ok) {
+        return NextResponse.json({ success: false, message: codeCheck.message }, { status: 400 });
+      }
+    }
+    const emailVerified = Boolean(cleanEmail);
+
     // A phone account created by OTP sign-in (POST /api/auth/otp verify) has no password yet.
     // The OTP-verified owner completes it here instead of getting a 409.
     const existingPhoneUser = cleanPhone ? farmStore.getUserByPhone(cleanPhone) : undefined;
@@ -99,6 +117,7 @@ export async function POST(req: NextRequest) {
       const completed = farmStore.completePhoneRegistration(existingPhoneUser.id, {
         name: cleanName,
         email: cleanEmail || undefined,
+        emailVerified,
         password: cleanPassword || undefined,
       });
       if (!completed.success || !completed.user) {
@@ -115,6 +134,7 @@ export async function POST(req: NextRequest) {
       user = farmStore.registerUser({
         name: cleanName,
         email: cleanEmail || undefined,
+        emailVerified,
         phone: cleanPhone || undefined,
         phoneVerified: Boolean(cleanPhone),
         username: autoUsername,

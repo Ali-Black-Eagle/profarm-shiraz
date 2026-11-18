@@ -21,8 +21,13 @@ export interface User {
   hasPassword?: boolean;
   authProvider?: 'PHONE_OTP' | 'PASSWORD' | 'GOOGLE';
   isPhoneVerified?: boolean;
-  /** true only when the email was verified by the identity provider (Google) */
+  /**
+   * true when the owner proved control of `email`: a 6-digit code sent to that address (or Google sign-in).
+   * Only verified addresses reserve an email. An `email` with isEmailVerified !== true is a legacy value.
+   */
   isEmailVerified?: boolean;
+  /** Address the owner asked to set; becomes `email` only after its code is verified. Never reserves anything. */
+  pendingEmail?: string | null;
   avatarUrl?: string | null;
   nationalId?: string | null;
   birthDate?: string | null;

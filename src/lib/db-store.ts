@@ -100,7 +100,6 @@ import { hashPassword, verifyPassword, needsPasswordRehash } from './password';
 import {
   getDeduplicatedPerks,
   normalizePhoneNumber,
-  isValidEmail,
   isValidIranPhone,
   toEnglishDigits,
   formatSubscriptionExpiry,
@@ -2512,21 +2511,122 @@ class FarmDataStore {
     return user;
   }
 
+  /** Account that VERIFIED this address (only verified addresses reserve an email). */
   getUserByEmail(email?: string | null): User | undefined {
     this.getAllUsers();
     if (!email) return undefined;
     const clean = email.trim().toLowerCase();
-    for (const u of this.users.values()) {
-      if (u.email && u.email.trim().toLowerCase() === clean) {
-        return u;
+    return this.uniqueUsers().find(
+      (u) => u.isEmailVerified === true && !!u.email && u.email.trim().toLowerCase() === clean
+    );
+  }
+
+  /**
+   * Checks whether `email` may be claimed by account `userId` (pass '' for a new account). Only a verified
+   * holder or an ADMIN holder blocks a claim. Unverified (legacy) holders and pending addresses do not.
+   */
+  checkEmailClaim(userId: string, email: string): { ok: true } | { ok: false; message: string; status: number } {
+    this.getAllUsers();
+    const clean = email.trim().toLowerCase();
+    const holders = this.uniqueUsers().filter(
+      (u) => u.id !== userId && !!u.email && u.email.trim().toLowerCase() === clean
+    );
+    if (holders.some((u) => u.role === 'ADMIN')) {
+      return {
+        ok: false,
+        message: 'این آدرس ایمیل متعلق به حساب مدیر سیستم است و امکان ثبت آن وجود ندارد.',
+        status: 409,
+      };
+    }
+    if (holders.some((u) => u.isEmailVerified === true)) {
+      return {
+        ok: false,
+        message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت و تایید شده است.',
+        status: 409,
+      };
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Removes `cleanEmail` from every other account that holds it UNVERIFIED (legacy value). Called only when
+   * someone proves control of the address. Admin accounts are never touched.
+   */
+  private releaseLegacyEmailHolders(cleanEmail: string, exceptUserId: string): void {
+    for (const holder of this.uniqueUsers()) {
+      if (holder.id === exceptUserId || holder.role === 'ADMIN' || holder.isEmailVerified === true) continue;
+      if (holder.email && holder.email.trim().toLowerCase() === cleanEmail) {
+        holder.email = null;
+        this.indexUser(holder);
       }
     }
-    return undefined;
+  }
+
+  /** Gives a verified address to `user`. The caller re-indexes and saves. */
+  private assignVerifiedEmail(user: User, cleanEmail: string): void {
+    this.releaseLegacyEmailHolders(cleanEmail, user.id);
+    user.email = cleanEmail;
+    user.isEmailVerified = true;
+    if (user.pendingEmail && user.pendingEmail.trim().toLowerCase() === cleanEmail) {
+      user.pendingEmail = null;
+    }
+  }
+
+  /** Stores a pending (unverified) address for the account. It reserves nothing until confirmPendingEmail. */
+  setPendingEmail(
+    userId: string,
+    email: string
+  ): { success: boolean; user?: User; message?: string; status?: number } {
+    this.getAllUsers();
+    const user = this.getUserById(userId);
+    if (!user) return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
+    const clean = email.trim().toLowerCase();
+    const claim = this.checkEmailClaim(userId, clean);
+    if (!claim.ok) return { success: false, message: claim.message, status: claim.status };
+    user.pendingEmail = clean;
+    this.indexUser(user);
+    this.saveUsers();
+    return { success: true, user: sanitizeUser(user) };
+  }
+
+  /** Makes the pending address the account's email after its code was verified. Re-checks the claim. */
+  confirmPendingEmail(
+    userId: string,
+    email: string
+  ): { success: boolean; user?: User; message?: string; status?: number } {
+    this.getAllUsers();
+    const user = this.getUserById(userId);
+    if (!user) return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
+    const clean = email.trim().toLowerCase();
+    if (!user.pendingEmail || user.pendingEmail.trim().toLowerCase() !== clean) {
+      return { success: false, message: 'این ایمیل در انتظار تایید برای حساب شما نیست.', status: 400 };
+    }
+    const claim = this.checkEmailClaim(userId, clean);
+    if (!claim.ok) return { success: false, message: claim.message, status: claim.status };
+    this.assignVerifiedEmail(user, clean);
+    this.indexUser(user);
+    this.saveUsers();
+    return { success: true, user: sanitizeUser(user), message: 'ایمیل شما با موفقیت تایید و در حساب کاربری ثبت شد.' };
+  }
+
+  /** Removes the account's email (and any pending address). Allowed without a code. */
+  clearEmail(userId: string): { success: boolean; user?: User; message?: string; status?: number } {
+    this.getAllUsers();
+    const user = this.getUserById(userId);
+    if (!user) return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
+    user.email = null;
+    user.isEmailVerified = false;
+    user.pendingEmail = null;
+    this.indexUser(user);
+    this.saveUsers();
+    return { success: true, user: sanitizeUser(user), message: 'ایمیل حساب کاربری شما حذف شد.' };
   }
 
   registerUser(params: {
     name: string;
     email?: string;
+    /** true only when the caller proved the email with a code sent to it (POST /api/auth/register) */
+    emailVerified?: boolean;
     phone?: string;
     /** true only when the caller verified the phone with an OTP (phoneProof) */
     phoneVerified?: boolean;
@@ -2540,20 +2640,18 @@ class FarmDataStore {
     if (!cleanEmail && !cleanPhone) {
       throw new BusinessError('لطفاً ایمیل معتبر یا شماره تلفن همراه خود را وارد نمایید.');
     }
+    if (cleanEmail && params.emailVerified !== true) {
+      throw new BusinessError('برای ثبت ایمیل، ابتدا کد تایید ارسال‌شده به آن را وارد نمایید.', 400);
+    }
 
     // Auto-generate username: email or phone (no separate username required)
     const autoUsername =
       params.username?.trim() || cleanEmail || cleanPhone || `user_${Date.now().toString().slice(-4)}`;
 
-    // Check unique email if provided
+    // Only a verified (or admin) holder blocks the address. Unverified legacy holders are released below.
     if (cleanEmail) {
-      const existingByEmail = this.getUserByEmail(cleanEmail);
-      if (existingByEmail) {
-        if (existingByEmail.role === 'ADMIN') {
-          throw new BusinessError('این ایمیل متعلق به حساب مدیر سیستم است و امکان ثبت‌نام مجدد ندارد.', 409);
-        }
-        throw new BusinessError('حساب کاربری دیگری با این آدرس ایمیل از قبل ثبت شده است. لطفاً وارد شوید.', 409);
-      }
+      const claim = this.checkEmailClaim('', cleanEmail);
+      if (!claim.ok) throw new BusinessError(claim.message, claim.status);
     }
 
     // Check unique phone if provided
@@ -2574,6 +2672,7 @@ class FarmDataStore {
       isPhoneVerified: Boolean(cleanPhone && params.phoneVerified),
       username: autoUsername,
       email: cleanEmail || null,
+      isEmailVerified: Boolean(cleanEmail),
       name: params.name?.trim() || 'کاربر گرامی',
       role: 'USER',
       authProvider: params.password ? 'PASSWORD' : 'PHONE_OTP',
@@ -2582,6 +2681,7 @@ class FarmDataStore {
       createdAt: new Date().toISOString(),
     };
 
+    if (cleanEmail) this.releaseLegacyEmailHolders(cleanEmail, userId);
     this.indexUser(user);
     this.saveUsers();
     return user;
@@ -2643,15 +2743,15 @@ class FarmDataStore {
 
   /**
    * Updates the profile of the account with the given id. Only whitelisted fields are applied.
-   * Email and username must stay unique (case-insensitive). A password change on an account that
-   * already has a password requires `currentPassword`. Changing the email clears isEmailVerified.
+   * Username must stay unique (case-insensitive). A password change on an account that already has a
+   * password requires `currentPassword`. The email is NOT handled here: see setPendingEmail,
+   * confirmPendingEmail and clearEmail (an address only counts after its code was verified).
    */
   updateUserProfile(
     userId: string,
     updates: {
       name?: string;
       username?: string;
-      email?: string | null;
       password?: string;
       currentPassword?: string;
       nationalId?: string | null;
@@ -2672,9 +2772,6 @@ class FarmDataStore {
     }
     if (typeof updates.username === 'string' && updates.username.trim().length > 40) {
       return { success: false, message: 'نام کاربری نمی‌تواند بیش از ۴۰ کاراکتر باشد.', status: 400 };
-    }
-    if (typeof updates.email === 'string' && updates.email.trim().length > 254) {
-      return { success: false, message: 'آدرس ایمیل نمی‌تواند بیش از ۲۵۴ کاراکتر باشد.', status: 400 };
     }
     if (typeof updates.password === 'string' && updates.password.length > 128) {
       return { success: false, message: 'کلمه عبور نمی‌تواند بیش از ۱۲۸ کاراکتر باشد.', status: 400 };
@@ -2714,24 +2811,6 @@ class FarmDataStore {
       }
     }
 
-    // Email uniqueness and format
-    let nextEmail: string | null | undefined = undefined;
-    if (updates.email !== undefined) {
-      const cleanEmail = typeof updates.email === 'string' ? updates.email.trim().toLowerCase() : '';
-      if (cleanEmail) {
-        if (!isValidEmail(cleanEmail)) {
-          return { success: false, message: 'فرمت آدرس ایمیل نامعتبر است.', status: 400 };
-        }
-        const takenBy = allUsers.find(
-          (u) => u.id !== user.id && u.email && u.email.trim().toLowerCase() === cleanEmail
-        );
-        if (takenBy) {
-          return { success: false, message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت شده است.', status: 409 };
-        }
-      }
-      nextEmail = cleanEmail || null;
-    }
-
     // Password change (validated before anything is mutated)
     let nextPasswordHash: string | undefined = undefined;
     if (typeof updates.password === 'string' && updates.password.trim()) {
@@ -2750,12 +2829,6 @@ class FarmDataStore {
 
     if (typeof updates.name === 'string' && updates.name.trim()) user.name = updates.name.trim();
     if (typeof updates.username === 'string' && updates.username.trim()) user.username = updates.username.trim();
-    if (nextEmail !== undefined) {
-      if ((nextEmail || null) !== (user.email ? user.email.trim().toLowerCase() : null)) {
-        user.isEmailVerified = false;
-      }
-      user.email = nextEmail;
-    }
     if (updates.nationalId !== undefined) user.nationalId = updates.nationalId ? String(updates.nationalId).trim() : null;
     if (updates.birthDate !== undefined) user.birthDate = updates.birthDate ? String(updates.birthDate).trim() : null;
     if (typeof updates.smsNotificationEnabled === 'boolean') user.smsNotificationEnabled = updates.smsNotificationEnabled;
@@ -2799,14 +2872,14 @@ class FarmDataStore {
       );
     }
 
-    // Link only to an account whose email was verified by Google (isEmailVerified is set only here).
-    // An account that merely claims the email (password registration, profile edit) is never linked,
-    // so a pre-registered email cannot take over a Google login.
+    // Link only to an account whose email is verified. An unverified claim (password registration, profile
+    // edit) never takes over a Google login.
     const verifiedUser = usersWithEmail.find((u) => u.isEmailVerified === true);
     if (verifiedUser) {
       return verifiedUser;
     }
 
+    // Google has verified this address, so it is released from any unverified legacy holder before the new account takes it.
     const user: User = {
       id: `usr-g-${Date.now()}`,
       phone: '',
@@ -2819,6 +2892,7 @@ class FarmDataStore {
       isProMember: false,
       createdAt: new Date().toISOString(),
     };
+    this.releaseLegacyEmailHolders(cleanEmail, user.id);
     this.indexUser(user);
     this.saveUsers();
     return user;
@@ -2829,14 +2903,24 @@ class FarmDataStore {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPass = pass.trim();
 
-    // Find by username, phone, email, or id
-    const user = Array.from(this.users.values()).find(
+    // Find by username, phone or id first
+    const accounts = this.uniqueUsers();
+    let user = accounts.find(
       (u) =>
         (u.username && u.username.toLowerCase() === cleanId) ||
         u.phone === cleanId ||
-        (u.email && u.email.toLowerCase() === cleanId) ||
         u.id.toLowerCase() === cleanId
     );
+
+    // Then by email. A verified address always identifies its owner. A legacy (unverified) address identifies
+    // its holder only when exactly one account holds it, so existing accounts keep working without letting
+    // an ambiguous legacy value pick an account.
+    if (!user && cleanId) {
+      const holders = accounts.filter((u) => !!u.email && u.email.trim().toLowerCase() === cleanId);
+      const verified = holders.filter((u) => u.isEmailVerified === true);
+      if (verified.length === 1) user = verified[0];
+      else if (verified.length === 0 && holders.length === 1) user = holders[0];
+    }
 
     if (!user) return null;
 
@@ -2924,7 +3008,8 @@ class FarmDataStore {
     };
     const rendered = this.renderEventSms('SUBSCRIPTION_ACTIVATED', vars);
     if (rendered && rendered.isEnabled && rendered.message) {
-      sendCustomSms(user.phone, rendered.message, user.email);
+      // The email fallback only goes to a verified address (legacy unverified values are never used).
+      sendCustomSms(user.phone, rendered.message, user.isEmailVerified === true ? user.email : null);
     }
   }
 
@@ -2986,10 +3071,10 @@ class FarmDataStore {
    */
   completePhoneRegistration(
     userId: string,
-    params: { name: string; email?: string; password?: string }
+    params: { name: string; email?: string; emailVerified?: boolean; password?: string }
   ): { success: boolean; user?: User; message?: string; status?: number } {
     this.getAllUsers();
-    const user = Array.from(this.users.values()).find((u) => u.id === userId);
+    const user = this.getUserById(userId);
     if (!user) {
       return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
     }
@@ -2999,19 +3084,18 @@ class FarmDataStore {
 
     const cleanEmail = params.email?.trim().toLowerCase() || undefined;
     if (cleanEmail) {
+      if (params.emailVerified !== true) {
+        return { success: false, message: 'برای ثبت ایمیل، ابتدا کد تایید ارسال‌شده به آن را وارد نمایید.', status: 400 };
+      }
       if (user.email && user.email.trim().toLowerCase() !== cleanEmail) {
         return { success: false, message: 'این شماره تلفن به حساب کاربری با ایمیل دیگری متصل است.', status: 409 };
       }
-      const takenBy = Array.from(this.users.values()).find(
-        (u) => u.id !== user.id && u.email && u.email.trim().toLowerCase() === cleanEmail
-      );
-      if (takenBy) {
-        return { success: false, message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت شده است.', status: 409 };
-      }
+      const claim = this.checkEmailClaim(user.id, cleanEmail);
+      if (!claim.ok) return { success: false, message: claim.message, status: claim.status };
     }
 
     if (params.name && params.name.trim()) user.name = params.name.trim();
-    if (cleanEmail) user.email = cleanEmail;
+    if (cleanEmail) this.assignVerifiedEmail(user, cleanEmail);
     if (params.password && params.password.trim()) {
       user.password = hashPassword(params.password.trim());
       user.authProvider = 'PASSWORD';

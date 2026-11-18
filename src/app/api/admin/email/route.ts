@@ -107,11 +107,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Broadcast to All Registered Users with an Email
+    // 3. Broadcast to All Registered Users with a VERIFIED email (unverified legacy addresses are not mailed)
     if (target === 'ALL') {
       const allUsers = farmStore.getAllUsers();
       const recipients = allUsers.filter(
-        (u) => u.email && isValidEmail(u.email)
+        (u) => u.isEmailVerified === true && u.email && isValidEmail(u.email)
       );
 
       if (recipients.length === 0) {

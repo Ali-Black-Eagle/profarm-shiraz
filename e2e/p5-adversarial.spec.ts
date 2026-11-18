@@ -439,10 +439,13 @@ test.describe('P5 adversarial: local dev build', () => {
     expect(me.json.user.id).toBe(S.A!.user.id);
   });
 
-  test('3.7 email is unique: B cannot take the email of A', async () => {
+  test('3.7 email is unique: B cannot take the email of A once A has verified it', async () => {
     S.aEmail = `p5-a-${Math.floor(Math.random() * 1e9)}@example.com`;
+    // A's address is only pending until its code is entered (P7 email ownership)
     const set = await send('POST', '/api/auth/me', { cookie: S.A!.cookie, body: { email: S.aEmail } });
     expect(set.status).toBe(200);
+    const verify = await send('POST', '/api/auth/email/verify', { cookie: S.A!.cookie, body: { code: set.json.debugCode } });
+    expect(verify.status).toBe(200);
     const steal = await send('POST', '/api/auth/me', { cookie: S.B!.cookie, body: { email: S.aEmail } });
     expect(steal.status).toBe(409);
   });
@@ -455,6 +458,9 @@ test.describe('P5 adversarial: local dev build', () => {
     });
     expect([400, 409]).toContain(r.status);
     expect(r.json.success).toBe(false);
+    // Without a code the account is not created; a code request for the verified address is refused outright
+    const rc = await send('POST', '/api/auth/email/register-code', { body: { email: S.aEmail } });
+    expect(rc.status).toBe(409);
   });
 
   test('3.9 password change needs currentPassword once a password exists', async () => {

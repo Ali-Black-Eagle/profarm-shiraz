@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { Order, Address, OrderItem } from '@/types';
-import { formatToman, toPersianDigits, toEnglishDigits, isValidIranPhone, normalizePhoneNumber } from '@/lib/formatters';
+import { formatToman, toPersianDigits, toEnglishDigits, isValidIranPhone, normalizePhoneNumber, isValidEmail } from '@/lib/formatters';
 import { CopyOrderNumber } from '@/components/modules/CopyOrderNumber';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import { UserInvoiceModal } from '@/components/modules/UserInvoiceModal';
@@ -129,8 +129,14 @@ function AccountContent() {
 
   // Settings form (pre-filled once per account, so later edits are not overwritten)
   const [nameInput, setNameInput] = useState('');
-  const [emailInput, setEmailInput] = useState('');
   const [usernameInput, setUsernameInput] = useState('');
+  // Email has its own card: a new address is stored only after its 6-digit code is entered.
+  const [emailInput, setEmailInput] = useState('');
+  const [emailCodeInput, setEmailCodeInput] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
   const [smsInput, setSmsInput] = useState(true);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   // Accounts created by OTP have no password yet: the first password is set without the current one.
@@ -150,10 +156,16 @@ function AccountContent() {
     if (!user || settingsInitFor.current === user.id) return;
     settingsInitFor.current = user.id;
     setNameInput(user.name || '');
-    setEmailInput(user.email || '');
     setUsernameInput(user.username || '');
     setSmsInput(user.smsNotificationEnabled !== false);
   }, [user]);
+
+  // Resend cooldown (seconds) for the email code
+  useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const timer = setTimeout(() => setEmailCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [emailCooldown]);
 
   const loadOrders = useCallback(async (page: number) => {
     setOrdersLoading(true);
@@ -439,7 +451,6 @@ function AccountContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: nameInput.trim() || user.name,
-          email: emailInput.trim() || null,
           username: usernameInput.trim() || undefined,
           smsNotificationEnabled: smsInput,
           ...(newPasswordInput ? { password: newPasswordInput, currentPassword: currentPasswordInput } : {}),
@@ -455,6 +466,104 @@ function AccountContent() {
       setSettingsError(err instanceof Error ? err.message : 'خطا در ذخیره تغییرات');
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  // ---- Email ownership (a code is sent to the new address; the address counts only after the code is entered) ----
+  const postJson = async (url: string, body?: Record<string, unknown>) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) throw new Error(data?.message || 'خطا در انجام عملیات ایمیل');
+    return data;
+  };
+
+  const requestEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailNotice(null);
+    const clean = emailInput.trim().toLowerCase();
+    if (!isValidEmail(clean)) {
+      setEmailError('لطفاً یک آدرس ایمیل معتبر وارد نمایید (مانند user@example.com).');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const data = await postJson('/api/auth/me', { email: clean });
+      setEmailNotice(data.emailCodeSent ? 'کد تایید به ایمیل جدید ارسال شد.' : data.message);
+      if (data.emailCodeSent) {
+        setEmailInput('');
+        setEmailCodeInput('');
+        setEmailCooldown(60);
+      }
+      await refreshProfile();
+    } catch (err: unknown) {
+      setEmailError(err instanceof Error ? err.message : 'خطا در ارسال کد تایید');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const confirmEmailCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailNotice(null);
+    const digits = toEnglishDigits(emailCodeInput).replace(/\D/g, '');
+    if (digits.length !== 6) {
+      setEmailError('لطفاً کد تایید ۶ رقمی را کامل وارد نمایید.');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const data = await postJson('/api/auth/email/verify', { code: digits });
+      setEmailCodeInput('');
+      setEmailNotice(data.message || 'ایمیل شما با موفقیت تایید شد.');
+      await refreshProfile();
+    } catch (err: unknown) {
+      setEmailError(err instanceof Error ? err.message : 'کد تایید نامعتبر است');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const resendEmailCode = async () => {
+    setEmailError(null);
+    setEmailNotice(null);
+    setEmailBusy(true);
+    try {
+      const data = await postJson('/api/auth/email/resend');
+      setEmailNotice(data.message || 'کد تایید دوباره ارسال شد.');
+      setEmailCooldown(60);
+    } catch (err: unknown) {
+      setEmailError(err instanceof Error ? err.message : 'خطا در ارسال مجدد کد');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const removeEmail = async () => {
+    const ok = await confirm({
+      title: 'حذف ایمیل',
+      description: 'ایمیل حساب کاربری حذف شود؟ فاکتور و اعلان‌های سفارش دیگر به این ایمیل ارسال نمی‌شود.',
+      confirmLabel: 'بله، حذف شود',
+      cancelLabel: 'انصراف',
+    });
+    if (!ok) return;
+    setEmailError(null);
+    setEmailNotice(null);
+    setEmailBusy(true);
+    try {
+      const data = await postJson('/api/auth/me', { email: '' });
+      setEmailCodeInput('');
+      setEmailNotice(data.message || 'ایمیل حذف شد.');
+      await refreshProfile();
+    } catch (err: unknown) {
+      setEmailError(err instanceof Error ? err.message : 'خطا در حذف ایمیل');
+    } finally {
+      setEmailBusy(false);
     }
   };
 
@@ -831,6 +940,7 @@ function AccountContent() {
           )}
 
           {activeTab === 'settings' && (
+            <div className="space-y-6">
             <form onSubmit={saveSettings} className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
               <h2 className="text-lg font-black text-farm-primary">اطلاعات فردی و تنظیمات</h2>
 
@@ -838,10 +948,6 @@ function AccountContent() {
                 <div>
                   <label htmlFor="acc-name" className="block font-bold text-gray-700 mb-1.5">نام و نام خانوادگی</label>
                   <input id="acc-name" type="text" autoComplete="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <label htmlFor="acc-email" className="block font-bold text-gray-700 mb-1.5">ایمیل</label>
-                  <input id="acc-email" type="email" autoComplete="email" dir="ltr" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className={`${inputClass} text-left`} />
                 </div>
                 <div>
                   <label htmlFor="acc-username" className="block font-bold text-gray-700 mb-1.5">نام کاربری (اختیاری)</label>
@@ -887,6 +993,113 @@ function AccountContent() {
                 {settingsSaving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
               </button>
             </form>
+
+            <section aria-labelledby="acc-email-heading" className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5 text-sm">
+              <div className="space-y-1">
+                <h2 id="acc-email-heading" className="text-lg font-black text-farm-primary">ایمیل حساب کاربری</h2>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  ایمیل پس از وارد کردن کد ۶ رقمی که به همان آدرس ارسال می‌شود ثبت می‌گردد. فاکتور و اعلان‌های سفارش فقط به ایمیل تاییدشده ارسال می‌شود.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {user?.email ? (
+                  <>
+                    <span dir="ltr" className="font-mono font-bold text-gray-800 break-all">{user.email}</span>
+                    {user.isEmailVerified === true ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> تایید شده
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold">
+                        تایید نشده
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-500">ایمیلی برای این حساب ثبت نشده است.</span>
+                )}
+              </div>
+
+              {user?.pendingEmail && (
+                <form onSubmit={confirmEmailCode} className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-amber-900">ایمیل جدید:</span>
+                    <span dir="ltr" className="font-mono font-bold text-amber-950 break-all">{user.pendingEmail}</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold">
+                      در انتظار تایید
+                    </span>
+                  </div>
+                  <div>
+                    <label htmlFor="acc-email-code" className="block font-bold text-gray-700 mb-1.5">
+                      کد تایید ۶ رقمی ارسال‌شده به ایمیل جدید
+                    </label>
+                    <input
+                      id="acc-email-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      dir="ltr"
+                      value={emailCodeInput}
+                      onChange={(e) => setEmailCodeInput(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 6))}
+                      className={`${inputClass} text-left font-mono tracking-[0.4em] max-w-xs`}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="submit" disabled={emailBusy || emailCodeInput.length !== 6} className="min-h-11 px-5 py-2.5 rounded-xl bg-farm-primary text-white text-sm font-bold disabled:opacity-60 cursor-pointer">
+                      {emailBusy ? 'در حال بررسی...' : 'تایید'}
+                    </button>
+                    <button type="button" onClick={resendEmailCode} disabled={emailBusy || emailCooldown > 0} className="min-h-11 px-5 py-2.5 rounded-xl bg-white border border-farm-border text-farm-primary text-sm font-bold disabled:opacity-60 cursor-pointer">
+                      {emailCooldown > 0 ? `ارسال مجدد (${toPersianDigits(emailCooldown)} ثانیه)` : 'ارسال مجدد کد'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <form onSubmit={requestEmailChange} className="space-y-3">
+                <div>
+                  <label htmlFor="acc-email-new" className="block font-bold text-gray-700 mb-1.5">
+                    {user?.email || user?.pendingEmail ? 'ایمیل جدید' : 'افزودن ایمیل'}
+                  </label>
+                  <input
+                    id="acc-email-new"
+                    type="email"
+                    autoComplete="email"
+                    dir="ltr"
+                    placeholder="name@example.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    aria-describedby="acc-email-help"
+                    className={`${inputClass} text-left`}
+                  />
+                  <p id="acc-email-help" className="mt-1.5 text-xs text-gray-500">
+                    کد تایید به این آدرس ارسال می‌شود و ۱۵ دقیقه معتبر است.
+                  </p>
+                </div>
+                <button type="submit" disabled={emailBusy || !emailInput.trim()} className="min-h-11 px-5 py-2.5 rounded-xl bg-farm-primary text-white text-sm font-bold disabled:opacity-60 cursor-pointer">
+                  ارسال کد تایید
+                </button>
+              </form>
+
+              {user?.email && (
+                <button type="button" onClick={removeEmail} disabled={emailBusy} className="min-h-11 px-4 py-2 rounded-xl text-rose-700 text-sm font-bold hover:bg-rose-50 disabled:opacity-60 cursor-pointer">
+                  حذف ایمیل
+                </button>
+              )}
+
+              {emailNotice && (
+                <p role="status" className="text-xs text-emerald-800 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> {emailNotice}
+                </p>
+              )}
+              {emailError && (
+                <p role="alert" className="text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4" aria-hidden="true" /> {emailError}
+                </p>
+              )}
+            </section>
+            </div>
           )}
         </section>
       </div>

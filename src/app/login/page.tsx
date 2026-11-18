@@ -80,6 +80,12 @@ function LoginFormContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Email registration: step 1 asks for the address and sends a code; step 2 takes the code and the password
+  const [emailStep, setEmailStep] = useState<'EMAIL' | 'CODE'>('EMAIL');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
+
   // Status feedback
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -137,6 +143,13 @@ function LoginFormContent() {
     logout();
     setAccessDenied(false);
   };
+
+  // Resend cooldown for the email code (seconds)
+  useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const timer = setTimeout(() => setEmailCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [emailCooldown]);
 
   // Countdown timer logic
   useEffect(() => {
@@ -371,8 +384,53 @@ function LoginFormContent() {
   // ----------------------------------------------------
   // 4. SIGN UP WITH PASSWORD (Email + Password)
   // ----------------------------------------------------
+  // Step 1: check the name and address, then send the 6-digit code to the address
+  const handleSendEmailCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+    setEmailNotice(null);
+
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setErrorMessage('لطفاً نام و نام خانوادگی خود را کامل وارد نمایید.');
+      return;
+    }
+    if (!email.trim() || !isValidEmail(email)) {
+      setErrorMessage('لطفاً یک آدرس ایمیل معتبر وارد فرمایید (مانند user@example.com).');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/email/register-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json().catch(() => ({ success: false, message: 'خطا در ارسال کد تایید' }));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'خطا در ارسال کد تایید ایمیل');
+      }
+      setEmailStep('CODE');
+      setEmailCode('');
+      setEmailNotice('کد تایید ۶ رقمی به ایمیل شما ارسال شد. این کد ۱۵ دقیقه معتبر است.');
+      setEmailCooldown(60);
+      setTimeout(() => {
+        document.getElementById('login-email-code')?.focus();
+      }, 150);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'خطا در ارسال کد تایید ایمیل');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2 (the form submit once the code is shown): create the account with the verified address
   const handlePasswordRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (emailStep === 'EMAIL') {
+      await handleSendEmailCode();
+      return;
+    }
     setErrorMessage(null);
 
     if (!fullName.trim() || fullName.trim().length < 2) {
@@ -382,6 +440,12 @@ function LoginFormContent() {
 
     if (!email.trim() || !isValidEmail(email)) {
       setErrorMessage('لطفاً یک آدرس ایمیل معتبر وارد فرمایید (مانند user@example.com).');
+      return;
+    }
+
+    const codeDigits = toEnglishDigits(emailCode).replace(/\D/g, '');
+    if (codeDigits.length !== 6) {
+      setErrorMessage('لطفاً کد تایید ۶ رقمی ارسال‌شده به ایمیل را کامل وارد نمایید.');
       return;
     }
 
@@ -399,6 +463,7 @@ function LoginFormContent() {
         body: JSON.stringify({
           name: fullName.trim(),
           email: email.trim().toLowerCase(),
+          emailCode: codeDigits,
           password: password.trim(),
         }),
       });
@@ -503,6 +568,9 @@ function LoginFormContent() {
                 setAuthMode('REGISTER');
                 setErrorMessage(null);
                 setOtpStep('PHONE');
+                setEmailStep('EMAIL');
+                setEmailCode('');
+                setEmailNotice(null);
               }
             }}
             className={`relative z-10 min-h-11 py-2.5 px-3 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer ${
@@ -776,7 +844,7 @@ function LoginFormContent() {
               </div>
             )}
 
-            {/* Email for Registration with Password */}
+            {/* Email for Registration with Password (step 1: address; step 2: the address is fixed until edited) */}
             {authMode === 'REGISTER' && (
               <div>
                 <label htmlFor="login-email" className="block text-gray-700 font-bold mb-1.5">
@@ -786,18 +854,77 @@ function LoginFormContent() {
                   <input
                     id="login-email" type="email"
                     required
+                    readOnly={emailStep === 'CODE'}
                     autoComplete="email"
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 text-left font-mono text-sm transition-all"
+                    className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 read-only:bg-gray-50 read-only:text-gray-600 text-left font-mono text-sm transition-all"
                     dir="ltr"
                   />
                   <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
                 </div>
-                <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                  ایمیل شما به عنوان شناسه ورود اختصاصی ثبت می‌شود. شماره همراه در مرحله تسویه حساب دریافت و با پیامک تایید خواهد شد.
-                </p>
+                {emailStep === 'EMAIL' ? (
+                  <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
+                    کد ۶ رقمی به این آدرس ارسال می‌شود. حساب کاربری فقط پس از تایید این ایمیل ساخته می‌شود.
+                  </p>
+                ) : (
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-gray-500">کد تایید به این آدرس ارسال شده است.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailStep('EMAIL');
+                        setEmailCode('');
+                        setEmailNotice(null);
+                        setErrorMessage(null);
+                      }}
+                      className="min-h-11 px-2 text-farm-primary font-bold hover:underline cursor-pointer"
+                    >
+                      ویرایش ایمیل
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Email code (step 2 of email registration) */}
+            {authMode === 'REGISTER' && emailStep === 'CODE' && (
+              <div className="space-y-3">
+                {emailNotice && (
+                  <p role="status" className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold">
+                    {emailNotice}
+                  </p>
+                )}
+                <div>
+                  <label htmlFor="login-email-code" className="block text-gray-700 font-bold mb-1.5">
+                    کد تایید ۶ رقمی ارسال‌شده به ایمیل:
+                  </label>
+                  <input
+                    id="login-email-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    dir="ltr"
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 6))}
+                    className="w-full py-3.5 rounded-2xl border-2 border-farm-border bg-[#FAF8F5] text-center font-mono font-black text-2xl tracking-[0.4em] text-farm-primary focus:border-farm-primary focus:bg-white focus:ring-4 focus:ring-farm-primary/10 focus:outline-none transition-all"
+                  />
+                </div>
+                <div className="flex justify-end text-xs">
+                  <button
+                    type="button"
+                    disabled={isLoading || emailCooldown > 0}
+                    onClick={() => handleSendEmailCode()}
+                    className="min-h-11 px-2 inline-flex items-center gap-1 text-farm-primary font-bold hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>
+                      {emailCooldown > 0 ? `ارسال مجدد تا ${toPersianDigits(emailCooldown)} ثانیه دیگر` : 'ارسال مجدد کد'}
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -822,7 +949,8 @@ id="login-identifier"                     type="text"
               </div>
             )}
 
-            {/* Password input */}
+            {/* Password input (email registration asks for it only after the code step) */}
+            {(authMode === 'LOGIN' || emailStep === 'CODE') && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="login-password" className="block text-gray-700 font-bold">
@@ -865,6 +993,7 @@ id="login-identifier"                     type="text"
                 </button>
               </div>
             </div>
+            )}
 
             <Button
               type="submit"
@@ -876,6 +1005,11 @@ id="login-identifier"                     type="text"
                 <>
                   <KeyRound className="w-4 h-4 ml-1.5 text-[#D4AF37]" />
                   <span>ورود به حساب کاربری</span>
+                </>
+              ) : emailStep === 'EMAIL' ? (
+                <>
+                  <Mail className="w-4 h-4 ml-1.5 text-[#D4AF37]" />
+                  <span>دریافت کد تایید ایمیل</span>
                 </>
               ) : (
                 <>

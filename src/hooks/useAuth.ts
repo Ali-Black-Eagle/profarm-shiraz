@@ -92,6 +92,8 @@ export const useAuth = create<AuthStore>()(
               name: state.user.name,
               phone: state.user.phone,
               email: state.user.email,
+              isEmailVerified: state.user.isEmailVerified,
+              pendingEmail: state.user.pendingEmail,
               role: state.user.role,
               tier: state.user.tier,
               isProMember: state.user.isProMember,
