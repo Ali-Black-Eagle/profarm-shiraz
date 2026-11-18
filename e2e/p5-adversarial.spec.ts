@@ -460,6 +460,14 @@ test.describe('P5 adversarial: local dev build', () => {
   test('3.9 password change needs currentPassword once a password exists', async () => {
     const set = await send('POST', '/api/auth/me', { cookie: S.A!.cookie, body: { password: 'Initial-Pass-1' } });
     expect(set.status, 'first password set (no current password yet) is allowed').toBe(200);
+    // A password change bumps the session version: the old cookie must stop working, and the response re-issues one.
+    const oldCookie = S.A!.cookie;
+    const fresh = sessionFrom(set);
+    expect(fresh, 'password change re-issues the session cookie').toBeTruthy();
+    const stale = await send('GET', '/api/auth/me', { cookie: oldCookie });
+    expect(stale.status, 'cookie issued before the password change is rejected').toBe(401);
+    // S persists to a file on top-level assignment only, so replace A as a whole.
+    S.A = { ...S.A!, cookie: fresh as string };
     const noCur = await send('POST', '/api/auth/me', { cookie: S.A!.cookie, body: { password: 'Changed-Pass-2' } });
     expect(noCur.status).toBe(403);
     const wrongCur = await send('POST', '/api/auth/me', {
