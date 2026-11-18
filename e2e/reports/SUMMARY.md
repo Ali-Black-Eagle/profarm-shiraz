@@ -68,7 +68,7 @@ The 3 skipped tests need the clock moved forward (subscription expiry, the rolli
 - **Stored free-tier text:** `freeTierDeliveryDaysText` reads «شنبه، دوشنبه و چهارشنبه». Correct it to «یکشنبه و چهارشنبه» in /admin/subscriptions.
 
 ## Still open
-- **zod:** below 4.6.6, high advisory. The fix is a major upgrade and needs schema migration.
+- ~~**zod:** below 4.6.6, high advisory.~~ Resolved: upgraded to 4.6.7 (merged from `chore/zod-v4`); `npm audit` reports 0 vulnerabilities and the full suite still passes.
 - **Unverified email claim:** a logged-in user can put an unused email on their profile, which blocks registration with that email. Fixing it needs email verification.
 - **Session version coverage:** only admin APIs and `/api/auth/me` check it. Other customer routes accept an older token until it expires.
 - **CSP:** it still allows `unsafe-inline`/`unsafe-eval`. Cash-on-delivery orders can hold stock indefinitely. OTP codes are 5 digits.
