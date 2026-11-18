@@ -8,10 +8,11 @@
  *    The caller decides whether to persist it with saveGeneratedAdminCredentials().
  * 4. Production without an env password: { password: null }. The caller must not fall back to a known password.
  *
- * The password is never logged. fs/path are loaded with require() so that db-store, which is
- * also bundled for the browser, does not pull node built-ins into the client build.
+ * The password is never logged.
  */
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { verifyPassword } from './password';
 
 export const ADMIN_USERPASS_FILENAME = 'admin userpass.txt';
@@ -78,8 +79,6 @@ export function resolveInitialAdminPassword(): ResolvedAdminPassword {
     return { password: null, generated: false };
   }
 
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const filePath = path.join(process.cwd(), ADMIN_USERPASS_FILENAME);
 
   if (fs.existsSync(filePath)) {
@@ -103,8 +102,6 @@ export function resolveInitialAdminPassword(): ResolvedAdminPassword {
  */
 export function saveGeneratedAdminCredentials(password: string): void {
   if (process.env.NODE_ENV === 'production') return;
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const filePath = path.join(process.cwd(), ADMIN_USERPASS_FILENAME);
   if (fs.existsSync(filePath)) return;
   const content = `شماره موبایل: ${ADMIN_BOOTSTRAP_PHONE}\r\nکلمه عبور: ${password}\r\n`;

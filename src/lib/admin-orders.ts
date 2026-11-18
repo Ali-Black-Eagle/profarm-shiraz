@@ -2,6 +2,7 @@
  * Order administration shared by /api/admin/orders, /api/admin?type=orders and the legacy /api/admin POST.
  * Every status change goes through one function, under the order lock, and sends its SMS once (inside the store).
  */
+import 'server-only';
 import { farmStore, sanitizeUser } from './db-store';
 import { canTransition, getAllowedNextStatuses } from './order-utils';
 import { withOrderLock } from './order-lock';

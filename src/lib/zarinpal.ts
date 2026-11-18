@@ -33,6 +33,7 @@ interface PaymentVerifyResult {
   isAlreadyVerified?: boolean;
 }
 
+import 'server-only';
 import { farmStore } from '@/lib/db-store';
 
 // In-memory idempotency cache to prevent double-charging or duplicate verification requests

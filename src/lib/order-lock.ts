@@ -1,3 +1,4 @@
+import 'server-only';
 /**
  * In-process per-order mutex. Callback and verify requests for the same order run one after another,
  * so the state check, the gateway call and the status change cannot interleave.

@@ -5,6 +5,7 @@
  * The caller decides what a failure means: POST /api/orders cancels the new order, retry keeps it pending.
  * On success the payment is attached to the order (replacing any earlier, unpaid attempt).
  */
+import 'server-only';
 import { farmStore } from './db-store';
 import { requestPayment } from './zarinpal';
 import { requestSnappPayPayment } from './snapppay';

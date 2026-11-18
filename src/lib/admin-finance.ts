@@ -17,6 +17,7 @@
  * 12 months of the Jalali year. Periods: day, week (Saturday to Friday), Jalali month, Jalali year.
  * Cash-on-delivery orders are dated by their delivery time, every other order by its creation time.
  */
+import 'server-only';
 import { farmStore } from './db-store';
 import { isCodOrder, isCountableSaleOrder } from './order-utils';
 import { getEffectiveTier } from './subscription';

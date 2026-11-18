@@ -2,7 +2,11 @@
  * Unified data store for Pro Farm.
  * Seamlessly manages Products, Orders, Delivery Slots, Users, and Pro Memberships.
  */
+import 'server-only';
 import crypto from 'crypto';
+import fs from 'fs';
+import net from 'net';
+import path from 'path';
 import {
   Address,
   Product,
@@ -104,6 +108,24 @@ import {
 } from './formatters';
 import { BusinessError } from './api-errors';
 import { isOrderLocked, withOrderLock } from './order-lock';
+import {
+  DEFAULT_FAQ_ITEMS,
+  DEFAULT_COMPARISON_ROWS,
+  DEFAULT_SUBSCRIPTION_SETTINGS,
+  DEFAULT_SMS_PROVIDER_SETTINGS,
+  DEFAULT_EMAIL_PROVIDER_SETTINGS,
+  DEFAULT_PAYMENT_SETTINGS,
+  DEFAULT_SITE_CONTENT,
+  INITIAL_COUPONS,
+} from './store-defaults';
+export { DEFAULT_FAQ_ITEMS, DEFAULT_COMPARISON_ROWS, DEFAULT_SUBSCRIPTION_SETTINGS, DEFAULT_SMS_PROVIDER_SETTINGS, DEFAULT_EMAIL_PROVIDER_SETTINGS, DEFAULT_PAYMENT_SETTINGS, DEFAULT_SITE_CONTENT, INITIAL_COUPONS } from './store-defaults';
+import {
+  resolveInitialAdminPassword,
+  getEnvAdminPassword,
+  isLegacyAdminHash,
+  generateUnguessableAdminPassword,
+  saveGeneratedAdminCredentials,
+} from './admin-bootstrap';
 
 /** Extra minutes after the payment window before an unpaid online order is released (late gateway callbacks). */
 const PAYMENT_EXPIRY_GRACE_MS = 5 * 60 * 1000;
@@ -112,377 +134,6 @@ export function sanitizeUser(user: User): User {
   const { password, ...safeUser } = user;
   return safeUser as User;
 }
-
-export const DEFAULT_FAQ_ITEMS: FaqItem[] = [
-  {
-    id: 'faq-1',
-    q: 'سقف ۲۰۰ و ۶۰۰ عدد تخم‌مرغ چگونه محاسبه می‌شود؟',
-    a: 'سفارش‌های تخم‌مرغ معمولاً در بسته‌های ۳۰ یا ۲۰ عددی هستند. سیستم در هر سبد خرید به صورت خودکار تعداد تخم‌مرغ را شمرده و تا سقف اعلام‌شده (۲۰۰ عدد برای پلاس و ۶۰۰ عدد برای پرو) درصد تخفیف را اعمال می‌کند.',
-    question: 'سقف ۲۰۰ و ۶۰۰ عدد تخم‌مرغ چگونه محاسبه می‌شود؟',
-    answer:
-      'سفارش‌های تخم‌مرغ معمولاً در بسته‌های ۳۰ یا ۲۰ عددی هستند. سیستم در هر سبد خرید به صورت خودکار تعداد تخم‌مرغ را شمرده و تا سقف اعلام‌شده (۲۰۰ عدد برای پلاس و ۶۰۰ عدد برای پرو) درصد تخفیف را اعمال می‌کند.',
-  },
-  {
-    id: 'faq-2',
-    q: 'تحویل در چه ساعاتی از شبانه‌روز انجام می‌شود؟',
-    a: 'پیک اختصاصی پروفارم در شیراز، سفارش‌ها را در بسته‌بندی کاملاً بهداشتی و ایمن، همه روزه از ساعت ۱۵:۰۰ الی ۲۱:۰۰ تحویل می‌دهد.',
-    question: 'تحویل در چه ساعاتی از شبانه‌روز انجام می‌شود؟',
-    answer:
-      'پیک اختصاصی پروفارم در شیراز، سفارش‌ها را در بسته‌بندی کاملاً بهداشتی و ایمن، همه روزه از ساعت ۱۵:۰۰ الی ۲۱:۰۰ تحویل می‌دهد.',
-  },
-  {
-    id: 'faq-3',
-    q: 'آیا می‌توانم اشتراک را در هر زمان ارتقا دهم؟',
-    a: 'بله، شما می‌توانید در هر زمان از طرح عادی به پلاس یا از پلاس به پرو ارتقا دهید و بلافاصله امکانات و تخفیف‌های آن در همان روز برای شما فعال خواهد شد.',
-    question: 'آیا می‌توانم اشتراک را در هر زمان ارتقا دهم؟',
-    answer:
-      'بله، شما می‌توانید در هر زمان از طرح عادی به پلاس یا از پلاس به پرو ارتقا دهید و بلافاصله امکانات و تخفیف‌های آن در همان روز برای شما فعال خواهد شد.',
-  },
-  {
-    id: 'faq-4',
-    q: 'آیا تخفیف ۲۰ درصدی ارسال روی همه سفارش‌ها اعمال می‌شود؟',
-    a: 'بله، مشترکین پرو به صورت نامحدود و بدون سقف تعداد سفارش، ۲۰٪ تخفیف روی هزینه ارسال پیک پروفارم دریافت می‌کنند.',
-    question: 'آیا تخفیف ۲۰ درصدی ارسال روی همه سفارش‌ها اعمال می‌شود؟',
-    answer:
-      'بله، مشترکین پرو به صورت نامحدود و بدون سقف تعداد سفارش، ۲۰٪ تخفیف روی هزینه ارسال پیک پروفارم دریافت می‌کنند.',
-  },
-];
-
-export const DEFAULT_COMPARISON_ROWS: ComparisonRow[] = [
-  {
-    id: 'row-1',
-    title: 'هزینه اشتراک ماهانه',
-    free: '۰ تومان',
-    plus: '۱۴۹,۰۰۰ تومان',
-    pro: '۳۲۹,۰۰۰ تومان',
-  },
-  {
-    id: 'row-2',
-    title: 'روزهای مجاز تحویل در شیراز',
-    free: 'روزهای یکشنبه و چهارشنبه',
-    plus: '۶ روز در هفته (شنبه تا ۵‌شنبه)',
-    pro: '۶ روز در هفته (شنبه تا ۵‌شنبه)',
-  },
-  {
-    id: 'row-3',
-    title: 'تخفیف تخم‌مرغ محلی ارگانیک',
-    free: 'ندارد',
-    plus: '۵٪ (تا سقف ۲۰۰ عدد)',
-    pro: '۱۰٪ (تا سقف ۶۰۰ عدد)',
-  },
-  {
-    id: 'row-4',
-    title: 'تخفیف روی سایر کالاها',
-    free: 'ندارد',
-    plus: 'ندارد',
-    pro: '۵٪ نامحدود روی تمام کالاها',
-  },
-  {
-    id: 'row-5',
-    title: 'تخفیف هزینه ارسال پیک پروفارم',
-    free: 'ندارد (۴۹,۰۰۰ تومان)',
-    plus: 'ندارد (۴۹,۰۰۰ تومان)',
-    pro: '۲۰٪ تخفیف (۳۹,۲۰۰ تومان)',
-  },
-  {
-    id: 'row-6',
-    title: 'اولویت کالاهای محدود و فصلی',
-    free: 'عادی',
-    plus: 'متوسط',
-    pro: 'بالاترین اولویت دسترسی',
-  },
-];
-
-export const DEFAULT_SUBSCRIPTION_SETTINGS: SubscriptionSettings = {
-  proMonthlyPrice: 329000,
-  proEggDiscountPercent: 10,
-  proEggMaxQuota: 600,
-  proOtherDiscountPercent: 5,
-  proShippingDiscountPercent: 20,
-  proDeliveryDaysPerWeek: 6,
-  proMaxCapacity: 50,
-  proBadgeText: 'پیشنهاد طلایی',
-  proFeatures: [
-    'تحویل ۶ روز در هفته از شنبه تا پنج‌شنبه',
-    '۱۰٪ تخفیف خرید تخم‌مرغ محلی تا سقف ۶۰۰ عدد',
-    '۵٪ تخفیف نامحدود روی تمامی بقیه محصولات سایت',
-    '۲۰٪ تخفیف نامحدود روی هزینه ارسال پیک پروفارم',
-    'اولویت ارسال سفارش و دسترسی به محصولات کمیاب (عسل وحشی، پنیر کوزه‌ای)',
-    'پشتیبانی تلفنی و مشاور اختصاصی سلامت تغذیه ارگانیک',
-    'بسته‌بندی ویژه مزارع با کارتن عایق حرارتی اختصاصی',
-    'امکان انصراف یا تعلیق موقت اشتراک در زمان مسافرت',
-  ],
-
-  plusMonthlyPrice: 149000,
-  plusEggDiscountPercent: 5,
-  plusEggMaxQuota: 200,
-  plusDeliveryDaysPerWeek: 6,
-  plusMaxCapacity: 100,
-  plusBadgeText: 'اقتصادی',
-  plusFeatures: [
-    'تحویل ۶ روز در هفته (شنبه تا پنج‌شنبه)',
-    '۵٪ تخفیف تخم‌مرغ محلی تا سقف ۲۰۰ عدد در ماه',
-    'رزرو اولویت‌دار اسلات‌های توزیع پیک شیراز',
-    'امکان انتخاب بازه زمانی تحویل ۲ ساعته',
-    'پشتیبانی اولویت‌دار سفارش‌های مزارع',
-  ],
-
-  baseShippingFee: 49000,
-  freeTierDeliveryDaysText: 'شنبه، دوشنبه و چهارشنبه',
-  freeBadgeText: 'طرح پایه',
-  freeFeatures: [
-    'تحویل: یکشنبه و چهارشنبه',
-    'بازه تحویل ۱۵:۰۰ الی ۲۱:۰۰ پیک پروفارم',
-    'دسترسی کامل به تمامی محصولات تازه و فصلی مزارع',
-    'بسته‌بندی بهداشتی استاندارد مزارع شیراز',
-  ],
-
-  // Visual in-place customizable texts:
-  // 1. Hero Banner
-  heroBadgeText: 'باشگاه مشترکین ویژه «پروفارم شیراز»',
-  heroTitle: 'طراوت هر روزه با تحویل ۶ روز هفته و تخفیف‌های ویژه مزارع فارس',
-  heroDescription:
-    'کاربران عادی تنها ۲ روز در هفته (یکشنبه و چهارشنبه) امکان دریافت سفارش دارند. با اشتراک‌های پلاس یا پرو، از شنبه تا پنج‌شنبه هر روزی که بخواهید سفارشتان با پیک پروفارم ارسال شده و از تخفیف‌های دائمی خرید تخم‌مرغ محلی و محصولات ارگانیک بهره‌مند می‌شوید.',
-  heroCtaText: 'مشاهده محصولات مزارع',
-
-  // 2. Section Header
-  sectionSubheader: 'انتخاب پلن مناسب نیاز شما',
-  sectionTitle: 'مقایسه و انتخاب اشتراک ماهانه پروفارم',
-  sectionDescription: 'برای خانواده‌هایی که سلامت و کیفیت تغذیه روزمره‌شان در اولویت است',
-
-  // 3. Card Texts
-  freeTitle: 'کاربر عادی',
-  freeSubtitle: 'سفارش‌های گاه‌به‌گاه و خرید آزمایشی',
-  freePriceLabel: 'رایگان',
-  freePriceSubtext: 'بدون نیاز به پرداخت ماهانه',
-  freeDeliveryHoursText: 'بازه تحویل ۱۵:۰۰ الی ۲۱:۰۰ پیک پروفارم',
-  freeButtonText: 'طرح فعلی شما (رایگان) ✓',
-
-  plusTitle: 'اشتراک پلاس',
-  plusSubtitle: 'تحویل همه روزه + تخفیف تخم‌مرغ محلی',
-  plusPriceSubtext: 'صرفه‌جویی تضمین‌شده در خرید هفتگی',
-  plusButtonText: 'خرید اشتراک پلاس',
-
-  proTopLabel: 'اشتراک طلایی پروفارم پرو',
-  proTitle: 'اشتراک پرو (Pro)',
-  proSubtitle: 'حداکثر تخفیف و بیشترین انعطاف در دریافت',
-  proPriceSubtext: '۱۰٪ تخم‌مرغ + ۵٪ سایر محصولات + ۲۰٪ تخفیف ارسال',
-  proButtonText: 'خرید اشتراک پرو',
-
-  // 4. Comparison Table
-  comparisonTitle: 'جدول مقایسه جامع ویژگی‌های پلن‌ها',
-  comparisonFeatureHeader: 'ویژگی و امکانات',
-  comparisonFreeHeader: 'کاربر عادی',
-  comparisonPlusHeader: 'اشتراک پلاس',
-  comparisonProHeader: 'اشتراک پرو',
-  comparisonRows: DEFAULT_COMPARISON_ROWS,
-
-  // 5. FAQ Section
-  faqSubheader: 'پرسش‌های متداول',
-  faqTitle: 'سوالاتی که ممکن است داشته باشید',
-  faqItems: DEFAULT_FAQ_ITEMS,
-};
-
-export const DEFAULT_SMS_PROVIDER_SETTINGS: SmsProviderSettings = {
-  provider: (process.env.SMS_PROVIDER as any) || 'MOCK',
-  apiKey: process.env.SMS_API_KEY || '',
-  senderNumber: process.env.SMS_SENDER_LINE || '',
-  patternCode: 'profarm-notif',
-  apiUrl: 'https://api.kavenegar.com/v1',
-  isEnabled: true,
-  testPhone: '',
-  updatedAt: '۱۴۰۵/۰۶/۱۵',
-};
-
-export const DEFAULT_EMAIL_PROVIDER_SETTINGS: EmailProviderSettings = {
-  isEnabled: true,
-  provider: (process.env.EMAIL_PROVIDER as any) || (process.env.SMTP_HOST ? 'SMTP' : 'SMTP'),
-  smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
-  smtpPort: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
-  smtpUser: process.env.SMTP_USER || '',
-  smtpPass: process.env.SMTP_PASS || '',
-  smtpSecure: process.env.SMTP_SECURE === 'true',
-  fromEmail: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'info@profarm-shiraz.ir',
-  fromName: process.env.SMTP_FROM_NAME || 'مزارع ارگانیک پروفارم شیراز',
-  updatedAt: '۱۴۰۵/۰۶/۱۵',
-};
-
-export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
-  zarinpal: {
-    enabled: true,
-    merchantId: typeof window === 'undefined' ? (process.env.ZARINPAL_MERCHANT_ID || '') : '',
-    sandbox: process.env.ZARINPAL_SANDBOX === 'true',
-    defaultDescription: 'سفارش محصولات ارگانیک شیراز',
-  },
-  snapppay: {
-    enabled: true,
-    clientId: typeof window === 'undefined' ? (process.env.SNAPPPAY_CLIENT_ID || '') : '',
-    clientSecret: typeof window === 'undefined' ? (process.env.SNAPPPAY_CLIENT_SECRET || '') : '',
-    baseUrl: process.env.SNAPPPAY_BASE_URL || 'https://api.snapppay.ir/api/online/v1',
-    minAmount: 200000,
-  },
-  general: {
-    currency: 'IRT',
-    allowCashOnDelivery: false,
-    paymentTimeoutMinutes: 30,
-    guideMessage: 'پرداخت امن از طریق درگاه رسمی شاپرک با کلیه کارت‌های عضو شتاب',
-  },
-  updatedAt: new Date().toISOString(),
-};
-
-export const DEFAULT_SITE_CONTENT: SiteContent = {
-  topBannerActive: true,
-  topBannerText: 'توزیع مستقیم مزارع استان فارس به شیراز | تحویل با پیک پروفارم',
-  topBannerLinkText: 'عضویت در باشگاه و ارسال روزانه',
-
-  heroBadgeText: 'برداشت اختصاصی پاییز مزارع استان فارس برای اهالی شیراز',
-  heroTitlePart1: 'طعم اصیل مزرعه،',
-  heroTitleHighlight: 'مستقیم و تازه در شیراز',
-  heroSubtitle:
-    'پلتفرم رسمی توزیع پکیج‌های ارگانیک؛ از تخم‌مرغ محلی آزاد کامفیروز تا عسل خام دشت ارژن و سبزیجات نوبرانه قصرالدشت. ارسال سریع در شیراز با پیک پروفارم.',
-  heroCtaProductsText: 'مشاهده ویترین محصولات ارگانیک',
-  heroCtaProText: 'اشتراک پروفارم پرو و پلاس (ارسال ۶ روزه)',
-  heroStat1Number: '۴۵۰+',
-  heroStat1Label: 'خانواده مشترک در شیراز',
-  heroStat2Number: '۱۰۰٪',
-  heroStat2Label: 'تضمین اصالت ارگانیک',
-  heroStat3Number: '۶ روز',
-  heroStat3Label: 'توزیع هفتگی با پیک پروفارم',
-
-  trustItem1: 'تحویل اختصاصی سراسر شیراز',
-  trustItem2: 'بسته‌بندی شناسنامه‌دار',
-  trustItem3: 'آزمایشگاه کنترل کیفیت ارگانیک',
-  trustItem1Title: 'تحویل اختصاصی سراسر شیراز',
-  trustItem1Desc: 'پوشش کلیه مناطق شهرداری شیراز با پیک پروفارم',
-  trustItem2Title: 'بسته‌بندی شناسنامه‌دار',
-  trustItem2Desc: 'پلمپ بهداشتی با برچسب تاریخ دوشش شیر، چیدن سبزی و جمع‌آوری تخم‌مرغ',
-  trustItem3Title: 'آزمایشگاه کنترل کیفیت ارگانیک',
-  trustItem3Desc: 'برگه آزمایش رسمی اصالت عسل و عدم استفاده از سموم شیمیایی و هورمون',
-  trustItem4Title: 'تضمین ۱۰۰٪ رضایت مشتری',
-  trustItem4Desc: 'در صورت عدم رضایت از کیفیت، مرجوعی کالا و بازگشت وجه بدون قید و شرط انجام می‌شود',
-
-  productsSectionTitle: 'سبد محصولات برگزیده مزارع فارس',
-  productsSectionSubtitle: 'مستقیماً چیده شده و آماده توزیع تازه در سطح شیراز',
-  productsBadgeText: 'تازه‌های امروز مزرعه',
-
-  proSectionTitle: 'عضویت در باشگاه اختصاصی پروفارم پرو و پلاس شیراز',
-  proSectionSubtitle:
-    'ارسال ۶ روز در هفته، تخفیف ویژه خرید تخم‌مرغ محلی، تخفیف نامحدود سایر کالاها و تخفیف هزینه ارسال با پیک پروفارم',
-  proSectionBadge: 'صرفه‌جویی طلایی خانوار',
-  proCardHighlight: 'پیشنهاد طلایی: ۱۰٪ تخفیف تخم‌مرغ + ۵٪ سایر کالاها + ۲۰٪ ارسال',
-  plusCardHighlight: 'پیشنهاد اقتصادی: ۵٪ تخفیف تخم‌مرغ محلی تا ۲۰۰ عدد + ارسال ۶ روزه',
-
-  bulkSectionTitle: 'تامین عمده برای سازمان‌ها، فروشگاه‌ها و سراسر کشور',
-  bulkSectionSubtitle: 'توزیع تناژ بالا با بارنامه رسمی، مجوز دامپزشکی و فاکتور رسمی حقوقی',
-  bulkBadgeText: 'فروش مستقیم کارگاهی و مزارع',
-  bulkCtaText: 'ثبت استعلام خرید عمده',
-
-  storyTitle: 'از دامنه‌های زاگرس تا سفره‌های شیراز',
-  storyDescription:
-    'پروفارم با گردآوری بیش از ۲۴ مزرعه‌دار سنتی در مناطق کامفیروز، دشت ارژن، سپیدان، فیروزآباد و میمند، واسطه‌ها را حذف کرده تا محصولات طبیعی با حداکثر طراوت و بهای عادلانه به دست مصرف‌کننده برسد.',
-  storyLocation: 'دشت ارژن، کامفیروز، سپیدان و میمند فارس',
-  storyBadgeText: 'اصالت سرزمین فارس',
-
-  heroImageUrl: '/images/hero-shiraz-farm.jpg',
-  heroImageTag: 'تضمین ۱۰۰٪ ارگانیک و محلی',
-  heroImageCaption: 'برداشت صبحگاهی و تحویل همان روز در شیراز با پیک پروفارم',
-  bulkSectionImageUrl: '/images/bulk-logistics.jpg',
-  storyImageUrl: '/images/story-fars-farms.jpg',
-
-  supportPhone: '۰۷۱-۳۶۲۸۰۰۰۰',
-  supportHours: 'همه‌روزه از ساعت ۸ صبح الی ۲۲ شب',
-  supportAddress: 'شیراز، بلوار ارم، مجتمع کشاورزی و مزارع ارگانیک فارس',
-  footerAboutText:
-    'پروفارم؛ سامانه پیشرو در عرضه مستقیم محصولات غذایی سالم و ارگانیک مزارع استان فارس با استانداردهای بهداشتی و پیک پروفارم در شیراز.',
-  socialInstagram: 'https://instagram.com/profarm_shiraz',
-  socialTelegram: 'https://t.me/profarm_shiraz',
-  socialEitaa: 'https://eitaa.com/profarm_shiraz',
-  socialWhatsapp: '',
-};
-
-export const INITIAL_COUPONS: Coupon[] = [
-  {
-    id: 'coup-shiraz1403',
-    code: 'SHIRAZ1403',
-    title: 'جشنواره بهاره شیراز (۱۵٪ تخفیف کل سفارش)',
-    description: 'تخفیف ویژه ۱۵ درصدی روی سبد خرید کلیه محصولات ارگانیک با سقف ۶۰ هزار تومان',
-    targetType: 'ALL_PRODUCTS',
-    discountType: 'PERCENTAGE',
-    discountValue: 15,
-    minOrderAmount: 200000,
-    maxDiscountAmount: 60000,
-    usageLimit: 100,
-    usageCount: 18,
-    isActive: true,
-    expiresAt: '1404-06-31',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'coup-freeship',
-    code: 'FREESHIP',
-    title: 'ارسال رایگان با پیک پروفارم',
-    description: 'ارسال ۱۰۰٪ رایگان با پیک پروفارم برای سفارش‌های بالای ۱۵۰ هزار تومان',
-    targetType: 'SHIPPING',
-    discountType: 'PERCENTAGE',
-    discountValue: 100,
-    minOrderAmount: 150000,
-    usageLimit: 50,
-    usageCount: 12,
-    isActive: true,
-    expiresAt: '1404-05-30',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'coup-honey50',
-    code: 'HONEY50',
-    title: 'تخفیف ۵۰ هزار تومانی عسل وحشی دشت ارژن',
-    description: 'تخفیف مستقیم روی خرید عسل وحشی گون و کنار ۱۰۰۰ گرمی دشت ارژن',
-    targetType: 'SPECIFIC_PRODUCT',
-    targetProductId: 'prod-honey-1000',
-    targetProductName: 'عسل وحشی گَوَن و کُنار دشت ارژن (شیشه ۱۰۰۰ گرمی)',
-    discountType: 'FIXED_AMOUNT',
-    discountValue: 50000,
-    minOrderAmount: 0,
-    usageLimit: 40,
-    usageCount: 8,
-    isActive: true,
-    expiresAt: '1404-08-15',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'coup-eggs20',
-    code: 'EGGS20',
-    title: 'تخفیف ۲۰ درصدی تخم‌مرغ کامفیروز',
-    description: '۲۰ درصد تخفیف ویژه برای بسته ۳۰ عددی تخم‌مرغ محلی ارگانیک کامفیروز',
-    targetType: 'SPECIFIC_PRODUCT',
-    targetProductId: 'prod-eggs-30',
-    targetProductName: 'تخم‌مرغ محلی ارگانیک کامفیروز (بسته ۳۰ عددی)',
-    discountType: 'PERCENTAGE',
-    discountValue: 20,
-    maxDiscountAmount: 40000,
-    minOrderAmount: 0,
-    usageLimit: 60,
-    usageCount: 14,
-    isActive: true,
-    expiresAt: '1404-06-15',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'coup-promo100',
-    code: 'PROMO100',
-    title: 'تخفیف ۱۰۰ هزار تومانی سبدهای میلیونی',
-    description: 'تخفیف ۱۰۰ هزار تومانی برای خریدهای بالای ۱ میلیون تومان از محصولات فارس',
-    targetType: 'ALL_PRODUCTS',
-    discountType: 'FIXED_AMOUNT',
-    discountValue: 100000,
-    minOrderAmount: 1000000,
-    usageLimit: 30,
-    usageCount: 5,
-    isActive: true,
-    expiresAt: '1404-12-29',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 // Persistent in-process memory stores
 const COUPON_TARGET_TYPES: Coupon['targetType'][] = ['ALL_PRODUCTS', 'SPECIFIC_PRODUCT', 'SHIPPING'];
@@ -642,7 +293,6 @@ class FarmDataStore {
 
   // --- PRISMA & POSTGRESQL INTEGRATION ---
   private getPrisma(): any {
-    if (typeof window !== 'undefined') return null;
     if (!process.env.DATABASE_URL) return null;
     try {
       const { prisma } = require('@/lib/prisma');
@@ -653,13 +303,12 @@ class FarmDataStore {
   }
 
   private async isDatabaseReachable(): Promise<boolean> {
-    if (typeof window !== 'undefined' || !process.env.DATABASE_URL) return false;
+    if (!process.env.DATABASE_URL) return false;
     try {
       const parsedUrl = new URL(process.env.DATABASE_URL);
       const host = parsedUrl.hostname || 'localhost';
       const port = parseInt(parsedUrl.port || '5432', 10);
-      const net = require('net');
-
+      
       return await new Promise<boolean>((resolve) => {
         const socket = new net.Socket();
         socket.setTimeout(500);
@@ -683,32 +332,6 @@ class FarmDataStore {
   }
 
   // --- LOCAL PERSISTENCE HELPERS ---
-  private isBrowser(): boolean {
-    return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
-  }
-
-  private saveItem<T>(key: string, data: T): void {
-    if (!this.isBrowser()) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.warn(`[FarmStore] Failed to save ${key} to localStorage:`, e);
-    }
-  }
-
-  private loadItem<T>(key: string, fallback: T): T {
-    if (!this.isBrowser()) return fallback;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        return JSON.parse(raw);
-      }
-    } catch (e) {
-      console.warn(`[FarmStore] Failed to load ${key} from localStorage:`, e);
-    }
-    return fallback;
-  }
-
   // --- SERVER-SIDE DATA FILE PERSISTENCE ---
   // Timestamp (ms) of the newest state this process knows about: the savedAt of the loaded file or the last save.
   private memoryStampMs = 0;
@@ -719,13 +342,10 @@ class FarmDataStore {
   private dailyCapacityOverrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> = {};
 
   private getServerDataFilePath(): string | null {
-    if (typeof window !== 'undefined') return null;
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const dataDir = process.env.DATA_DIR?.trim() || path.join(process.cwd(), '.data');
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
+      const dataDir = process.env.DATA_DIR?.trim() || path.join(/*turbopackIgnore: true*/ process.cwd(), '.data');
+      if (!fs.existsSync(/*turbopackIgnore: true*/ dataDir)) {
+        fs.mkdirSync(/*turbopackIgnore: true*/ dataDir, { recursive: true });
       }
       return path.join(dataDir, 'profarm_store.json');
     } catch {
@@ -825,8 +445,7 @@ class FarmDataStore {
 
   private isReadableJsonFile(filePath: string): boolean {
     try {
-      const fs = require('fs');
-      JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      JSON.parse(fs.readFileSync(/*turbopackIgnore: true*/ filePath, 'utf-8'));
       return true;
     } catch {
       return false;
@@ -850,7 +469,7 @@ class FarmDataStore {
     let lastError: any = null;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        fs.renameSync(tempPath, targetPath);
+        fs.renameSync(/*turbopackIgnore: true*/ tempPath, targetPath);
         return;
       } catch (err: any) {
         lastError = err;
@@ -859,8 +478,8 @@ class FarmDataStore {
       }
     }
     try {
-      fs.copyFileSync(tempPath, targetPath);
-      fs.rmSync(tempPath, { force: true });
+      fs.copyFileSync(/*turbopackIgnore: true*/ tempPath, targetPath);
+      fs.rmSync(/*turbopackIgnore: true*/ tempPath, { force: true });
       console.warn(
         `[FarmStore] Rename to ${targetPath} failed (${lastError?.code || 'unknown'}); the state was copied over it instead.`
       );
@@ -876,26 +495,24 @@ class FarmDataStore {
    * either the old file or the new one, never a partial file.
    */
   public saveServerState(): void {
-    if (typeof window !== 'undefined') return;
     let tempPath: string | null = null;
     try {
-      const fs = require('fs');
       const filePath = this.getServerDataFilePath();
       if (filePath) {
         const serialized = JSON.stringify(this.buildServerSnapshot(), null, 2);
         tempPath = `${filePath}.${process.pid}.${++this.saveSequence}.tmp`;
-        const fd = fs.openSync(tempPath, 'w');
+        const fd = fs.openSync(/*turbopackIgnore: true*/ tempPath, 'w');
         try {
-          fs.writeSync(fd, serialized, undefined, 'utf-8');
-          fs.fsyncSync(fd);
+          fs.writeSync(/*turbopackIgnore: true*/ fd, serialized, undefined, 'utf-8');
+          fs.fsyncSync(/*turbopackIgnore: true*/ fd);
         } finally {
-          fs.closeSync(fd);
+          fs.closeSync(/*turbopackIgnore: true*/ fd);
         }
 
         const backupPath = `${filePath}.bak`;
-        if (fs.existsSync(filePath) && this.isReadableJsonFile(filePath)) {
+        if (fs.existsSync(/*turbopackIgnore: true*/ filePath) && this.isReadableJsonFile(filePath)) {
           const backupTemp = `${backupPath}.${process.pid}.tmp`;
-          fs.copyFileSync(filePath, backupTemp);
+          fs.copyFileSync(/*turbopackIgnore: true*/ filePath, backupTemp);
           this.replaceFileWithRetry(fs, backupTemp, backupPath);
         }
 
@@ -907,7 +524,7 @@ class FarmDataStore {
       console.error('[FarmStore] Failed to save server state:', e);
       if (tempPath) {
         try {
-          require('fs').rmSync(tempPath, { force: true });
+          fs.rmSync(/*turbopackIgnore: true*/ tempPath, { force: true });
         } catch {}
       }
     }
@@ -917,13 +534,12 @@ class FarmDataStore {
   /** Returns the parsed snapshot from the data file, or from the .bak copy when the file is damaged. */
   private readServerSnapshot(): Record<string, any> | null {
     try {
-      const fs = require('fs');
       const filePath = this.getServerDataFilePath();
       if (!filePath) return null;
       for (const candidate of [filePath, `${filePath}.bak`]) {
-        if (!fs.existsSync(candidate)) continue;
+        if (!fs.existsSync(/*turbopackIgnore: true*/ candidate)) continue;
         try {
-          const content = fs.readFileSync(candidate, 'utf-8');
+          const content = fs.readFileSync(/*turbopackIgnore: true*/ candidate, 'utf-8');
           if (!content || content.trim().length === 0) continue;
           const parsed = JSON.parse(content);
           if (candidate !== filePath) {
@@ -1012,7 +628,6 @@ class FarmDataStore {
    * Loads the snapshot once, at construction. Request handlers must never call this: it replaces live state.
    */
   public loadServerState(): void {
-    if (typeof window !== 'undefined') return;
     try {
       const data = this.readServerSnapshot();
       if (data) this.applyServerSnapshot(data);
@@ -1096,7 +711,6 @@ class FarmDataStore {
   }
 
   public async syncFromPrisma(): Promise<boolean> {
-    if (typeof window !== 'undefined') return false;
     const prisma = this.getPrisma();
     if (!prisma) return false;
     if (this.isDatabaseSyncing) return false;
@@ -1748,7 +1362,6 @@ class FarmDataStore {
   }
 
   public async ensureDatabaseLoaded(): Promise<void> {
-    if (typeof window !== 'undefined') return;
     if (this.hasSyncedFromPrisma) return;
     const prisma = this.getPrisma();
     if (!prisma) return;
@@ -1781,25 +1394,23 @@ class FarmDataStore {
     let generatedAdminPassword: string | null = null;
     // Production without ADMIN_PASSWORD: the seeded admin is not created at all (see applyAdminPasswordPolicy)
     let seedAdmin = true;
-    if (!this.isBrowser()) {
-      // SECURITY: no hard-coded admin password. See lib/admin-bootstrap.ts for the resolution order.
-      const { resolveInitialAdminPassword } = require('./admin-bootstrap') as typeof import('./admin-bootstrap');
-      const resolvedAdmin = resolveInitialAdminPassword();
-      if (resolvedAdmin.password) {
-        adminPasswordHash = hashPassword(resolvedAdmin.password);
-        if (resolvedAdmin.generated) generatedAdminPassword = resolvedAdmin.password;
-      } else {
-        seedAdmin = false;
-        console.error(
-          '[SECURITY] ADMIN_PASSWORD is not set. The admin account was not created. Set ADMIN_PASSWORD and restart the server.'
-        );
-      }
-      if (process.env.NODE_ENV !== 'production') {
-        userPasswordHash = hashPassword('user123');
-        plusPasswordHash = hashPassword('plus123');
-        proPasswordHash = hashPassword('pro123');
-      }
+    // SECURITY: no hard-coded admin password. See lib/admin-bootstrap.ts for the resolution order.
+    const resolvedAdmin = resolveInitialAdminPassword();
+    if (resolvedAdmin.password) {
+      adminPasswordHash = hashPassword(resolvedAdmin.password);
+      if (resolvedAdmin.generated) generatedAdminPassword = resolvedAdmin.password;
+    } else {
+      seedAdmin = false;
+      console.error(
+        '[SECURITY] ADMIN_PASSWORD is not set. The admin account was not created. Set ADMIN_PASSWORD and restart the server.'
+      );
     }
+    if (process.env.NODE_ENV !== 'production') {
+      userPasswordHash = hashPassword('user123');
+      plusPasswordHash = hashPassword('plus123');
+      proPasswordHash = hashPassword('pro123');
+    }
+
 
     // 1. Admin User
     const adminUser: User = {
@@ -1965,119 +1576,9 @@ class FarmDataStore {
     ];
   }
 
-  public initFromLocalStorage(): void {
-    if (!this.isBrowser()) return;
-
-    // 1. Products
-    const storedProducts = this.loadItem<Product[] | null>('profarm_products', null);
-    if (storedProducts && Array.isArray(storedProducts) && storedProducts.length > 0) {
-      this.products = storedProducts;
-    }
-
-    // 2. Orders
-    const storedOrders = this.loadItem<Order[] | null>('profarm_orders', null);
-    if (storedOrders && Array.isArray(storedOrders) && storedOrders.length > 0) {
-      this.orders = storedOrders;
-    }
-
-    // 3. Users
-    const storedUsers = this.loadItem<User[] | null>('profarm_users', null);
-    if (storedUsers && Array.isArray(storedUsers) && storedUsers.length > 0) {
-      this.users.clear();
-      let usersNeedSave = false;
-      storedUsers.forEach((u) => {
-        // Automatic security upgrade: only hash on server runtime, never freeze browser UI thread
-        if (!this.isBrowser() && u.password && !u.password.startsWith('pbkdf2$') && !u.password.startsWith('pfh_')) {
-          try {
-            u.password = hashPassword(u.password);
-            usersNeedSave = true;
-          } catch {
-            // Ignore if empty
-          }
-        }
-        this.indexUser(u);
-      });
-      if (usersNeedSave) {
-        this.saveUsers();
-      }
-    }
-
-    // 4. Categories
-    const storedCategories = this.loadItem<string[] | null>('profarm_categories', null);
-    if (storedCategories && Array.isArray(storedCategories) && storedCategories.length > 0) {
-      const list = storedCategories.filter((c) => c !== 'همه محصولات');
-      this.categories = ['همه محصولات', ...list];
-    }
-
-    // 5. Site Content
-    this.getSiteContent();
-
-    // 6. Subscription Settings
-    this.getSubscriptionSettings();
-
-    // 7. Coupons
-    const storedCoupons = this.loadItem<Coupon[] | null>('profarm_coupons', null);
-    if (storedCoupons && Array.isArray(storedCoupons) && storedCoupons.length > 0) {
-      this.coupons = storedCoupons;
-    }
-
-    // 8. Payment Settings
-    const storedPayment = this.loadItem<PaymentSettings | null>('profarm_payment_settings', null);
-    if (storedPayment) {
-      this.paymentSettings = { ...DEFAULT_PAYMENT_SETTINGS, ...storedPayment };
-    }
-
-    // 9. Returns
-    const storedReturns = this.loadItem<ReturnRequest[] | null>('profarm_return_requests', null);
-    if (storedReturns && Array.isArray(storedReturns) && storedReturns.length > 0) {
-      this.returnRequests = storedReturns;
-    }
-
-    // 10. Reviews
-    const storedReviews = this.loadItem<ProductReview[] | null>('profarm_reviews', null);
-    if (storedReviews && Array.isArray(storedReviews) && storedReviews.length > 0) {
-      this.reviews = storedReviews;
-    }
-
-    // 11. Bulk Inquiries
-    const storedInquiries = this.loadItem<BulkInquiry[] | null>('profarm_bulk_inquiries', null);
-    if (storedInquiries && Array.isArray(storedInquiries) && storedInquiries.length > 0) {
-      this.bulkInquiries = storedInquiries;
-    }
-
-    // 12. SMS Settings
-    const storedSms = this.loadItem<SmsProviderSettings | null>('profarm_sms_settings', null);
-    if (storedSms) {
-      this.smsSettings = { ...DEFAULT_SMS_PROVIDER_SETTINGS, ...storedSms };
-    }
-    const storedTemplates = this.loadItem<SmsEventTemplate[] | null>('profarm_sms_templates', null);
-    if (storedTemplates && Array.isArray(storedTemplates) && storedTemplates.length > 0) {
-      this.smsEventTemplates = DEFAULT_SMS_EVENT_TEMPLATES.map((def) => {
-        const match = storedTemplates.find((s) => s.id === def.id);
-        if (!match) return def;
-        return {
-          ...def,
-          ...match,
-          availableVariables: def.availableVariables || match.availableVariables || [],
-        };
-      });
-    }
-    const storedBroadcasts = this.loadItem<SmsBroadcast[] | null>('profarm_sms_broadcasts', null);
-    if (storedBroadcasts && Array.isArray(storedBroadcasts) && storedBroadcasts.length > 0) {
-      this.smsBroadcasts = storedBroadcasts;
-    }
-
-    // 13. Email Provider / SMTP Settings
-    const storedEmail = this.loadItem<EmailProviderSettings | null>('profarm_email_settings', null);
-    if (storedEmail) {
-      this.emailSettings = { ...DEFAULT_EMAIL_PROVIDER_SETTINGS, ...storedEmail };
-    }
-  }
-
   constructor() {
     this.populateInitialUsers();
     this.populateInitialBulkInquiries();
-    this.initFromLocalStorage();
     this.loadServerState();
     this.applyAdminPasswordPolicy();
     this.finalizeAdminBootstrap();
@@ -2092,12 +1593,9 @@ class FarmDataStore {
    * Development admin passwords are otherwise left untouched.
    */
   private applyAdminPasswordPolicy(): void {
-    if (this.isBrowser()) return;
     // `next build` also evaluates this module with NODE_ENV=production. Builds must never write the data store,
     // so the policy runs only when the server starts.
     if (process.env.NEXT_PHASE === 'phase-production-build') return;
-    const { getEnvAdminPassword, isLegacyAdminHash, generateUnguessableAdminPassword } =
-      require('./admin-bootstrap') as typeof import('./admin-bootstrap');
 
     const isProduction = process.env.NODE_ENV === 'production';
     const envPassword = getEnvAdminPassword();
@@ -2143,20 +1641,13 @@ class FarmDataStore {
   private finalizeAdminBootstrap(): void {
     const pending = this.pendingAdminCredentials;
     this.pendingAdminCredentials = null;
-    if (!pending || this.isBrowser()) return;
+    if (!pending) return;
     if (this.users.get('usr-admin') !== pending.user) return;
-    const { saveGeneratedAdminCredentials } = require('./admin-bootstrap') as typeof import('./admin-bootstrap');
     saveGeneratedAdminCredentials(pending.password);
   }
 
   // --- PRODUCTS ---
   getProducts(): Product[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<Product[] | null>('profarm_products', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.products = stored;
-      }
-    }
     return this.products;
   }
 
@@ -2169,13 +1660,7 @@ class FarmDataStore {
   }
 
   private saveProducts(): void {
-    this.saveItem('profarm_products', this.products);
     this.saveServerState();
-    if (this.isBrowser()) {
-      window.dispatchEvent(
-        new CustomEvent('profarm_products_updated', { detail: this.products })
-      );
-    }
   }
 
   addProduct(
@@ -2346,31 +1831,11 @@ class FarmDataStore {
   resetProducts(): Product[] {
     this.products = [...INITIAL_PRODUCTS];
     this.saveServerState();
-    if (this.isBrowser()) {
-      localStorage.removeItem('profarm_products');
-      window.dispatchEvent(
-        new CustomEvent('profarm_products_updated', { detail: this.products })
-      );
-    }
     return this.products;
   }
 
   // --- CATEGORIES ---
   getCategories(): string[] {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('profarm_categories');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const list = parsed.filter((c: string) => c !== 'همه محصولات');
-            this.categories = ['همه محصولات', ...list];
-          }
-        }
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.categories;
   }
 
@@ -2385,13 +1850,6 @@ class FarmDataStore {
     }
     this.categories = [...current, trimmed];
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
-      } catch (e) {
-        // fallback
-      }
-    }
     return { success: true, message: `دسته‌بندی «${trimmed}» با موفقیت اضافه شد.`, categories: this.categories };
   }
 
@@ -2402,13 +1860,6 @@ class FarmDataStore {
     const current = this.getCategories();
     this.categories = current.filter((c) => c !== categoryName);
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
-      } catch (e) {
-        // fallback
-      }
-    }
     return { success: true, message: `دسته‌بندی «${categoryName}» با موفقیت حذف شد.`, categories: this.categories };
   }
 
@@ -2432,26 +1883,12 @@ class FarmDataStore {
     }
     this.saveProducts();
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
-      } catch (e) {
-        // fallback
-      }
-    }
     return { success: true, message: `دسته‌بندی به «${newName}» تغییر نام یافت (${moved} کالا منتقل شد).` };
   }
 
   resetCategories(): string[] {
     this.categories = [...INITIAL_CATEGORIES];
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('profarm_categories');
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.categories;
   }
 
@@ -3008,15 +2445,7 @@ class FarmDataStore {
 
   // --- USERS & PRO MEMBERSHIP ---
   private saveUsers(): void {
-    // SECURITY: Always sanitize users (remove password hash) before writing to localStorage
-    const safeList = this.uniqueUsers().map((u) => sanitizeUser(u));
-    this.saveItem('profarm_users', safeList);
     this.saveServerState();
-    if (this.isBrowser()) {
-      window.dispatchEvent(
-        new CustomEvent('profarm_users_updated', { detail: safeList })
-      );
-    }
   }
 
   getUserByPhone(phone: string): User | undefined {
@@ -3566,15 +2995,6 @@ class FarmDataStore {
   }
 
   getAllUsers(): User[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<User[] | null>('profarm_users', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.users.clear();
-        stored.forEach((u) => {
-          this.indexUser(u);
-        });
-      }
-    }
     return this.uniqueUsers();
   }
 
@@ -3593,17 +3013,10 @@ class FarmDataStore {
 
   // --- RETURNS & REFUNDS ---
   getReturnRequests(): ReturnRequest[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<ReturnRequest[] | null>('profarm_return_requests', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.returnRequests = stored;
-      }
-    }
     return this.returnRequests;
   }
 
   private saveReturnRequests(): void {
-    this.saveItem('profarm_return_requests', this.returnRequests);
     this.saveServerState();
   }
 
@@ -3688,21 +3101,6 @@ class FarmDataStore {
 
   // --- SMS EVENT TEMPLATES (CONFIGURABLE NOTIFICATIONS) ---
   getSmsEventTemplates(): SmsEventTemplate[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<SmsEventTemplate[] | null>('profarm_sms_templates', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        // Defensively merge with defaults so availableVariables, title, etc. are always defined
-        this.smsEventTemplates = DEFAULT_SMS_EVENT_TEMPLATES.map((def) => {
-          const match = stored.find((s) => s.id === def.id);
-          if (!match) return def;
-          return {
-            ...def,
-            ...match,
-            availableVariables: def.availableVariables || match.availableVariables || [],
-          };
-        });
-      }
-    }
     return this.smsEventTemplates;
   }
 
@@ -3719,7 +3117,6 @@ class FarmDataStore {
     if (updates.template !== undefined) tmpl.template = updates.template;
     if (updates.isEnabled !== undefined) tmpl.isEnabled = updates.isEnabled;
     tmpl.updatedAt = new Date().toLocaleDateString('fa-IR');
-    this.saveItem('profarm_sms_templates', this.smsEventTemplates);
     this.saveServerState();
     return tmpl;
   }
@@ -3732,7 +3129,6 @@ class FarmDataStore {
     tmpl.template = defaultTmpl.template;
     tmpl.isEnabled = defaultTmpl.isEnabled;
     tmpl.updatedAt = new Date().toLocaleDateString('fa-IR');
-    this.saveItem('profarm_sms_templates', this.smsEventTemplates);
     this.saveServerState();
     return tmpl;
   }
@@ -3754,12 +3150,6 @@ class FarmDataStore {
 
   // --- SMS PROVIDER / API GATEWAY SETTINGS ---
   getSmsSettings(): SmsProviderSettings {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<SmsProviderSettings | null>('profarm_sms_settings', null);
-      if (stored) {
-        this.smsSettings = { ...DEFAULT_SMS_PROVIDER_SETTINGS, ...stored };
-      }
-    }
     return this.smsSettings;
   }
 
@@ -3769,19 +3159,12 @@ class FarmDataStore {
       ...settings,
       updatedAt: new Date().toLocaleDateString('fa-IR'),
     };
-    this.saveItem('profarm_sms_settings', this.smsSettings);
     this.saveServerState();
     return this.smsSettings;
   }
 
   // --- EMAIL PROVIDER / SMTP SETTINGS ---
   getEmailSettings(): EmailProviderSettings {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<EmailProviderSettings | null>('profarm_email_settings', null);
-      if (stored) {
-        this.emailSettings = { ...DEFAULT_EMAIL_PROVIDER_SETTINGS, ...stored };
-      }
-    }
     return this.emailSettings;
   }
 
@@ -3791,19 +3174,12 @@ class FarmDataStore {
       ...settings,
       updatedAt: new Date().toLocaleDateString('fa-IR'),
     };
-    this.saveItem('profarm_email_settings', this.emailSettings);
     this.saveServerState();
     return this.emailSettings;
   }
 
   // --- SMS BROADCAST & CAMPAIGNS ---
   getSmsBroadcasts(): SmsBroadcast[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<SmsBroadcast[] | null>('profarm_sms_broadcasts', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.smsBroadcasts = stored;
-      }
-    }
     return this.smsBroadcasts;
   }
 
@@ -3815,7 +3191,6 @@ class FarmDataStore {
       createdAt: new Date().toISOString(),
     };
     this.smsBroadcasts.unshift(newSms);
-    this.saveItem('profarm_sms_broadcasts', this.smsBroadcasts);
     this.saveServerState();
     return newSms;
   }
@@ -3965,13 +3340,7 @@ class FarmDataStore {
 
   // --- ORDERS ---
   private saveOrders(): void {
-    this.saveItem('profarm_orders', this.orders);
     this.saveServerState();
-    if (this.isBrowser()) {
-      window.dispatchEvent(
-        new CustomEvent('profarm_orders_updated', { detail: this.orders })
-      );
-    }
   }
 
   /**
@@ -4387,12 +3756,6 @@ class FarmDataStore {
   }
 
   getOrders(): Order[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<Order[] | null>('profarm_orders', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.orders = stored;
-      }
-    }
     return this.orders;
   }
 
@@ -4533,24 +3896,12 @@ class FarmDataStore {
   resetOrders(): Order[] {
     this.orders = [...INITIAL_ADMIN_ORDERS];
     this.saveServerState();
-    if (this.isBrowser()) {
-      localStorage.removeItem('profarm_orders');
-      window.dispatchEvent(
-        new CustomEvent('profarm_orders_updated', { detail: this.orders })
-      );
-    }
     return this.orders;
   }
 
   // --- PRODUCT REVIEWS & VERIFIED RATINGS ---
   private saveReviews(): void {
-    this.saveItem('profarm_reviews', this.reviews);
     this.saveServerState();
-    if (this.isBrowser()) {
-      window.dispatchEvent(
-        new CustomEvent('profarm_reviews_updated', { detail: this.reviews })
-      );
-    }
   }
 
   getProductReviews(productIdOrSlug: string, onlyApproved = true): ProductReview[] {
@@ -4561,12 +3912,6 @@ class FarmDataStore {
   }
 
   getAllReviews(statusFilter?: ReviewStatus): ProductReview[] {
-    if (this.isBrowser()) {
-      const stored = this.loadItem<ProductReview[] | null>('profarm_reviews', null);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.reviews = stored;
-      }
-    }
     if (!statusFilter) return this.reviews;
     return this.reviews.filter((r) => r.status === statusFilter);
   }
@@ -4687,38 +4032,11 @@ class FarmDataStore {
   resetReviews(): ProductReview[] {
     this.reviews = [...INITIAL_PRODUCT_REVIEWS];
     this.saveServerState();
-    if (this.isBrowser()) {
-      localStorage.removeItem('profarm_reviews');
-      window.dispatchEvent(
-        new CustomEvent('profarm_reviews_updated', { detail: this.reviews })
-      );
-    }
     return this.reviews;
   }
 
   // --- BULK INQUIRIES ---
   getBulkInquiries(): BulkInquiry[] {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('profarm_bulk_inquiries');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const idSet = new Set(parsed.map((p: BulkInquiry) => p.id));
-            const merged = [...parsed];
-            this.bulkInquiries.forEach((inq) => {
-              if (!idSet.has(inq.id)) {
-                merged.push(inq);
-                idSet.add(inq.id);
-              }
-            });
-            this.bulkInquiries = merged;
-          }
-        }
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.bulkInquiries;
   }
 
@@ -4737,13 +4055,6 @@ class FarmDataStore {
     };
     this.bulkInquiries.unshift(inquiry);
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_bulk_inquiries', JSON.stringify(this.bulkInquiries));
-      } catch (e) {
-        // fallback
-      }
-    }
     return inquiry;
   }
 
@@ -4755,13 +4066,6 @@ class FarmDataStore {
     if (idx === -1) return null;
     this.bulkInquiries[idx] = { ...this.bulkInquiries[idx], status };
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_bulk_inquiries', JSON.stringify(this.bulkInquiries));
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.bulkInquiries[idx];
   }
 
@@ -4771,244 +4075,47 @@ class FarmDataStore {
     this.bulkInquiries = this.bulkInquiries.filter((i) => i.id !== id);
     if (this.bulkInquiries.length === before) return false;
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_bulk_inquiries', JSON.stringify(this.bulkInquiries));
-      } catch (e) {
-        // fallback
-      }
-    }
     return true;
   }
 
   // --- SITE CONTENT (CMS) ---
   getSiteContent(): SiteContent {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('profarm_site_content');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          // Auto-upgrade legacy unsplash images to local authentic images
-          if (parsed.heroImageUrl && parsed.heroImageUrl.includes('images.unsplash.com')) {
-            parsed.heroImageUrl = DEFAULT_SITE_CONTENT.heroImageUrl;
-          }
-          if (parsed.storyImageUrl && parsed.storyImageUrl.includes('images.unsplash.com')) {
-            parsed.storyImageUrl = DEFAULT_SITE_CONTENT.storyImageUrl;
-          }
-          if (parsed.bulkSectionImageUrl && parsed.bulkSectionImageUrl.includes('images.unsplash.com')) {
-            parsed.bulkSectionImageUrl = DEFAULT_SITE_CONTENT.bulkSectionImageUrl;
-          }
-          // Auto-sanitize legacy cold fleet / refrigerator keywords from browser cache
-          if (parsed.topBannerText && (parsed.topBannerText.includes('سردخانه') || parsed.topBannerText.includes('یخچال'))) {
-            parsed.topBannerText = DEFAULT_SITE_CONTENT.topBannerText;
-          }
-          if (parsed.heroSubtitle && (parsed.heroSubtitle.includes('سردخانه') || parsed.heroSubtitle.includes('یخچال'))) {
-            parsed.heroSubtitle = DEFAULT_SITE_CONTENT.heroSubtitle;
-          }
-          if (parsed.heroStat3Label && (parsed.heroStat3Label.includes('سردخانه') || parsed.heroStat3Label.includes('یخچال'))) {
-            parsed.heroStat3Label = DEFAULT_SITE_CONTENT.heroStat3Label;
-          }
-          this.siteContent = { ...DEFAULT_SITE_CONTENT, ...parsed };
-        }
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.siteContent;
   }
 
   updateSiteContent(updates: Partial<SiteContent>): SiteContent {
     this.siteContent = { ...this.siteContent, ...updates };
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_site_content', JSON.stringify(this.siteContent));
-        window.dispatchEvent(new Event('profarm_content_updated'));
-        window.dispatchEvent(new Event('storage'));
-      } catch (e) {
-        // fallback
-      }
-    } else {
-      this.saveServerState();
-    }
+    this.saveServerState();
+
     return this.siteContent;
   }
 
   resetSiteContent(): SiteContent {
     this.siteContent = { ...DEFAULT_SITE_CONTENT };
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('profarm_site_content');
-        window.dispatchEvent(new Event('profarm_content_updated'));
-        window.dispatchEvent(new Event('storage'));
-      } catch (e) {
-        // fallback
-      }
-    } else {
-      this.saveServerState();
-    }
+    this.saveServerState();
+
     return this.siteContent;
   }
 
   // --- SUBSCRIPTION & DISCOUNT SETTINGS ---
   getSubscriptionSettings(): SubscriptionSettings {
-    if (typeof window === 'undefined') {
-      return this.subscriptionSettings;
-    }
-
-    try {
-      const stored = localStorage.getItem('profarm_subscription_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this.subscriptionSettings = {
-          ...DEFAULT_SUBSCRIPTION_SETTINGS,
-          ...parsed,
-          proFeatures: Array.isArray(parsed.proFeatures)
-            ? parsed.proFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.proFeatures,
-          plusFeatures: Array.isArray(parsed.plusFeatures)
-            ? parsed.plusFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.plusFeatures,
-          freeFeatures: Array.isArray(parsed.freeFeatures)
-            ? parsed.freeFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.freeFeatures,
-          faqItems: Array.isArray(parsed.faqItems)
-            ? parsed.faqItems
-            : DEFAULT_SUBSCRIPTION_SETTINGS.faqItems,
-          comparisonRows: Array.isArray(parsed.comparisonRows)
-            ? parsed.comparisonRows
-            : DEFAULT_COMPARISON_ROWS,
-          proMaxCapacity:
-            typeof parsed.proMaxCapacity === 'number'
-              ? parsed.proMaxCapacity
-              : DEFAULT_SUBSCRIPTION_SETTINGS.proMaxCapacity,
-          plusMaxCapacity:
-            typeof parsed.plusMaxCapacity === 'number'
-              ? parsed.plusMaxCapacity
-              : DEFAULT_SUBSCRIPTION_SETTINGS.plusMaxCapacity,
-          proBadgeText:
-            parsed.proBadgeText !== undefined
-              ? parsed.proBadgeText
-              : DEFAULT_SUBSCRIPTION_SETTINGS.proBadgeText,
-          plusBadgeText:
-            parsed.plusBadgeText !== undefined
-              ? parsed.plusBadgeText
-              : DEFAULT_SUBSCRIPTION_SETTINGS.plusBadgeText,
-          freeBadgeText:
-            parsed.freeBadgeText !== undefined
-              ? parsed.freeBadgeText
-              : DEFAULT_SUBSCRIPTION_SETTINGS.freeBadgeText,
-          comparisonFeatureHeader:
-            parsed.comparisonFeatureHeader !== undefined
-              ? parsed.comparisonFeatureHeader
-              : DEFAULT_SUBSCRIPTION_SETTINGS.comparisonFeatureHeader,
-          comparisonFreeHeader:
-            parsed.comparisonFreeHeader !== undefined
-              ? parsed.comparisonFreeHeader
-              : DEFAULT_SUBSCRIPTION_SETTINGS.comparisonFreeHeader,
-          comparisonPlusHeader:
-            parsed.comparisonPlusHeader !== undefined
-              ? parsed.comparisonPlusHeader
-              : DEFAULT_SUBSCRIPTION_SETTINGS.comparisonPlusHeader,
-          comparisonProHeader:
-            parsed.comparisonProHeader !== undefined
-              ? parsed.comparisonProHeader
-              : DEFAULT_SUBSCRIPTION_SETTINGS.comparisonProHeader,
-        };
-      }
-    } catch (e) {
-      // fallback
-    }
     return this.subscriptionSettings;
   }
 
-  /**
-   * Fetches latest subscription settings from server API and synchronizes
-   * in-memory state and localStorage on all devices.
-   */
-  async syncSubscriptionSettings(): Promise<SubscriptionSettings> {
-    if (typeof window === 'undefined') {
-      return this.subscriptionSettings;
-    }
 
-    try {
-      const res = await fetch('/api/subscriptions', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.success && data.settings) {
-          this.subscriptionSettings = {
-            ...DEFAULT_SUBSCRIPTION_SETTINGS,
-            ...data.settings,
-            proFeatures: Array.isArray(data.settings.proFeatures)
-              ? data.settings.proFeatures
-              : DEFAULT_SUBSCRIPTION_SETTINGS.proFeatures,
-            plusFeatures: Array.isArray(data.settings.plusFeatures)
-              ? data.settings.plusFeatures
-              : DEFAULT_SUBSCRIPTION_SETTINGS.plusFeatures,
-            freeFeatures: Array.isArray(data.settings.freeFeatures)
-              ? data.settings.freeFeatures
-              : DEFAULT_SUBSCRIPTION_SETTINGS.freeFeatures,
-            faqItems: Array.isArray(data.settings.faqItems)
-              ? data.settings.faqItems
-              : DEFAULT_SUBSCRIPTION_SETTINGS.faqItems,
-            comparisonRows: Array.isArray(data.settings.comparisonRows)
-              ? data.settings.comparisonRows
-              : DEFAULT_COMPARISON_ROWS,
-          };
-          try {
-            localStorage.setItem(
-              'profarm_subscription_settings',
-              JSON.stringify(this.subscriptionSettings)
-            );
-          } catch {}
-          window.dispatchEvent(
-            new CustomEvent('profarm_subscription_updated', { detail: this.subscriptionSettings })
-          );
-        }
-      }
-    } catch (e) {
-      // Offline fallback
-    }
-    return this.subscriptionSettings;
-  }
 
   updateSubscriptionSettings(updates: Partial<SubscriptionSettings>): SubscriptionSettings {
     const current = this.getSubscriptionSettings();
     this.subscriptionSettings = { ...current, ...updates };
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(
-          'profarm_subscription_settings',
-          JSON.stringify(this.subscriptionSettings)
-        );
-        window.dispatchEvent(
-          new CustomEvent('profarm_subscription_updated', { detail: this.subscriptionSettings })
-        );
-      } catch (e) {
-        // fallback
-      }
-    } else {
-      this.saveServerState();
-    }
+    this.saveServerState();
+
     return this.subscriptionSettings;
   }
 
   resetSubscriptionSettings(): SubscriptionSettings {
     this.subscriptionSettings = { ...DEFAULT_SUBSCRIPTION_SETTINGS };
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('profarm_subscription_settings');
-        window.dispatchEvent(
-          new CustomEvent('profarm_subscription_updated', { detail: this.subscriptionSettings })
-        );
-      } catch (e) {
-        // fallback
-      }
-    } else {
-      this.saveServerState();
-    }
+    this.saveServerState();
+
     return this.subscriptionSettings;
   }
 
@@ -5052,12 +4159,6 @@ class FarmDataStore {
 
   // --- PAYMENT GATEWAY SETTINGS ---
   getPaymentSettings(): PaymentSettings {
-    // SECURITY: Remove any legacy payment credentials from browser localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('profarm_payment_settings');
-      } catch {}
-    }
     return this.paymentSettings;
   }
 
@@ -5104,7 +4205,7 @@ class FarmDataStore {
       updatedAt: new Date().toISOString(),
     };
 
-    // SECURITY: Never write payment gateway secrets to browser localStorage
+    // Gateway secrets stay on the server; clients only receive getClientPaymentSettings()
     this.saveServerState();
     return this.paymentSettings;
   }
@@ -5112,26 +4213,11 @@ class FarmDataStore {
   resetPaymentSettings(): PaymentSettings {
     this.paymentSettings = { ...DEFAULT_PAYMENT_SETTINGS, updatedAt: new Date().toISOString() };
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('profarm_payment_settings');
-      } catch {}
-    }
     return this.paymentSettings;
   }
 
   // --- COUPONS / DISCOUNT CODES ---
   getCoupons(): Coupon[] {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('profarm_coupons');
-        if (stored) {
-          this.coupons = JSON.parse(stored);
-        }
-      } catch (e) {
-        // fallback
-      }
-    }
     return this.coupons;
   }
 
@@ -5225,13 +4311,6 @@ class FarmDataStore {
 
   private persistCoupons(): void {
     this.saveServerState();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('profarm_coupons', JSON.stringify(this.coupons));
-      } catch (e) {
-        // fallback
-      }
-    }
   }
 
   /**
@@ -5388,37 +4467,9 @@ class FarmDataStore {
   }
 
   /**
-   * Complete factory reset: removes all localStorage persistent keys
-   * and restores in-memory collections to seed mock defaults.
+   * Complete reset: restores in-memory collections to the seed defaults and persists them.
    */
   resetEntireDatabaseToDefaults(): void {
-    if (this.isBrowser()) {
-      const keys = [
-        'profarm_products',
-        'profarm_orders',
-        'profarm_users',
-        'profarm_categories',
-        'profarm_site_content',
-        'profarm_subscription_settings',
-        'profarm_coupons',
-        'profarm_payment_settings',
-        'profarm_return_requests',
-        'profarm_reviews',
-        'profarm_bulk_inquiries',
-        'profarm_sms_settings',
-        'profarm_sms_templates',
-        'profarm_sms_broadcasts',
-        'profarm_daily_capacities',
-      ];
-      keys.forEach((key) => {
-        try {
-          localStorage.removeItem(key);
-        } catch (e) {
-          // ignore
-        }
-      });
-    }
-
     this.products = [...INITIAL_PRODUCTS];
     this.orders = [...INITIAL_ADMIN_ORDERS];
     this.users.clear();
@@ -5494,13 +4545,6 @@ class FarmDataStore {
     this.dailyCapacityOverrides = {};
     this.saveServerState();
 
-    if (this.isBrowser()) {
-      window.dispatchEvent(new CustomEvent('profarm_products_updated'));
-      window.dispatchEvent(new CustomEvent('profarm_orders_updated'));
-      window.dispatchEvent(new CustomEvent('profarm_users_updated'));
-      window.dispatchEvent(new CustomEvent('profarm_reviews_updated'));
-      window.dispatchEvent(new CustomEvent('profarm_subscription_updated'));
-    }
   }
 }
 

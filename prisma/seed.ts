@@ -10,7 +10,7 @@ import {
   DEFAULT_SITE_CONTENT,
   DEFAULT_SUBSCRIPTION_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
-} from '../src/lib/db-store';
+} from '../src/lib/store-defaults';
 import { hashPassword } from '../src/lib/password';
 import { resolveInitialAdminPassword, saveGeneratedAdminCredentials } from '../src/lib/admin-bootstrap';
 

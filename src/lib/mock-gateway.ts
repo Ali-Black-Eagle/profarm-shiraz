@@ -7,6 +7,7 @@
  * session secret over `${orderNumber}:${amount}:${timestamp}`. Verification recomputes it, so a
  * client cannot forge a successful payment or change the amount.
  */
+import 'server-only';
 import crypto from 'crypto';
 import { getSessionSecret } from './session';
 

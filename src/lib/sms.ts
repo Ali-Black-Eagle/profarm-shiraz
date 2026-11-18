@@ -1,11 +1,11 @@
 /**
  * SMS service & OTP management with in-memory Rate Limiting and mock provider support
  */
+import 'server-only';
 import crypto from 'crypto';
 import { normalizePhoneNumber, isValidEmail } from './formatters';
 
 async function triggerFallbackEmail(options: any) {
-  if (typeof window !== 'undefined') return;
   try {
     const req = eval('require');
     const emailMod = req('./email');

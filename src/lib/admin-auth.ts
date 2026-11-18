@@ -1,3 +1,4 @@
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { farmStore } from './db-store';
 import { getSessionFromRequest, SessionPayload } from './session';

@@ -59,6 +59,7 @@ export interface SnappPayVerifyResult {
   message?: string;
 }
 
+import 'server-only';
 import { farmStore } from '@/lib/db-store';
 
 export function getActiveSnappPayConfig() {

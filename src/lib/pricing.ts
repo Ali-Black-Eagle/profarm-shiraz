@@ -4,6 +4,7 @@
  *
  * Server-only: it reads products, settings, coupons, orders and slots from farmStore.
  */
+import 'server-only';
 import type { CartItem, DeliverySlot, Product, SubscriptionTier, User } from '@/types';
 import { farmStore } from './db-store';
 import { calculateCartDiscounts, isBulkOrder, isShirazAddress } from './formatters';

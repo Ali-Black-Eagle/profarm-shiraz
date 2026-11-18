@@ -4,7 +4,9 @@
  * admin broadcasts with HTML Persian branded templating, and mock/simulation mode.
  */
 
+import 'server-only';
 import { EmailMessageLog, EmailProviderSettings } from '@/types';
+import { farmStore } from './db-store';
 
 type EmailLogSubscriber = (log: EmailMessageLog) => void;
 const emailSubscribers: EmailLogSubscriber[] = [];
@@ -43,7 +45,6 @@ export function isValidEmail(email?: string | null): boolean {
  */
 export function getEffectiveEmailSettings(): EmailProviderSettings {
   try {
-    const { farmStore } = require('./db-store');
     if (farmStore && typeof farmStore.getEmailSettings === 'function') {
       return farmStore.getEmailSettings();
     }
@@ -153,9 +154,6 @@ export function generateProFarmEmailHtml(options: {
  * Creates a Nodemailer transport instance dynamically from the given settings
  */
 export async function createMailTransporter(settings: EmailProviderSettings) {
-  if (typeof window !== 'undefined') {
-    throw new Error('createMailTransporter cannot be called in the browser.');
-  }
   const req = eval('require');
   const nodemailerModule = req('nodemailer');
   const nodemailer = nodemailerModule?.default || nodemailerModule;
@@ -254,7 +252,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 
   // Save log to farmStore
   try {
-    const { farmStore } = require('./db-store');
     if (farmStore && typeof farmStore.addEmailLog === 'function') {
       farmStore.addEmailLog(logEntry);
     }
