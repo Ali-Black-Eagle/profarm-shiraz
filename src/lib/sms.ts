@@ -309,7 +309,7 @@ export async function checkDistributedRateLimit(
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!upstashUrl || !upstashToken) {
-    return checkRateLimit(key);
+    return checkRateLimit(key, maxRequests, windowSeconds * 1000);
   }
 
   try {
