@@ -35,7 +35,7 @@ const manualSchema = z.object({
     .max(100, 'تعداد اقلام بیش از حد مجاز است'),
   slotId: textField(100, 'سانس تحویل'),
   paymentMethod: z.enum(['cash', 'card-on-delivery', 'paid-offline'], {
-    errorMap: () => ({ message: 'روش پرداخت نامعتبر است (cash، card-on-delivery یا paid-offline)' }),
+    error: 'روش پرداخت نامعتبر است (cash، card-on-delivery یا paid-offline)',
   }),
   couponCode: z.string().trim().max(40).nullable().optional(),
 });

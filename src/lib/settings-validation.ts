@@ -98,7 +98,7 @@ export const subscriptionSettingsPatchSchema = z.object(subscriptionShape).parti
 
 export const legacyUserSubscriptionSchema = z.object({
   identifier: z.string().trim().min(1, 'شناسه کاربر الزامی است').max(200),
-  tier: z.enum(['FREE', 'PLUS', 'PRO'], { errorMap: () => ({ message: 'سطح اشتراک نامعتبر است' }) }),
+  tier: z.enum(['FREE', 'PLUS', 'PRO'], { error: 'سطح اشتراک نامعتبر است' }),
   months: z
     .preprocess(
       normalizeNumeric,

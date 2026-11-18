@@ -53,7 +53,7 @@ const productFields = {
     .max(50),
   highlights: textList(300, 30),
   storageInstructions: z.string().trim().max(2000),
-  nutritionalInfo: z.record(z.string().max(200)),
+  nutritionalInfo: z.record(z.string(), z.string().max(200)),
   faqs: z
     .array(z.object({ question: z.string().trim().max(500), answer: z.string().trim().max(2000) }))
     .max(30),

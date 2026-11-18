@@ -55,7 +55,7 @@ export function intField(min: number, max: number, label = 'عدد') {
   return z.preprocess(
     normalizeNumeric,
     z
-      .number({ required_error: 'الزامی است', invalid_type_error: `${label} باید عدد باشد` })
+      .number({ error: (iss) => (iss.code === 'invalid_type' ? (iss.input === undefined ? 'الزامی است' : `${label} باید عدد باشد`) : undefined) })
       .int(`${label} باید عدد صحیح باشد`)
       .min(min, `${label} نمی‌تواند کمتر از ${min} باشد`)
       .max(max, `${label} نمی‌تواند بیشتر از ${max} باشد`)
@@ -65,7 +65,7 @@ export function intField(min: number, max: number, label = 'عدد') {
 /** Non-empty trimmed string with a length cap. */
 export function textField(max: number, label = 'متن') {
   return z
-    .string({ required_error: 'الزامی است', invalid_type_error: `${label} باید متن باشد` })
+    .string({ error: (iss) => (iss.code === 'invalid_type' ? (iss.input === undefined ? 'الزامی است' : `${label} باید متن باشد`) : undefined) })
     .trim()
     .min(1, `${label} نمی‌تواند خالی باشد`)
     .max(max, `${label} نمی‌تواند بیشتر از ${max} نویسه باشد`);

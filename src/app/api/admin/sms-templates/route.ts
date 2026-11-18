@@ -21,7 +21,7 @@ const EVENT_IDS = [
 const MAX_TEMPLATE_LENGTH = 600;
 
 const templateItem = z.object({
-  id: z.enum(EVENT_IDS, { errorMap: () => ({ message: 'رویداد پیامک نامعتبر است' }) }),
+  id: z.enum(EVENT_IDS, { error: 'رویداد پیامک نامعتبر است' }),
   template: z
     .string()
     .trim()
@@ -38,7 +38,7 @@ const bodySchema = z.union([
 
 const resetSchema = z.object({
   action: z.literal('reset'),
-  id: z.enum(EVENT_IDS, { errorMap: () => ({ message: 'رویداد پیامک نامعتبر است' }) }),
+  id: z.enum(EVENT_IDS, { error: 'رویداد پیامک نامعتبر است' }),
 });
 
 export async function GET(req: NextRequest) {

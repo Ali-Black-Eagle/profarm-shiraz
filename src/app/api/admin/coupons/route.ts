@@ -15,7 +15,7 @@ const DISCOUNT_TYPES = ['PERCENTAGE', 'FIXED_AMOUNT'] as const;
 const codeSchema = z.preprocess(
   (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
   z
-    .string({ required_error: 'کد تخفیف الزامی است', invalid_type_error: 'کد تخفیف باید متن باشد' })
+    .string({ error: (iss) => (iss.code === 'invalid_type' ? (iss.input === undefined ? 'کد تخفیف الزامی است' : 'کد تخفیف باید متن باشد') : undefined) })
     .regex(/^[A-Z0-9-]{3,40}$/, 'کد تخفیف فقط می‌تواند شامل حروف انگلیسی بزرگ، عدد و خط تیره باشد (۳ تا ۴۰ نویسه)')
 );
 
@@ -37,7 +37,7 @@ const couponFields = {
   targetType: z.enum(TARGET_TYPES),
   targetProductId: z.string().trim().max(200).nullable().optional(),
   discountType: z.enum(DISCOUNT_TYPES),
-  discountValue: z.preprocess(normalizeNumeric, z.number({ invalid_type_error: 'مقدار تخفیف باید عدد باشد' }).min(0)),
+  discountValue: z.preprocess(normalizeNumeric, z.number({ error: (iss) => (iss.code === 'invalid_type' ? 'مقدار تخفیف باید عدد باشد' : undefined) }).min(0)),
   minOrderAmount: optionalNumber(0, 1_000_000_000_000),
   maxDiscountAmount: optionalNumber(0, 1_000_000_000_000),
   usageLimit: z.preprocess(normalizeNumeric, z.number().int().min(1).max(10_000_000).nullable()).optional(),

@@ -20,8 +20,8 @@ function adminUserView(user: User, nowMs: number) {
 const patchSchema = z
   .object({
     id: textField(200, 'شناسه کاربر'),
-    role: z.enum(['USER', 'ADMIN'], { errorMap: () => ({ message: 'نقش کاربری نامعتبر است' }) }).optional(),
-    tier: z.enum(['FREE', 'PLUS', 'PRO'], { errorMap: () => ({ message: 'سطح اشتراک نامعتبر است' }) }).optional(),
+    role: z.enum(['USER', 'ADMIN'], { error: 'نقش کاربری نامعتبر است' }).optional(),
+    tier: z.enum(['FREE', 'PLUS', 'PRO'], { error: 'سطح اشتراک نامعتبر است' }).optional(),
     months: intField(1, 24, 'مدت اشتراک').optional(),
   })
   .refine((v) => v.role !== undefined || v.tier !== undefined, 'حداقل تغییر نقش یا سطح اشتراک لازم است.')
