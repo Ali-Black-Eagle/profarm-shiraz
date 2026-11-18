@@ -7,8 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Ensure latest state is loaded from server database
-    farmStore.loadServerState();
     const settings = farmStore.getSubscriptionSettings();
     const stats = farmStore.getSubscriptionStats();
 

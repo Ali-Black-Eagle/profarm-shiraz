@@ -603,12 +603,20 @@ class FarmDataStore {
   }
 
   // --- SERVER-SIDE DATA FILE PERSISTENCE ---
+  // Timestamp (ms) of the newest state this process knows about: the savedAt of the loaded file or the last save.
+  private memoryStampMs = 0;
+  private saveSequence = 0;
+  private prismaMirrorRunning = false;
+  private prismaMirrorDirty = false;
+  private prismaSkipWarned = false;
+  private dailyCapacityOverrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> = {};
+
   private getServerDataFilePath(): string | null {
     if (typeof window !== 'undefined') return null;
     try {
       const fs = require('fs');
       const path = require('path');
-      const dataDir = path.join(process.cwd(), '.data');
+      const dataDir = process.env.DATA_DIR?.trim() || path.join(process.cwd(), '.data');
       if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
       }
@@ -618,60 +626,348 @@ class FarmDataStore {
     }
   }
 
+  /**
+   * The users map holds several keys per account (id, phone, email), all pointing to the same object.
+   * indexUser first removes every entry that belongs to this account id, so a replaced object or a changed
+   * phone/email never leaves a stale key behind. Every write of a user must go through here.
+   */
+  private indexUser(user: User): void {
+    if (!user) return;
+    this.unindexUser(user);
+    if (user.id) this.users.set(user.id, user);
+    if (user.phone) this.users.set(user.phone, user);
+    if (user.email) this.users.set(user.email.trim().toLowerCase(), user);
+  }
+
+  private unindexUser(user: User): void {
+    for (const [key, value] of Array.from(this.users.entries())) {
+      if (value === user || (user.id && value?.id === user.id)) {
+        this.users.delete(key);
+      }
+    }
+  }
+
+  /** One entry per account. The index map holds each account several times, so this never returns duplicates. */
+  private uniqueUsers(): User[] {
+    const byAccount = new Map<string, User>();
+    for (const u of this.users.values()) {
+      if (!u) continue;
+      const key = u.id || u.phone || u.email || '';
+      if (key && !byAccount.has(key)) byAccount.set(key, u);
+    }
+    return Array.from(byAccount.values());
+  }
+
+  /**
+   * Accepts both the current format (one object per account) and the legacy format (a list of [key, user]
+   * pairs where each account appeared under its id, phone and email keys). In the legacy format the copy
+   * stored under its own id key is the canonical one and wins over the other copies.
+   */
+  private loadUsersFromSnapshot(list: unknown[]): void {
+    const chosen = new Map<string, { user: User; canonical: boolean }>();
+    for (const entry of list) {
+      let user: User | undefined;
+      let canonical = true;
+      if (Array.isArray(entry)) {
+        const key = String(entry[0] ?? '');
+        user = entry[1] as User | undefined;
+        canonical = Boolean(user?.id && key === user.id);
+      } else {
+        user = entry as User;
+      }
+      if (!user || typeof user !== 'object') continue;
+      const groupKey = user.id || user.phone || user.email;
+      if (!groupKey) continue;
+      const previous = chosen.get(groupKey);
+      if (!previous || (canonical && !previous.canonical)) {
+        chosen.set(groupKey, { user, canonical });
+      }
+    }
+    for (const { user } of chosen.values()) {
+      if (!user.username && user.phone) {
+        user.username = `user_${user.phone.slice(-4)}`;
+      }
+      this.indexUser(user);
+    }
+  }
+
+  /** Every collection that admins or customers can change must be listed here, or it is lost on restart. */
+  private buildServerSnapshot(): Record<string, unknown> {
+    return {
+      version: 2,
+      savedAt: new Date().toISOString(),
+      users: this.uniqueUsers(),
+      orders: this.orders,
+      products: this.products,
+      categories: this.categories,
+      coupons: this.coupons,
+      paymentSettings: this.paymentSettings,
+      subscriptionSettings: this.subscriptionSettings,
+      siteContent: this.siteContent,
+      smsSettings: this.smsSettings,
+      smsEventTemplates: this.smsEventTemplates,
+      smsBroadcasts: this.smsBroadcasts,
+      emailSettings: this.emailSettings,
+      emailLogs: this.emailLogs,
+      bulkInquiries: this.bulkInquiries,
+      reviews: this.reviews,
+      returnRequests: this.returnRequests,
+      slotBookings: Array.from(this.slotBookings.entries()),
+      dailyCapacityOverrides: this.dailyCapacityOverrides,
+    };
+  }
+
+  private isReadableJsonFile(filePath: string): boolean {
+    try {
+      const fs = require('fs');
+      JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Writes the whole server state atomically: temp file, fsync, the current file rotated to .bak (only when it
+   * is readable, so a damaged file never replaces a good backup), then rename over the target. A crash leaves
+   * either the old file or the new one, never a partial file.
+   */
   public saveServerState(): void {
     if (typeof window !== 'undefined') return;
+    let tempPath: string | null = null;
     try {
-      const filePath = this.getServerDataFilePath();
-      if (!filePath) return;
       const fs = require('fs');
-      const data = {
-        users: Array.from(this.users.entries()),
-        orders: this.orders,
-        coupons: this.coupons,
-        paymentSettings: this.paymentSettings,
-        subscriptionSettings: this.subscriptionSettings,
-        products: this.products,
-        smsSettings: this.smsSettings,
-        bulkInquiries: this.bulkInquiries,
-        reviews: this.reviews,
-        emailLogs: this.emailLogs,
-        emailSettings: this.emailSettings,
-        siteContent: this.siteContent,
-        savedAt: new Date().toISOString(),
-      };
-
-      const serialized = JSON.stringify(data, null, 2);
-      const tempPath = `${filePath}.tmp.${Date.now()}`;
-      const backupPath = `${filePath}.bak`;
-
-      // 1. ATOMIC WRITE STEP 1: Write to temporary file first
-      const fd = fs.openSync(tempPath, 'w');
-      fs.writeSync(fd, serialized, 0, 'utf-8');
-      // Force disk controller to flush physical cache (crash safety)
-      fs.fsyncSync(fd);
-      fs.closeSync(fd);
-
-      // 2. ATOMIC WRITE STEP 2: Rotate previous healthy file to .bak as emergency recovery
-      if (fs.existsSync(filePath)) {
+      const filePath = this.getServerDataFilePath();
+      if (filePath) {
+        const serialized = JSON.stringify(this.buildServerSnapshot(), null, 2);
+        tempPath = `${filePath}.${process.pid}.${++this.saveSequence}.tmp`;
+        const fd = fs.openSync(tempPath, 'w');
         try {
-          fs.copyFileSync(filePath, backupPath);
-        } catch {}
-      }
+          fs.writeSync(fd, serialized, undefined, 'utf-8');
+          fs.fsyncSync(fd);
+        } finally {
+          fs.closeSync(fd);
+        }
 
-      // 3. ATOMIC WRITE STEP 3: Atomic rename
-      // On Windows NTFS and POSIX, rename is an atomic filesystem operation.
-      // If a sudden power cut occurs, the file is guaranteed to be 100% the old valid file
-      // or 100% the new valid file — it can NEVER be corrupted or 0-bytes.
-      fs.renameSync(tempPath, filePath);
+        const backupPath = `${filePath}.bak`;
+        if (fs.existsSync(filePath) && this.isReadableJsonFile(filePath)) {
+          const backupTemp = `${backupPath}.${process.pid}.tmp`;
+          fs.copyFileSync(filePath, backupTemp);
+          fs.renameSync(backupTemp, backupPath);
+        }
 
-      // 4. PERSISTENCE STEP 4: PostgreSQL Prisma Sync (when DATABASE_URL is configured)
-      const prisma = this.getPrisma();
-      if (prisma) {
-        this.persistToPrismaAsync(prisma).catch(() => {});
+        fs.renameSync(tempPath, filePath);
+        tempPath = null;
+        this.memoryStampMs = Date.now();
       }
     } catch (e) {
-      console.warn('[FarmStore] Failed to save server state:', e);
+      console.error('[FarmStore] Failed to save server state:', e);
+      if (tempPath) {
+        try {
+          require('fs').rmSync(tempPath, { force: true });
+        } catch {}
+      }
     }
+    this.schedulePrismaMirror();
+  }
+
+  /** Returns the parsed snapshot from the data file, or from the .bak copy when the file is damaged. */
+  private readServerSnapshot(): Record<string, any> | null {
+    try {
+      const fs = require('fs');
+      const filePath = this.getServerDataFilePath();
+      if (!filePath) return null;
+      for (const candidate of [filePath, `${filePath}.bak`]) {
+        if (!fs.existsSync(candidate)) continue;
+        try {
+          const content = fs.readFileSync(candidate, 'utf-8');
+          if (!content || content.trim().length === 0) continue;
+          const parsed = JSON.parse(content);
+          if (candidate !== filePath) {
+            console.info('[FarmStore RECOVERY] Restored server state from the .bak copy.');
+          }
+          return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (err) {
+          console.warn(`[FarmStore] Could not read ${candidate}:`, (err as Error)?.message || err);
+        }
+      }
+    } catch (err) {
+      console.error('[FarmStore] Could not access the store file:', (err as Error)?.message || err);
+    }
+    return null;
+  }
+
+  private applyServerSnapshot(data: Record<string, any>): void {
+    if (typeof data.savedAt === 'string') {
+      const stamp = Date.parse(data.savedAt);
+      if (Number.isFinite(stamp)) this.memoryStampMs = stamp;
+    }
+    if (Array.isArray(data.users)) this.loadUsersFromSnapshot(data.users);
+    if (Array.isArray(data.orders)) this.orders = data.orders;
+    if (Array.isArray(data.products)) this.products = data.products;
+    if (Array.isArray(data.categories)) {
+      this.categories = ['همه محصولات', ...data.categories.filter((c: string) => c !== 'همه محصولات')];
+    }
+    if (Array.isArray(data.coupons)) this.coupons = data.coupons;
+    if (data.paymentSettings && typeof data.paymentSettings === 'object') {
+      this.paymentSettings = { ...this.paymentSettings, ...data.paymentSettings };
+    }
+    if (data.subscriptionSettings && typeof data.subscriptionSettings === 'object') {
+      this.subscriptionSettings = {
+        ...DEFAULT_SUBSCRIPTION_SETTINGS,
+        ...data.subscriptionSettings,
+        proFeatures: Array.isArray(data.subscriptionSettings.proFeatures)
+          ? data.subscriptionSettings.proFeatures
+          : DEFAULT_SUBSCRIPTION_SETTINGS.proFeatures,
+        plusFeatures: Array.isArray(data.subscriptionSettings.plusFeatures)
+          ? data.subscriptionSettings.plusFeatures
+          : DEFAULT_SUBSCRIPTION_SETTINGS.plusFeatures,
+        freeFeatures: Array.isArray(data.subscriptionSettings.freeFeatures)
+          ? data.subscriptionSettings.freeFeatures
+          : DEFAULT_SUBSCRIPTION_SETTINGS.freeFeatures,
+        faqItems: Array.isArray(data.subscriptionSettings.faqItems)
+          ? data.subscriptionSettings.faqItems
+          : DEFAULT_SUBSCRIPTION_SETTINGS.faqItems,
+        comparisonRows: Array.isArray(data.subscriptionSettings.comparisonRows)
+          ? data.subscriptionSettings.comparisonRows
+          : DEFAULT_COMPARISON_ROWS,
+      };
+    }
+    if (data.smsSettings && typeof data.smsSettings === 'object') {
+      this.smsSettings = { ...this.smsSettings, ...data.smsSettings };
+    }
+    if (Array.isArray(data.smsEventTemplates)) {
+      const stored = data.smsEventTemplates as SmsEventTemplate[];
+      this.smsEventTemplates = DEFAULT_SMS_EVENT_TEMPLATES.map((def) => {
+        const match = stored.find((s) => s.id === def.id);
+        if (!match) return def;
+        return {
+          ...def,
+          ...match,
+          availableVariables: def.availableVariables || match.availableVariables || [],
+        };
+      });
+    }
+    if (Array.isArray(data.smsBroadcasts)) this.smsBroadcasts = data.smsBroadcasts;
+    if (Array.isArray(data.bulkInquiries)) this.bulkInquiries = data.bulkInquiries;
+    if (Array.isArray(data.reviews)) this.reviews = data.reviews;
+    if (Array.isArray(data.returnRequests)) this.returnRequests = data.returnRequests;
+    if (Array.isArray(data.emailLogs)) this.emailLogs = data.emailLogs;
+    if (data.emailSettings && typeof data.emailSettings === 'object') {
+      this.emailSettings = { ...this.emailSettings, ...data.emailSettings };
+    }
+    if (data.siteContent && typeof data.siteContent === 'object') {
+      this.siteContent = { ...DEFAULT_SITE_CONTENT, ...data.siteContent };
+    }
+    if (Array.isArray(data.slotBookings)) {
+      this.slotBookings = new Map(
+        data.slotBookings.filter((e: unknown) => Array.isArray(e) && typeof e[0] === 'string')
+      );
+    }
+    if (data.dailyCapacityOverrides && typeof data.dailyCapacityOverrides === 'object') {
+      this.dailyCapacityOverrides = data.dailyCapacityOverrides;
+    }
+  }
+
+  /**
+   * Loads the snapshot once, at construction. Request handlers must never call this: it replaces live state.
+   */
+  public loadServerState(): void {
+    if (typeof window !== 'undefined') return;
+    try {
+      const data = this.readServerSnapshot();
+      if (data) this.applyServerSnapshot(data);
+    } catch (e) {
+      console.warn('[FarmStore] Failed to load server state:', e);
+    }
+
+    const prisma = this.getPrisma();
+    if (prisma && !this.isDatabaseSyncing && !this.hasSyncedFromPrisma) {
+      this.syncFromPrisma().catch((err) =>
+        console.error('[FarmStore Prisma ERROR] Startup sync failed:', err?.message || err)
+      );
+    }
+  }
+
+  // --- PRISMA MIRROR: queue, merge and log helpers ---
+  private timeOf(value: unknown): number {
+    if (value === null || value === undefined || value === '') return NaN;
+    const ms = value instanceof Date ? value.getTime() : Date.parse(String(value));
+    return Number.isFinite(ms) ? ms : NaN;
+  }
+
+  /**
+   * A PostgreSQL copy replaces the in-memory copy only when it is strictly newer. When either timestamp is
+   * unknown the in-memory copy is kept, because the JSON file is the source of truth.
+   */
+  private dbWins(dbMs: number, memoryMs: number): boolean {
+    return Number.isFinite(dbMs) && Number.isFinite(memoryMs) && dbMs > memoryMs;
+  }
+
+  /** Merges incoming records into the current list one record at a time. Records are matched by any of their keys. */
+  private mergeRecords<T extends { updatedAt?: any; createdAt?: any }>(
+    current: T[],
+    incoming: T[],
+    keysOf: (record: T) => Array<string | undefined>
+  ): T[] {
+    const result = [...current];
+    const index = new Map<string, number>();
+    const indexRecord = (record: T, position: number) => {
+      for (const key of keysOf(record)) {
+        if (key && !index.has(key)) index.set(key, position);
+      }
+    };
+    result.forEach((record, position) => indexRecord(record, position));
+
+    for (const rec of incoming) {
+      const keys = keysOf(rec).filter((k): k is string => Boolean(k));
+      const found = keys.map((k) => index.get(k)).find((i) => i !== undefined);
+      if (found === undefined) {
+        result.push(rec);
+        indexRecord(rec, result.length - 1);
+        continue;
+      }
+      const memoryRec = result[found];
+      const dbTime = this.timeOf(rec.updatedAt ?? rec.createdAt);
+      const memoryTime = this.timeOf(memoryRec.updatedAt ?? memoryRec.createdAt);
+      if (this.dbWins(dbTime, memoryTime)) {
+        result[found] = rec;
+      }
+      indexRecord(result[found], found);
+    }
+    return result;
+  }
+
+  private logPrismaSkip(message: string): void {
+    if (this.prismaSkipWarned) return;
+    this.prismaSkipWarned = true;
+    console.warn(`[FarmStore Prisma] Skipping mirror work (logged once per process): ${message}`);
+  }
+
+  /** Runs the mirror as a single queue: at most one run at a time. A save during a run marks the mirror dirty. */
+  private schedulePrismaMirror(): void {
+    const prisma = this.getPrisma();
+    if (!prisma) return;
+    this.prismaMirrorDirty = true;
+    if (this.prismaMirrorRunning) return;
+    this.prismaMirrorRunning = true;
+    void (async () => {
+      try {
+        while (this.prismaMirrorDirty) {
+          this.prismaMirrorDirty = false;
+          while (this.isDatabaseSyncing) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          try {
+            await this.persistToPrismaAsync(prisma);
+          } catch (err: any) {
+            console.error('[FarmStore Prisma ERROR] Mirror run failed:', err?.message || err);
+          }
+        }
+      } finally {
+        this.prismaMirrorRunning = false;
+      }
+    })();
   }
 
   public async syncFromPrisma(): Promise<boolean> {
@@ -679,52 +975,103 @@ class FarmDataStore {
     const prisma = this.getPrisma();
     if (!prisma) return false;
     if (this.isDatabaseSyncing) return false;
-
-    // Fast socket health check: if DB port is closed, gracefully skip without error dumps
-    const isOnline = await this.isDatabaseReachable();
-    if (!isOnline) {
-      return false;
-    }
-
     this.isDatabaseSyncing = true;
     try {
-      // 1. Site Content Singleton
-      const siteContentRecord = await prisma.siteContent.findUnique({ where: { id: 'singleton' } }).catch(() => null);
-      if (siteContentRecord?.content && typeof siteContentRecord.content === 'object') {
-        this.siteContent = { ...DEFAULT_SITE_CONTENT, ...(siteContentRecord.content as any) };
+      // Fast socket health check: if DB port is closed, gracefully skip without error dumps
+      const isOnline = await this.isDatabaseReachable();
+      if (!isOnline) return false;
+
+      const failed = (label: string) => (err: any) => {
+        console.error(`[FarmStore Prisma ERROR] Failed reading ${label} from PostgreSQL:`, err?.message || err);
+        return null;
+      };
+
+      // Phase 1: read everything. Nothing in memory is changed while awaiting.
+      const siteRow = await prisma.siteContent.findUnique({ where: { id: 'singleton' } }).catch(failed('site content'));
+      const subRow = await prisma.subscriptionSettings
+        .findUnique({ where: { id: 'singleton' } })
+        .catch(failed('subscription settings'));
+      const payRow = await prisma.paymentSettings
+        .findUnique({ where: { id: 'singleton' } })
+        .catch(failed('payment settings'));
+      const dbProducts = await prisma.product.findMany().catch(failed('products'));
+      const dbUsers = await prisma.user.findMany({ include: { addresses: true } }).catch(failed('users'));
+      const dbCoupons = await prisma.coupon.findMany().catch(failed('coupons'));
+      const dbOrders = await prisma.order
+        .findMany({
+          include: {
+            items: { include: { product: true } },
+            address: true,
+            payment: true,
+            deliverySlot: true,
+            user: { include: { addresses: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+        .catch(failed('orders'));
+      const dbReviews = await prisma.productReview
+        .findMany({ orderBy: { createdAt: 'desc' } })
+        .catch(failed('reviews'));
+      const dbReturns = await prisma.returnRequest
+        .findMany({ orderBy: { createdAt: 'desc' } })
+        .catch(failed('return requests'));
+      const dbTemplates = await prisma.smsEventTemplate.findMany().catch(failed('SMS templates'));
+
+      const iso = (value: any) => (value instanceof Date ? value.toISOString() : value ?? undefined);
+      const memoryStamp = this.memoryStampMs > 0 ? this.memoryStampMs : NaN;
+
+      // Phase 2: merge synchronously, so no concurrent in-memory change can be lost.
+      // Singleton settings: applied only when the PostgreSQL row is newer than the in-memory state.
+      if (siteRow?.content && typeof siteRow.content === 'object' && this.dbWins(this.timeOf(siteRow.updatedAt), memoryStamp)) {
+        this.siteContent = { ...DEFAULT_SITE_CONTENT, ...(siteRow.content as any) };
+      }
+      if (subRow?.settings && typeof subRow.settings === 'object' && this.dbWins(this.timeOf(subRow.updatedAt), memoryStamp)) {
+        this.subscriptionSettings = { ...DEFAULT_SUBSCRIPTION_SETTINGS, ...(subRow.settings as any) };
+      }
+      if (payRow?.settings && typeof payRow.settings === 'object' && this.dbWins(this.timeOf(payRow.updatedAt), memoryStamp)) {
+        this.paymentSettings = { ...DEFAULT_PAYMENT_SETTINGS, ...(payRow.settings as any) };
       }
 
-      // 2. Subscription Settings Singleton
-      const subSettingsRecord = await prisma.subscriptionSettings.findUnique({ where: { id: 'singleton' } }).catch(() => null);
-      if (subSettingsRecord?.settings && typeof subSettingsRecord.settings === 'object') {
-        this.subscriptionSettings = { ...DEFAULT_SUBSCRIPTION_SETTINGS, ...(subSettingsRecord.settings as any) };
-      }
-
-      // 3. Payment Settings Singleton
-      const paymentSettingsRecord = await prisma.paymentSettings.findUnique({ where: { id: 'singleton' } }).catch(() => null);
-      if (paymentSettingsRecord?.settings && typeof paymentSettingsRecord.settings === 'object') {
-        this.paymentSettings = { ...DEFAULT_PAYMENT_SETTINGS, ...(paymentSettingsRecord.settings as any) };
-      }
-
-      // 4. Products
-      const dbProducts = await prisma.product.findMany().catch(() => null);
       if (dbProducts && dbProducts.length > 0) {
-        this.products = dbProducts.map((p: any) => ({
+        const mapped: Product[] = dbProducts.map((p: any) => ({
           ...p,
           specifications: (p.specifications as any) || [],
           nutritionalInfo: (p.nutritionalInfo as any) || {},
           faqs: (p.faqs as any) || [],
+          createdAt: iso(p.createdAt),
+          updatedAt: iso(p.updatedAt),
         }));
+        this.products = this.mergeRecords(this.products, mapped, (p) => [p.id, p.slug]);
       }
 
-      // 5. Users
-      const dbUsers = await prisma.user.findMany({ include: { addresses: true } }).catch(() => null);
+      // Users: PostgreSQL only adds accounts that are missing in memory (memory is authoritative) and fills in
+      // missing addresses. Existing accounts are never overwritten by the mirror.
       if (dbUsers && dbUsers.length > 0) {
-        for (const u of dbUsers) {
+        for (const u of dbUsers as any[]) {
+          const mappedAddresses = (u.addresses || []).map((a: any) => ({
+            id: a.id,
+            userId: a.userId,
+            recipientName: a.recipientName,
+            phone: a.phone,
+            province: a.province,
+            city: a.city,
+            postalCode: a.postalCode,
+            streetAddress: a.streetAddress,
+            unit: a.unit || '',
+            isShiraz: a.isShiraz,
+            isDefault: a.isDefault,
+          }));
+          const existing = this.users.get(u.id) || (u.phone ? this.users.get(u.phone) : undefined);
+          if (existing) {
+            const known = new Set((existing.addresses || []).map((a) => a.id));
+            const missing = mappedAddresses.filter((a: any) => !known.has(a.id));
+            if (missing.length > 0) existing.addresses = [...(existing.addresses || []), ...missing];
+            continue;
+          }
           const mappedUser: User = {
             id: u.id,
             phone: u.phone,
-            username: u.username || `user_${u.phone.slice(-4)}`,
+            username: u.username || `user_${String(u.phone || '').slice(-4)}`,
             name: u.name,
             email: u.email,
             password: u.password,
@@ -741,67 +1088,29 @@ class FarmDataStore {
             plusExpiresAt: u.plusExpiresAt,
             proExpiresAt: u.proExpiresAt,
             eggDiscountUsed: u.eggDiscountUsed || 0,
-            addresses: (u.addresses || []).map((a: any) => ({
-              id: a.id,
-              userId: a.userId,
-              recipientName: a.recipientName,
-              phone: a.phone,
-              province: a.province,
-              city: a.city,
-              postalCode: a.postalCode,
-              streetAddress: a.streetAddress,
-              unit: a.unit || '',
-              isShiraz: a.isShiraz,
-              isDefault: a.isDefault,
-            })),
+            addresses: mappedAddresses,
           };
-          if (mappedUser.phone) this.users.set(mappedUser.phone, mappedUser);
-          if (mappedUser.id) this.users.set(mappedUser.id, mappedUser);
+          this.indexUser(mappedUser);
         }
-        // Users just loaded from PostgreSQL may carry the legacy admin hash: apply the admin policy again
+        // Users loaded from PostgreSQL may carry the legacy admin hash: apply the admin policy again
         this.applyAdminPasswordPolicy();
       }
 
-      // 6. Coupons
-      const dbCoupons = await prisma.coupon.findMany().catch(() => null);
       if (dbCoupons && dbCoupons.length > 0) {
-        this.coupons = dbCoupons.map((c: any) => ({
+        const mapped: Coupon[] = dbCoupons.map((c: any) => ({
           ...c,
-          createdAt: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
+          createdAt: iso(c.createdAt) || new Date().toISOString(),
+          updatedAt: iso(c.updatedAt),
         }));
+        this.coupons = this.mergeRecords(this.coupons, mapped, (c) => [c.id, c.code]);
       }
 
-      // 7. Orders (fully include items with product, address, payment, deliverySlot, and user with addresses)
-      const dbOrders = await prisma.order
-        .findMany({
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-            address: true,
-            payment: true,
-            deliverySlot: true,
-            user: {
-              include: {
-                addresses: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-        .catch((err: any) => {
-          console.error('[FarmStore Prisma Sync ERROR] Failed fetching orders from PostgreSQL:', err?.message || err);
-          return null;
-        });
-
       if (dbOrders && dbOrders.length > 0) {
-        this.orders = dbOrders.map((o: any) => ({
+        const mapped: Order[] = dbOrders.map((o: any) => ({
           id: o.id,
           orderNumber: o.orderNumber,
           userId: o.userId,
-          user: this.users.get(o.userId) || this.users.get(o.address?.phone),
+          user: this.users.get(o.userId),
           addressId: o.addressId,
           address: o.address
             ? {
@@ -854,54 +1163,66 @@ class FarmDataStore {
                 authority: o.payment.authority,
                 refId: o.payment.refId,
                 status: o.payment.status as any,
-                createdAt: o.payment.createdAt ? o.payment.createdAt.toISOString() : undefined,
+                createdAt: iso(o.payment.createdAt),
               }
             : undefined,
-          createdAt: o.createdAt ? o.createdAt.toISOString() : new Date().toISOString(),
-          updatedAt: o.updatedAt ? o.updatedAt.toISOString() : undefined,
+          createdAt: iso(o.createdAt) || new Date().toISOString(),
+          updatedAt: iso(o.updatedAt),
         }));
+        this.orders = this.mergeRecords(this.orders, mapped, (o) => [o.id, o.orderNumber]);
+        this.orders.sort((a, b) => (this.timeOf(b.createdAt) || 0) - (this.timeOf(a.createdAt) || 0));
       }
 
-      // 8. Reviews
-      const dbReviews = await prisma.productReview.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => null);
       if (dbReviews && dbReviews.length > 0) {
-        this.reviews = dbReviews.map((r: any) => ({
+        const mapped: ProductReview[] = dbReviews.map((r: any) => ({
           ...r,
-          createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString(),
+          createdAt: iso(r.createdAt) || new Date().toISOString(),
+          updatedAt: iso(r.updatedAt),
         }));
+        this.reviews = this.mergeRecords(this.reviews, mapped, (r) => [r.id]);
       }
 
-      // 9. Return Requests
-      const dbReturns = await prisma.returnRequest.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => null);
       if (dbReturns && dbReturns.length > 0) {
-        this.returnRequests = dbReturns.map((rt: any) => ({
+        const mapped: ReturnRequest[] = dbReturns.map((rt: any) => ({
           ...rt,
-          createdAt: rt.createdAt ? rt.createdAt.toISOString() : new Date().toISOString(),
+          createdAt: iso(rt.createdAt) || new Date().toISOString(),
+          updatedAt: iso(rt.updatedAt),
         }));
+        this.returnRequests = this.mergeRecords(this.returnRequests, mapped, (rt) => [rt.id]);
       }
 
-      // 10. SMS Templates
-      const dbTemplates = await prisma.smsEventTemplate.findMany().catch(() => null);
       if (dbTemplates && dbTemplates.length > 0) {
-        this.smsEventTemplates = dbTemplates.map((t: any) => ({
+        const mapped: SmsEventTemplate[] = dbTemplates.map((t: any) => ({
           ...t,
           availableVariables: (t.availableVariables as any) || [],
+          updatedAt: iso(t.updatedAt),
         }));
+        this.smsEventTemplates = this.mergeRecords(this.smsEventTemplates, mapped, (t) => [t.id]);
       }
 
       this.hasSyncedFromPrisma = true;
       return true;
-    } catch {
+    } catch (err: any) {
+      console.error('[FarmStore Prisma ERROR] Sync from PostgreSQL failed:', err?.message || err);
       return false;
     } finally {
       this.isDatabaseSyncing = false;
     }
   }
 
+  /**
+   * Writes the in-memory state to PostgreSQL. Runs only through schedulePrismaMirror (one run at a time).
+   * The JSON file stays the source of truth: this is a mirror, and a failed run is logged and retried on the next save.
+   */
   public async persistToPrismaAsync(prisma: any): Promise<void> {
     if (!prisma) return;
     const isOnline = await this.isDatabaseReachable();
     if (!isOnline) return;
+
+    const logFailure = (label: string) => (err: any) => {
+      console.error(`[FarmStore Prisma ERROR] ${label}:`, err?.message || err);
+      return null;
+    };
 
     try {
       // 1. Singletons
@@ -911,7 +1232,7 @@ class FarmDataStore {
           update: { content: this.siteContent as any },
           create: { id: 'singleton', content: this.siteContent as any },
         })
-        .catch(() => {});
+        .catch(logFailure('site content upsert'));
 
       await prisma.subscriptionSettings
         .upsert({
@@ -919,7 +1240,7 @@ class FarmDataStore {
           update: { settings: this.subscriptionSettings as any },
           create: { id: 'singleton', settings: this.subscriptionSettings as any },
         })
-        .catch(() => {});
+        .catch(logFailure('subscription settings upsert'));
 
       await prisma.paymentSettings
         .upsert({
@@ -927,7 +1248,7 @@ class FarmDataStore {
           update: { settings: this.paymentSettings as any },
           create: { id: 'singleton', settings: this.paymentSettings as any },
         })
-        .catch(() => {});
+        .catch(logFailure('payment settings upsert'));
 
       // 2. Products
       for (const prod of this.products) {
@@ -983,12 +1304,11 @@ class FarmDataStore {
               shelfLife: prod.shelfLife,
             },
           })
-          .catch(() => {});
+          .catch(logFailure(`product ${prod.slug} upsert`));
       }
 
-      // 3. Users
-      const userList = Array.from(this.users.values()).filter((u) => Boolean(u.phone));
-      for (const u of userList) {
+      // 3. Users (one entry per account; the Postgres user table is keyed by phone)
+      for (const u of this.uniqueUsers()) {
         if (!u.phone) continue;
         const userRec = await prisma.user
           .upsert({
@@ -1026,10 +1346,11 @@ class FarmDataStore {
               isPhoneVerified: u.isPhoneVerified || false,
             },
           })
-          .catch(() => null);
+          .catch(logFailure(`user ${u.id} upsert`));
 
-        if (userRec && u.addresses && Array.isArray(u.addresses)) {
+        if (userRec && Array.isArray(u.addresses)) {
           for (const addr of u.addresses) {
+            if (!addr.id) continue;
             await prisma.address
               .upsert({
                 where: { id: addr.id },
@@ -1054,7 +1375,7 @@ class FarmDataStore {
                   isDefault: addr.isDefault ?? false,
                 },
               })
-              .catch(() => {});
+              .catch(logFailure(`address ${addr.id} upsert`));
           }
         }
       }
@@ -1097,45 +1418,38 @@ class FarmDataStore {
               expiresAt: coup.expiresAt,
             },
           })
-          .catch((err: any) => {
-            console.error(`[FarmStore Prisma ERROR] Failed persisting coupon ${coup.code}:`, err?.message || err);
-          });
+          .catch(logFailure(`coupon ${coup.code} upsert`));
       }
 
-      // 5. Orders (with User, Address, Order, OrderItem, Payment in atomic prisma.$transaction)
+      // 5. Orders. Each order is written in its own transaction. The user is resolved by order.userId only
+      //    (never by the checkout phone). Order items use stable ids, so only removed items are deleted.
+      const statusMap: Record<string, string> = {
+        PENDING_PAYMENT: 'PENDING_PAYMENT',
+        PROCESSING: 'PROCESSING',
+        OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+        DELIVERED: 'DELIVERED',
+        CANCELLED: 'CANCELLED',
+      };
+
       for (const ord of this.orders) {
+        const storeUser = this.users.get(ord.userId) || ord.user;
+        if (!storeUser?.id || !storeUser.phone) {
+          this.logPrismaSkip(`order ${ord.orderNumber}: its user is missing or has no phone number`);
+          continue;
+        }
+
         try {
           await prisma.$transaction(async (tx: any) => {
-            // A. Ensure User exists
-            const userPhone =
-              ord.address?.phone ||
-              ord.user?.phone ||
-              (ord.userId ? this.users.get(ord.userId)?.phone : null);
-
-            if (!userPhone) return;
-
-            const existingUser = this.users.get(userPhone) || ord.user;
-            const userRecord = await tx.user.upsert({
-              where: { phone: userPhone },
-              update: {
-                name: existingUser?.name || ord.address?.recipientName || 'مشتری شیراز',
-                role: (existingUser?.role as any) || 'USER',
-                tier: existingUser?.tier || 'FREE',
-                isProMember: existingUser?.isProMember ?? false,
-                isPlusMember: existingUser?.isPlusMember ?? false,
-              },
-              create: {
-                id: ord.userId || existingUser?.id || `usr-${Date.now()}`,
-                phone: userPhone,
-                name: existingUser?.name || ord.address?.recipientName || 'مشتری شیراز',
-                role: (existingUser?.role as any) || 'USER',
-                tier: existingUser?.tier || 'FREE',
-                isProMember: existingUser?.isProMember ?? false,
-                isPlusMember: existingUser?.isPlusMember ?? false,
-              },
+            // A. The user row must exist (written above by phone). Match by id first, then by phone.
+            const userRecord = await tx.user.findFirst({
+              where: { OR: [{ id: storeUser.id }, { phone: storeUser.phone }] },
             });
+            if (!userRecord) {
+              this.logPrismaSkip(`order ${ord.orderNumber}: user ${storeUser.id} is not in PostgreSQL`);
+              return;
+            }
 
-            // B. Ensure Address exists
+            // B. Address
             const addressId = ord.address?.id || ord.addressId || `addr-${userRecord.id}`;
             const addressRecord = await tx.address.upsert({
               where: { id: addressId },
@@ -1162,7 +1476,7 @@ class FarmDataStore {
               },
             });
 
-            // C. Validate DeliverySlot
+            // C. Delivery slot: keep the link only when the slot row exists or can be created
             let validDeliverySlotId: string | null = ord.deliverySlotId || null;
             if (validDeliverySlotId) {
               const slotInDb = await tx.deliverySlot.findUnique({ where: { id: validDeliverySlotId } });
@@ -1184,29 +1498,25 @@ class FarmDataStore {
               }
             }
 
-            // D. Upsert Order
-            const statusMap: Record<string, string> = {
-              PENDING_PAYMENT: 'PENDING_PAYMENT',
-              PROCESSING: 'PROCESSING',
-              OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
-              DELIVERED: 'DELIVERED',
-              CANCELLED: 'CANCELLED',
-            };
+            // D. Order
             const validStatus = statusMap[ord.status] || 'PROCESSING';
+            const settlementStatus =
+              ord.settlementStatus ||
+              (validStatus === 'PROCESSING' || validStatus === 'DELIVERED' ? 'SETTLED' : 'PENDING');
+            const settlementRef = ord.settlementRef || (ord.payment?.refId ? String(ord.payment.refId) : null);
 
             const orderRecord = await tx.order.upsert({
               where: { orderNumber: ord.orderNumber },
               update: {
+                userId: userRecord.id,
                 totalAmount: ord.totalAmount,
                 status: validStatus,
                 isBulkOrder: ord.isBulkOrder ?? false,
                 bulkNotes: ord.bulkNotes || null,
                 isSubscription: ord.isSubscription ?? false,
                 subscriptionPlan: ord.subscriptionPlan || null,
-                settlementStatus:
-                  ord.settlementStatus ||
-                  (validStatus === 'PROCESSING' || validStatus === 'DELIVERED' ? 'SETTLED' : 'PENDING'),
-                settlementRef: ord.settlementRef || (ord.payment?.refId ? String(ord.payment.refId) : null),
+                settlementStatus,
+                settlementRef,
                 addressId: addressRecord.id,
                 deliverySlotId: validDeliverySlotId,
               },
@@ -1222,55 +1532,56 @@ class FarmDataStore {
                 bulkNotes: ord.bulkNotes || null,
                 isSubscription: ord.isSubscription ?? false,
                 subscriptionPlan: ord.subscriptionPlan || null,
-                settlementStatus:
-                  ord.settlementStatus ||
-                  (validStatus === 'PROCESSING' || validStatus === 'DELIVERED' ? 'SETTLED' : 'PENDING'),
-                settlementRef: ord.settlementRef || (ord.payment?.refId ? String(ord.payment.refId) : null),
+                settlementStatus,
+                settlementRef,
               },
             });
 
-            // E. Upsert OrderItems
-            if (ord.items && Array.isArray(ord.items) && ord.items.length > 0) {
-              await tx.orderItem.deleteMany({ where: { orderId: orderRecord.id } });
-              for (const item of ord.items) {
-                let product = await tx.product.findFirst({
-                  where: { OR: [{ id: item.productId }, { slug: item.productId }] },
-                });
-                if (!product) {
-                  const storeProd = this.products.find(
-                    (p) => p.id === item.productId || p.slug === item.productId
-                  );
-                  if (storeProd) {
-                    product = await tx.product.create({
-                      data: {
-                        id: storeProd.id,
-                        title: storeProd.title,
-                        slug: storeProd.slug,
-                        description: storeProd.description,
-                        category: storeProd.category,
-                        price: storeProd.price,
-                        stock: storeProd.stock,
-                        images: storeProd.images,
-                      },
-                    });
-                  }
-                }
-
-                if (product) {
-                  await tx.orderItem.create({
+            // E. Order items: upsert by a stable id (order id + item id or position), then delete only the removed ones
+            const keptItemIds: string[] = [];
+            const items = Array.isArray(ord.items) ? ord.items : [];
+            for (const [index, item] of items.entries()) {
+              let product = await tx.product.findFirst({
+                where: { OR: [{ id: item.productId }, { slug: item.productId }] },
+              });
+              if (!product) {
+                const storeProd = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
+                if (storeProd) {
+                  product = await tx.product.create({
                     data: {
-                      orderId: orderRecord.id,
-                      productId: product.id,
-                      quantity: item.quantity,
-                      unitPrice: item.unitPrice,
-                      totalPrice: item.totalPrice,
+                      id: storeProd.id,
+                      title: storeProd.title,
+                      slug: storeProd.slug,
+                      description: storeProd.description,
+                      category: storeProd.category,
+                      price: storeProd.price,
+                      stock: storeProd.stock,
+                      images: storeProd.images,
                     },
                   });
                 }
               }
-            }
+              if (!product) {
+                this.logPrismaSkip(`order ${ord.orderNumber}: product ${item.productId} is unknown`);
+                continue;
+              }
 
-            // F. Upsert Payment
+              const itemId = `${orderRecord.id}:${item.id || index}`;
+              keptItemIds.push(itemId);
+              const quantity = item.quantity ?? 1;
+              const unitPrice = item.unitPrice ?? 0;
+              const totalPrice = item.totalPrice ?? unitPrice * quantity;
+              await tx.orderItem.upsert({
+                where: { id: itemId },
+                update: { productId: product.id, quantity, unitPrice, totalPrice },
+                create: { id: itemId, orderId: orderRecord.id, productId: product.id, quantity, unitPrice, totalPrice },
+              });
+            }
+            await tx.orderItem.deleteMany({
+              where: { orderId: orderRecord.id, id: { notIn: keptItemIds } },
+            });
+
+            // F. Payment
             if (ord.payment || ord.status === 'PROCESSING' || ord.status === 'DELIVERED') {
               const paymentStatus =
                 (ord.payment?.status as any) ||
@@ -1300,7 +1611,9 @@ class FarmDataStore {
           );
         }
       }
-    } catch {}
+    } catch (err: any) {
+      console.error('[FarmStore Prisma ERROR] Mirror run failed:', err?.message || err);
+    }
   }
 
   public async ensureDatabaseLoaded(): Promise<void> {
@@ -1309,116 +1622,6 @@ class FarmDataStore {
     const prisma = this.getPrisma();
     if (!prisma) return;
     await this.syncFromPrisma();
-  }
-
-  public loadServerState(): void {
-    if (typeof window !== 'undefined') return;
-    try {
-      const filePath = this.getServerDataFilePath();
-      if (!filePath) return;
-      const fs = require('fs');
-      const backupPath = `${filePath}.bak`;
-
-      let raw: string | null = null;
-
-      // 1. Try reading the primary data file
-      if (fs.existsSync(filePath)) {
-        try {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          if (content && content.trim().length > 0) {
-            JSON.parse(content); // Test JSON integrity
-            raw = content;
-          }
-        } catch (readErr) {
-          console.warn('[FarmStore CRITICAL] Primary store file corrupted or unreadable. Attempting recovery from backup (.bak)...', readErr);
-        }
-      }
-
-      // 2. Fallback to backup file if primary was damaged by sudden power loss
-      if (!raw && fs.existsSync(backupPath)) {
-        try {
-          const backupContent = fs.readFileSync(backupPath, 'utf-8');
-          if (backupContent && backupContent.trim().length > 0) {
-            JSON.parse(backupContent);
-            raw = backupContent;
-            console.info('[FarmStore RECOVERY] Successfully restored database from healthy backup (.bak)!');
-          }
-        } catch (backupErr) {
-          console.error('[FarmStore CRITICAL] Both primary store and backup are corrupted!', backupErr);
-        }
-      }
-
-      if (!raw) return;
-
-      const data = JSON.parse(raw);
-      if (data.users && Array.isArray(data.users)) {
-        for (const [k, v] of data.users) {
-          if (v && !v.username && v.phone) {
-            v.username = `user_${v.phone.slice(-4)}`;
-          }
-          this.users.set(k, v);
-        }
-      }
-      if (data.orders && Array.isArray(data.orders) && data.orders.length > 0) {
-        this.orders = data.orders;
-      }
-      if (data.coupons && Array.isArray(data.coupons)) {
-        this.coupons = data.coupons;
-      }
-      if (data.paymentSettings) {
-        this.paymentSettings = { ...this.paymentSettings, ...data.paymentSettings };
-      }
-      if (data.subscriptionSettings && typeof data.subscriptionSettings === 'object') {
-        this.subscriptionSettings = {
-          ...DEFAULT_SUBSCRIPTION_SETTINGS,
-          ...data.subscriptionSettings,
-          proFeatures: Array.isArray(data.subscriptionSettings.proFeatures)
-            ? data.subscriptionSettings.proFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.proFeatures,
-          plusFeatures: Array.isArray(data.subscriptionSettings.plusFeatures)
-            ? data.subscriptionSettings.plusFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.plusFeatures,
-          freeFeatures: Array.isArray(data.subscriptionSettings.freeFeatures)
-            ? data.subscriptionSettings.freeFeatures
-            : DEFAULT_SUBSCRIPTION_SETTINGS.freeFeatures,
-          faqItems: Array.isArray(data.subscriptionSettings.faqItems)
-            ? data.subscriptionSettings.faqItems
-            : DEFAULT_SUBSCRIPTION_SETTINGS.faqItems,
-          comparisonRows: Array.isArray(data.subscriptionSettings.comparisonRows)
-            ? data.subscriptionSettings.comparisonRows
-            : DEFAULT_COMPARISON_ROWS,
-        };
-      }
-      if (data.products && Array.isArray(data.products) && data.products.length > 0) {
-        this.products = data.products;
-      }
-      if (data.smsSettings) {
-        this.smsSettings = { ...this.smsSettings, ...data.smsSettings };
-      }
-      if (data.bulkInquiries && Array.isArray(data.bulkInquiries) && data.bulkInquiries.length > 0) {
-        this.bulkInquiries = data.bulkInquiries;
-      }
-      if (data.reviews && Array.isArray(data.reviews) && data.reviews.length > 0) {
-        this.reviews = data.reviews;
-      }
-      if (data.emailLogs && Array.isArray(data.emailLogs)) {
-        this.emailLogs = data.emailLogs;
-      }
-      if (data.emailSettings) {
-        this.emailSettings = { ...this.emailSettings, ...data.emailSettings };
-      }
-      if (data.siteContent && typeof data.siteContent === 'object') {
-        this.siteContent = { ...DEFAULT_SITE_CONTENT, ...data.siteContent };
-      }
-    } catch (e) {
-      console.warn('[FarmStore] Failed to load server state:', e);
-    }
-
-    // Trigger asynchronous background sync from PostgreSQL if DATABASE_URL is configured
-    const prisma = this.getPrisma();
-    if (prisma && !this.isDatabaseSyncing && !this.hasSyncedFromPrisma) {
-      this.syncFromPrisma().catch(() => {});
-    }
   }
 
   private populateInitialUsers(): void {
@@ -1430,8 +1633,7 @@ class FarmDataStore {
           if (!u.username && u.phone) {
             u.username = `user_${u.phone.slice(-4)}`;
           }
-          if (u.phone) this.users.set(u.phone, u);
-          if (u.id) this.users.set(u.id, u);
+          this.indexUser(u);
         }
       });
     }
@@ -1499,8 +1701,7 @@ class FarmDataStore {
       ],
     };
     if (seedAdmin) {
-      if (adminUser.phone) this.users.set(adminUser.phone, adminUser);
-      if (adminUser.id) this.users.set(adminUser.id, adminUser);
+      this.indexUser(adminUser);
       if (generatedAdminPassword) {
         this.pendingAdminCredentials = { user: adminUser, password: generatedAdminPassword };
       }
@@ -1538,8 +1739,7 @@ class FarmDataStore {
         },
       ],
     };
-    if (regularUser.phone) this.users.set(regularUser.phone, regularUser);
-    if (regularUser.id) this.users.set(regularUser.id, regularUser);
+    this.indexUser(regularUser);
 
     // 3. Plus User
     const plusUser: User = {
@@ -1571,8 +1771,7 @@ class FarmDataStore {
         },
       ],
     };
-    if (plusUser.phone) this.users.set(plusUser.phone, plusUser);
-    if (plusUser.id) this.users.set(plusUser.id, plusUser);
+    this.indexUser(plusUser);
 
     // 4. Pro User
     const proUser: User = {
@@ -1604,8 +1803,7 @@ class FarmDataStore {
         },
       ],
     };
-    if (proUser.phone) this.users.set(proUser.phone, proUser);
-    if (proUser.id) this.users.set(proUser.id, proUser);
+    this.indexUser(proUser);
     }
   }
 
@@ -1666,8 +1864,7 @@ class FarmDataStore {
             // Ignore if empty
           }
         }
-        if (u.phone) this.users.set(u.phone, u);
-        if (u.id) this.users.set(u.id, u);
+        this.indexUser(u);
       });
       if (usersNeedSave) {
         this.saveUsers();
@@ -1777,8 +1974,7 @@ class FarmDataStore {
     let changed = false;
     let warnedLegacy = false;
 
-    // Each map key may hold its own copy of the same user object after a reload, so every copy is handled.
-    for (const u of this.users.values()) {
+    for (const u of this.uniqueUsers()) {
       if (u.role !== 'ADMIN') continue;
 
       if (resetRequested && envPassword) {
@@ -2013,6 +2209,7 @@ class FarmDataStore {
 
   resetProducts(): Product[] {
     this.products = [...INITIAL_PRODUCTS];
+    this.saveServerState();
     if (this.isBrowser()) {
       localStorage.removeItem('profarm_products');
       window.dispatchEvent(
@@ -2051,6 +2248,7 @@ class FarmDataStore {
       return { success: false, message: 'این دسته‌بندی از قبل در لیست وجود دارد.', categories: current };
     }
     this.categories = [...current, trimmed];
+    this.saveServerState();
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
@@ -2067,6 +2265,7 @@ class FarmDataStore {
     }
     const current = this.getCategories();
     this.categories = current.filter((c) => c !== categoryName);
+    this.saveServerState();
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
@@ -2079,6 +2278,7 @@ class FarmDataStore {
 
   resetCategories(): string[] {
     this.categories = [...INITIAL_CATEGORIES];
+    this.saveServerState();
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('profarm_categories');
@@ -2629,15 +2829,8 @@ class FarmDataStore {
 
   // --- USERS & PRO MEMBERSHIP ---
   private saveUsers(): void {
-    const userMap = new Map<string, User>();
-    for (const u of this.users.values()) {
-      const key = u.id || u.phone || u.email;
-      if (key && !userMap.has(key)) {
-        userMap.set(key, u);
-      }
-    }
     // SECURITY: Always sanitize users (remove password hash) before writing to localStorage
-    const safeList = Array.from(userMap.values()).map((u) => sanitizeUser(u));
+    const safeList = this.uniqueUsers().map((u) => sanitizeUser(u));
     this.saveItem('profarm_users', safeList);
     this.saveServerState();
     if (this.isBrowser()) {
@@ -2677,7 +2870,7 @@ class FarmDataStore {
         isProMember: false,
         createdAt: new Date().toISOString(),
       };
-      this.users.set(cleanPhone, user);
+      this.indexUser(user);
       this.saveUsers();
     } else {
       let updated = false;
@@ -2698,7 +2891,7 @@ class FarmDataStore {
         updated = true;
       }
       if (updated) {
-        this.users.set(cleanPhone, user);
+        this.indexUser(user);
         this.saveUsers();
       }
     }
@@ -2775,9 +2968,7 @@ class FarmDataStore {
       createdAt: new Date().toISOString(),
     };
 
-    if (user.phone) this.users.set(user.phone, user);
-    if (user.email) this.users.set(user.email.toLowerCase(), user);
-    this.users.set(user.id, user);
+    this.indexUser(user);
     this.saveUsers();
     return user;
   }
@@ -2809,8 +3000,12 @@ class FarmDataStore {
     const existingWithPhone = this.getUserByPhone(cleanPhone);
     if (existingWithPhone && existingWithPhone.id !== targetUser.id) {
       if (!existingWithPhone.email && !existingWithPhone.password) {
-        // Safe to merge / reassign from anonymous placeholder
-        this.users.delete(cleanPhone);
+        // Merge the anonymous placeholder into the target account: remove every index entry of the placeholder
+        // (previously only its phone key was removed, which left a duplicate copy behind) and move its orders.
+        this.unindexUser(existingWithPhone);
+        for (const order of this.orders) {
+          if (order.userId === existingWithPhone.id) order.userId = targetUser.id;
+        }
       } else {
         return {
           success: false,
@@ -2822,9 +3017,7 @@ class FarmDataStore {
     targetUser.phone = cleanPhone;
     targetUser.isPhoneVerified = true;
 
-    this.users.set(cleanPhone, targetUser);
-    if (targetUser.id) this.users.set(targetUser.id, targetUser);
-    if (targetUser.email) this.users.set(targetUser.email.toLowerCase(), targetUser);
+    this.indexUser(targetUser);
     this.saveUsers();
 
     return {
@@ -2934,9 +3127,7 @@ class FarmDataStore {
       user.authProvider = 'PASSWORD';
     }
 
-    if (user.phone) this.users.set(user.phone, user);
-    if (user.id) this.users.set(user.id, user);
-    if (user.email) this.users.set(user.email.toLowerCase(), user);
+    this.indexUser(user);
     this.saveUsers();
 
     return { success: true, user: sanitizeUser(user), message: 'اطلاعات حساب کاربری با موفقیت به‌روزرسانی شد.' };
@@ -2979,7 +3170,7 @@ class FarmDataStore {
       isProMember: false,
       createdAt: new Date().toISOString(),
     };
-    this.users.set(user.id, user);
+    this.indexUser(user);
     this.saveUsers();
     return user;
   }
@@ -3007,8 +3198,7 @@ class FarmDataStore {
       // Opportunistically upgrade stored password to current PBKDF2 (210,000 iterations) if needed
       if (needsPasswordRehash(user.password)) {
         user.password = hashPassword(cleanPass);
-        if (user.phone) this.users.set(user.phone, user);
-        if (user.id) this.users.set(user.id, user);
+        this.indexUser(user);
         this.saveUsers();
       }
       return user;
@@ -3022,7 +3212,7 @@ class FarmDataStore {
     const user = this.users.get(phone);
     if (!user) return false;
     user.password = hashPassword(pass.trim());
-    this.users.set(phone, user);
+    this.indexUser(user);
     this.saveUsers();
     return true;
   }
@@ -3034,7 +3224,7 @@ class FarmDataStore {
     user.isProMember = isPro;
     user.tier = isPro ? 'PRO' : 'FREE';
     user.proExpiresAt = isPro ? expiryDate || '۱۴۰۵/۱۲/۲۹' : null;
-    this.users.set(phone, user);
+    this.indexUser(user);
     this.saveUsers();
     return user;
   }
@@ -3061,12 +3251,7 @@ class FarmDataStore {
       user.proExpiresAt = null;
       user.plusExpiresAt = null;
     }
-    if (user.phone) {
-      this.users.set(user.phone, user);
-    }
-    if (user.id) {
-      this.users.set(user.id, user);
-    }
+    this.indexUser(user);
     this.saveUsers();
 
     // Trigger automated SMS for subscription activation/renewal if upgraded
@@ -3113,9 +3298,7 @@ class FarmDataStore {
       user.plusExpiresAt = expiresAt;
     }
 
-    if (user.phone) this.users.set(user.phone, user);
-    if (user.id) this.users.set(user.id, user);
-    if (user.email) this.users.set(user.email.toLowerCase(), user);
+    this.indexUser(user);
     this.saveUsers();
     return user;
   }
@@ -3158,9 +3341,7 @@ class FarmDataStore {
     }
     user.isPhoneVerified = true;
 
-    if (user.phone) this.users.set(user.phone, user);
-    if (user.id) this.users.set(user.id, user);
-    if (user.email) this.users.set(user.email.toLowerCase(), user);
+    this.indexUser(user);
     this.saveUsers();
     return { success: true, user };
   }
@@ -3173,12 +3354,7 @@ class FarmDataStore {
     }
     if (!user) return null;
     user.role = role;
-    if (user.phone) {
-      this.users.set(user.phone, user);
-    }
-    if (user.id) {
-      this.users.set(user.id, user);
-    }
+    this.indexUser(user);
     this.saveUsers();
     return user;
   }
@@ -3189,20 +3365,11 @@ class FarmDataStore {
       if (stored && Array.isArray(stored) && stored.length > 0) {
         this.users.clear();
         stored.forEach((u) => {
-          if (u.phone) this.users.set(u.phone, u);
-          if (u.id) this.users.set(u.id, u);
-          if (u.email) this.users.set(u.email.toLowerCase(), u);
+          this.indexUser(u);
         });
       }
     }
-    const userMap = new Map<string, User>();
-    for (const u of this.users.values()) {
-      const key = u.id || u.phone || u.email;
-      if (key && !userMap.has(key)) {
-        userMap.set(key, u);
-      }
-    }
-    return Array.from(userMap.values());
+    return this.uniqueUsers();
   }
 
   // --- EMAIL DISPATCH & LOGS ---
@@ -3231,6 +3398,7 @@ class FarmDataStore {
 
   private saveReturnRequests(): void {
     this.saveItem('profarm_return_requests', this.returnRequests);
+    this.saveServerState();
   }
 
   createReturnRequest(data: Omit<ReturnRequest, 'id' | 'createdAt' | 'updatedAt'>): ReturnRequest {
@@ -3310,6 +3478,7 @@ class FarmDataStore {
     if (updates.isEnabled !== undefined) tmpl.isEnabled = updates.isEnabled;
     tmpl.updatedAt = new Date().toLocaleDateString('fa-IR');
     this.saveItem('profarm_sms_templates', this.smsEventTemplates);
+    this.saveServerState();
     return tmpl;
   }
 
@@ -3322,6 +3491,7 @@ class FarmDataStore {
     tmpl.isEnabled = defaultTmpl.isEnabled;
     tmpl.updatedAt = new Date().toLocaleDateString('fa-IR');
     this.saveItem('profarm_sms_templates', this.smsEventTemplates);
+    this.saveServerState();
     return tmpl;
   }
 
@@ -3404,6 +3574,7 @@ class FarmDataStore {
     };
     this.smsBroadcasts.unshift(newSms);
     this.saveItem('profarm_sms_broadcasts', this.smsBroadcasts);
+    this.saveServerState();
     return newSms;
   }
 
@@ -3427,6 +3598,7 @@ class FarmDataStore {
   bookSlot(slotId: string): boolean {
     const current = this.slotBookings.get(slotId) || 0;
     this.slotBookings.set(slotId, current + 1);
+    this.saveServerState();
     return true;
   }
 
@@ -3435,6 +3607,7 @@ class FarmDataStore {
     const current = this.slotBookings.get(slotId) || 0;
     if (current > 0) {
       this.slotBookings.set(slotId, current - 1);
+      this.saveServerState();
     }
     return true;
   }
@@ -3591,21 +3764,12 @@ class FarmDataStore {
 
   getOrderById(id: string): Order | undefined {
     this.getOrders();
-    let order = this.orders.find((o) => o.id === id || o.orderNumber === id);
-    if (!order && !this.isBrowser()) {
-      this.loadServerState();
-      order = this.orders.find((o) => o.id === id || o.orderNumber === id);
-    }
-    return order;
+    return this.orders.find((o) => o.id === id || o.orderNumber === id);
   }
 
   attachPaymentToOrder(idOrNumber: string, payment: Payment): Order | null {
     this.getOrders();
-    let order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
-    if (!order && !this.isBrowser()) {
-      this.loadServerState();
-      order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
-    }
+    const order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
     if (!order) return null;
     order.payment = payment;
     order.updatedAt = new Date().toISOString();
@@ -3615,32 +3779,13 @@ class FarmDataStore {
 
   async updateOrderStatus(id: string, newStatus: OrderStatus): Promise<Order | null> {
     this.getOrders();
-    let order = this.orders.find((o) => o.id === id || o.orderNumber === id);
-    if (!order && !this.isBrowser()) {
-      this.loadServerState();
-      order = this.orders.find((o) => o.id === id || o.orderNumber === id);
-    }
+    const order = this.orders.find((o) => o.id === id || o.orderNumber === id);
     if (!order) return null;
 
     order.status = newStatus;
     order.updatedAt = new Date().toISOString();
+    // saveOrders also schedules the PostgreSQL mirror (queued, logged on failure)
     this.saveOrders();
-
-    const prisma = this.getPrisma();
-    if (prisma) {
-      prisma.order
-        .update({
-          where: { orderNumber: order.orderNumber },
-          data: {
-            status: newStatus,
-            settlementStatus:
-              newStatus === 'PROCESSING' || newStatus === 'DELIVERED' ? 'SETTLED' : undefined,
-            settlementRef:
-              order.settlementRef || (order.payment?.refId ? String(order.payment.refId) : undefined),
-          },
-        })
-        .catch(() => {});
-    }
 
     const statusTranslations: Record<OrderStatus, string> = {
       PENDING_PAYMENT: 'در انتظار پرداخت',
@@ -3781,6 +3926,7 @@ class FarmDataStore {
 
   resetOrders(): Order[] {
     this.orders = [...INITIAL_ADMIN_ORDERS];
+    this.saveServerState();
     if (this.isBrowser()) {
       localStorage.removeItem('profarm_orders');
       window.dispatchEvent(
@@ -3934,6 +4080,7 @@ class FarmDataStore {
 
   resetReviews(): ProductReview[] {
     this.reviews = [...INITIAL_PRODUCT_REVIEWS];
+    this.saveServerState();
     if (this.isBrowser()) {
       localStorage.removeItem('profarm_reviews');
       window.dispatchEvent(
@@ -4096,7 +4243,6 @@ class FarmDataStore {
   // --- SUBSCRIPTION & DISCOUNT SETTINGS ---
   getSubscriptionSettings(): SubscriptionSettings {
     if (typeof window === 'undefined') {
-      this.loadServerState();
       return this.subscriptionSettings;
     }
 
@@ -4172,7 +4318,6 @@ class FarmDataStore {
    */
   async syncSubscriptionSettings(): Promise<SubscriptionSettings> {
     if (typeof window === 'undefined') {
-      this.loadServerState();
       return this.subscriptionSettings;
     }
 
@@ -4551,7 +4696,9 @@ class FarmDataStore {
   // --- Daily Delivery Capacity Management (Admin Exclusive & Checkout Enforcement) ---
   getDailyCapacities(): DailyCapacityItem[] {
     const rawSlots = generateDeliverySlots(true, 12);
-    let overrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> = {};
+    // Server: overrides live in the persisted store. Browser: legacy localStorage copy.
+    let overrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> =
+      typeof window === 'undefined' ? { ...this.dailyCapacityOverrides } : {};
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('profarm_daily_capacities');
@@ -4607,7 +4754,14 @@ class FarmDataStore {
   }
 
   setDailyCapacity(dateIso: string, updates: { maxCapacity?: number; isClosedManually?: boolean }): DailyCapacityItem[] {
-    if (typeof window === 'undefined') return this.getDailyCapacities();
+    if (typeof window === 'undefined') {
+      this.dailyCapacityOverrides = {
+        ...this.dailyCapacityOverrides,
+        [dateIso]: { ...this.dailyCapacityOverrides[dateIso], ...updates },
+      };
+      this.saveServerState();
+      return this.getDailyCapacities();
+    }
     try {
       const stored = localStorage.getItem('profarm_daily_capacities');
       const overrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> = stored ? JSON.parse(stored) : {};
@@ -4733,6 +4887,9 @@ class FarmDataStore {
     this.smsEventTemplates = [...DEFAULT_SMS_EVENT_TEMPLATES];
     this.smsSettings = { ...DEFAULT_SMS_PROVIDER_SETTINGS };
     this.reviews = [...INITIAL_PRODUCT_REVIEWS];
+    this.slotBookings = new Map();
+    this.dailyCapacityOverrides = {};
+    this.saveServerState();
 
     if (this.isBrowser()) {
       window.dispatchEvent(new CustomEvent('profarm_products_updated'));
