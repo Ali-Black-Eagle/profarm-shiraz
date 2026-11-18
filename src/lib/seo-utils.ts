@@ -49,6 +49,22 @@ const TRANSLATION_DICTIONARY: Record<string, string> = {
 };
 
 /**
+ * Sanitizes a slug typed by an admin: lower case, spaces and underscores become dashes, only Latin letters, digits,
+ * Persian letters and dashes are kept, repeated dashes collapse, max 90 characters. Returns '' when nothing usable is left.
+ */
+export function sanitizeSlugInput(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9؀-ۿ-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 90)
+    .replace(/-+$/g, '');
+}
+
+/**
  * Generate a clean, SEO-friendly slug.
  * Supports Persian keywords with hyphen separation or clean transliteration.
  */

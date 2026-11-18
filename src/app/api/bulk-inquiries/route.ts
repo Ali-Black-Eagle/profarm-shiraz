@@ -5,6 +5,8 @@ import { checkDistributedRateLimit } from '@/lib/sms';
 import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
 
+const BULK_STATUSES = ['PENDING', 'REVIEWED', 'COMPLETED'];
+
 export async function GET(req: NextRequest) {
   const auth = requireAdmin(req);
   if (auth instanceof NextResponse) return auth;
@@ -81,8 +83,8 @@ export async function PATCH(req: NextRequest) {
     const auth = requireAdmin(req);
     if (auth instanceof NextResponse) return auth;
 
-    const body = await req.json();
-    const { id, status } = body;
+    const body = await req.json().catch(() => null);
+    const { id, status } = body && typeof body === 'object' ? body : ({} as Record<string, unknown>);
 
     if (!id || !status) {
       return NextResponse.json(
@@ -90,8 +92,14 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (!BULK_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { success: false, message: 'وضعیت استعلام نامعتبر است (PENDING، REVIEWED یا COMPLETED).' },
+        { status: 400 }
+      );
+    }
 
-    const updated = farmStore.updateBulkInquiryStatus(id, status);
+    const updated = farmStore.updateBulkInquiryStatus(String(id), status);
     if (!updated) {
       return NextResponse.json(
         { success: false, message: 'استعلام مورد نظر یافت نشد.' },
@@ -120,7 +128,12 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    farmStore.deleteBulkInquiry(id);
+    if (!farmStore.deleteBulkInquiry(id)) {
+      return NextResponse.json(
+        { success: false, message: 'استعلام مورد نظر یافت نشد.' },
+        { status: 404 }
+      );
+    }
     return NextResponse.json({ success: true, message: 'استعلام با موفقیت حذف شد.' });
   } catch (error: unknown) {
     return apiErrorResponse(error, 'bulk-inquiries DELETE', 'خطای سرور در حذف استعلام');

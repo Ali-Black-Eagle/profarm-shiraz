@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
-import { canTransition } from '@/lib/order-utils';
-import { withOrderLock } from '@/lib/order-lock';
+import { changeOrderStatus, listAdminOrders, serializeAdminOrder } from '@/lib/admin-orders';
 
 /** A civil date written as YYYY-MM-DD that exists (no 2026-02-30). */
 function isValidIsoDate(value: unknown): value is string {
@@ -23,6 +22,20 @@ export async function GET(req: NextRequest) {
     if (type === 'users') {
       const users = farmStore.getAllUsers().map(sanitizeUser);
       return NextResponse.json({ success: true, users });
+    }
+
+    // Same data as GET /api/admin/orders (filters optional). Each order carries allowedNextStatuses.
+    if (type === 'orders') {
+      const date = searchParams.get('date') || undefined;
+      if (date !== undefined && !isValidIsoDate(date)) {
+        return NextResponse.json({ success: false, message: 'تاریخ فیلتر باید YYYY-MM-DD باشد.' }, { status: 400 });
+      }
+      const orders = listAdminOrders({
+        status: searchParams.get('status') || undefined,
+        date,
+        q: searchParams.get('q') || undefined,
+      }).map(serializeAdminOrder);
+      return NextResponse.json({ success: true, orders });
     }
 
     if (type === 'subscriptionSettings') {
@@ -62,24 +75,13 @@ export async function POST(req: NextRequest) {
       if (!orderId || !allowedStatuses.includes(status)) {
         return NextResponse.json({ success: false, message: 'وضعیت یا شناسه سفارش نامعتبر است.' }, { status: 400 });
       }
-      const existingOrder = farmStore.getOrderById(orderId);
-      if (!existingOrder) {
-        return NextResponse.json({ success: false, message: 'سفارش مورد نظر یافت نشد.' }, { status: 404 });
-      }
-      // Under the order's lock, so a payment callback or an expiry sweep cannot interleave with this change.
-      // The transition is checked again inside the lock, on the state that is current at that moment.
-      const outcome = await withOrderLock(existingOrder.orderNumber, async () => {
-        const current = farmStore.getOrderById(orderId);
-        if (!current) return { code: 404 as const, message: 'سفارش مورد نظر یافت نشد.' };
-        const transition = canTransition(current, status);
-        if (!transition.allowed) {
-          return { code: 400 as const, message: transition.reason || 'تغییر وضعیت سفارش مجاز نیست.' };
-        }
-        const order = await farmStore.updateOrderStatus(orderId, status);
-        return { code: 200 as const, order };
-      });
-      if (outcome.code !== 200) {
-        return NextResponse.json({ success: false, message: outcome.message }, { status: outcome.code });
+      // Shared path with /api/admin/orders: under the order lock, transition checked again inside it, SMS sent once.
+      const outcome = await changeOrderStatus(orderId, status);
+      if (!outcome.ok) {
+        return NextResponse.json(
+          { success: false, message: outcome.message },
+          { status: outcome.reason === 'NOT_FOUND' ? 404 : 400 }
+        );
       }
       return NextResponse.json({ success: true, order: outcome.order });
     }

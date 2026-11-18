@@ -433,6 +433,10 @@ export interface Order {
   isShiraz?: boolean;
   /** Set when the order reaches DELIVERED (ISO). The 7-day return window starts here. */
   deliveredAt?: string | null;
+  /** Who created the order. Manual orders are entered by an admin (phone or counter sale). */
+  source?: 'ONLINE' | 'ADMIN_MANUAL';
+  /** Payment method chosen for a manual order. */
+  manualPaymentMethod?: 'cash' | 'card-on-delivery' | 'paid-offline';
 
   createdAt: string;
   updatedAt?: string;
@@ -657,7 +661,14 @@ export interface ReturnRequest {
 }
 
 // --- SMS BROADCAST & CAMPAIGNS & EVENT TEMPLATES ---
-export type SmsTargetSegment = 'ALL' | 'ALL_USERS' | 'PRO_MEMBERS' | 'PLUS_MEMBERS' | 'SHIRAZ_BUYERS' | 'CUSTOM';
+export type SmsTargetSegment =
+  | 'ALL'
+  | 'ALL_USERS'
+  | 'FREE_USERS'
+  | 'PRO_MEMBERS'
+  | 'PLUS_MEMBERS'
+  | 'SHIRAZ_BUYERS'
+  | 'CUSTOM';
 
 export type SmsEventType =
   | 'ORDER_PLACED'
@@ -687,7 +698,15 @@ export interface SmsBroadcast {
   targetSegmentTitle?: string;
   recipientCount: number;
   customNumbers?: string | string[];
-  status?: 'SENT' | 'SCHEDULED' | 'FAILED';
+  status?: 'SENT' | 'SCHEDULED' | 'FAILED' | 'PARTIAL';
+  /** Messages the provider accepted (real counts from the dispatcher, never estimated). */
+  sentCount?: number;
+  /** Messages the provider refused or that could not be sent. */
+  failedCount?: number;
+  /** Provider the broadcast went through (MOCK in development). */
+  provider?: string;
+  /** Admin username or id who sent it. */
+  sentBy?: string;
   sentAt: string;
   createdAt?: string;
 }

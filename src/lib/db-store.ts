@@ -2235,14 +2235,19 @@ class FarmDataStore {
     return newProduct;
   }
 
+  /** Copies a product as a hidden draft (isAvailable false) with a unique slug and id. */
   cloneProduct(slug: string): Product | null {
     const original = this.getProductBySlug(slug);
     if (!original) return null;
+    const existingSlugs = new Set(this.products.map((p) => p.slug));
+    let copySlug = `${original.slug}-copy`;
+    for (let n = 2; existingSlugs.has(copySlug); n++) copySlug = `${original.slug}-copy-${n}`;
     const cloned: Product = {
       ...original,
-      id: `prod-${Date.now()}`,
-      slug: `${original.slug}-copy-${Math.floor(Math.random() * 1000)}`,
+      id: `prod-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      slug: copySlug,
       title: `${original.title} (نسخه رونوشت)`,
+      isAvailable: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -2405,6 +2410,36 @@ class FarmDataStore {
       }
     }
     return { success: true, message: `دسته‌بندی «${categoryName}» با موفقیت حذف شد.`, categories: this.categories };
+  }
+
+  /**
+   * Renames a category and moves every product that uses it to the new name, in one step.
+   * The caller checks that the new name is free and that the old one is not the protected "all products" entry.
+   */
+  renameCategory(oldName: string, newName: string): { success: boolean; message: string } {
+    const current = this.getCategories();
+    if (!current.includes(oldName)) {
+      return { success: false, message: 'دسته‌بندی مورد نظر یافت نشد.' };
+    }
+    this.categories = current.map((c) => (c === oldName ? newName : c));
+    let moved = 0;
+    for (const product of this.products) {
+      if (product.category === oldName) {
+        product.category = newName;
+        product.updatedAt = new Date().toISOString();
+        moved++;
+      }
+    }
+    this.saveProducts();
+    this.saveServerState();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('profarm_categories', JSON.stringify(this.categories));
+      } catch (e) {
+        // fallback
+      }
+    }
+    return { success: true, message: `دسته‌بندی به «${newName}» تغییر نام یافت (${moved} کالا منتقل شد).` };
   }
 
   resetCategories(): string[] {
@@ -3381,6 +3416,7 @@ class FarmDataStore {
     }
     if (!user) return null;
 
+    const previousTier = getEffectiveTier(user);
     user.tier = tier;
     user.subscriptionTier = tier;
     user.isProMember = tier === 'PRO';
@@ -3398,21 +3434,47 @@ class FarmDataStore {
     this.indexUser(user);
     this.saveUsers();
 
-    // Trigger automated SMS for subscription activation/renewal if upgraded
-    if (tier !== 'FREE' && user.phone) {
-      const vars: Record<string, string> = {
-        '{customerName}': user.name || 'کاربر گرامی',
-        '{tierName}': tier === 'PRO' ? 'پروفارم پرو (طلایی ۶ روزه)' : 'پروفارم پلاس (۵٪ تخفیف)',
-        '{expiresAt}': formatSubscriptionExpiry(user.proExpiresAt || user.plusExpiresAt) || '۱۴۰۵/۱۲/۲۹',
-        '{siteUrl}': 'profarm.ir',
-      };
-      const rendered = this.renderEventSms('SUBSCRIPTION_ACTIVATED', vars);
-      if (rendered && rendered.isEnabled && rendered.message) {
-        sendCustomSms(user.phone, rendered.message, user.email);
-      }
+    // Subscription SMS only when the effective tier really changes (a same-tier update sends nothing)
+    if (tier !== 'FREE' && previousTier !== tier) {
+      this.sendSubscriptionActivatedSms(user, tier);
     }
 
     return user;
+  }
+
+  /** Sends the SUBSCRIPTION_ACTIVATED template to the account phone, when the template is enabled. */
+  private sendSubscriptionActivatedSms(user: User, tier: 'PLUS' | 'PRO'): void {
+    if (!user.phone) return;
+    const vars: Record<string, string> = {
+      '{customerName}': user.name || 'کاربر گرامی',
+      '{tierName}': tier === 'PRO' ? 'پروفارم پرو (طلایی ۶ روزه)' : 'پروفارم پلاس (۵٪ تخفیف)',
+      '{expiresAt}': formatSubscriptionExpiry(user.proExpiresAt || user.plusExpiresAt) || '۱۴۰۵/۱۲/۲۹',
+      '{siteUrl}': 'profarm.ir',
+    };
+    const rendered = this.renderEventSms('SUBSCRIPTION_ACTIVATED', vars);
+    if (rendered && rendered.isEnabled && rendered.message) {
+      sendCustomSms(user.phone, rendered.message, user.email);
+    }
+  }
+
+  /**
+   * Admin tier change for one account (by id). FREE clears both plans. PLUS or PRO extends that plan by `months`
+   * (from the current expiry while it still runs, otherwise from now). SMS is sent only when the effective tier
+   * changes, so a same-tier renewal stays silent.
+   */
+  setUserTier(userId: string, tier: SubscriptionTier, months = 1): User | null {
+    this.getAllUsers();
+    const user = Array.from(this.users.values()).find((u) => u.id === userId);
+    if (!user) return null;
+    if (tier === 'FREE') {
+      return this.updateUserSubscription(userId, 'FREE', null);
+    }
+    const previousTier = getEffectiveTier(user);
+    const updated = this.activateSubscriptionForUser(userId, tier, months);
+    if (updated && previousTier !== tier) {
+      this.sendSubscriptionActivatedSms(updated, tier);
+    }
+    return updated;
   }
 
   /**
@@ -3562,7 +3624,12 @@ class FarmDataStore {
    * Updates a return request. Allowed moves: PENDING -> APPROVED | REJECTED; APPROVED -> REFUNDED | REJECTED.
    * REFUNDED and REJECTED are final. A refund cannot exceed what was actually paid on the order.
    */
-  updateReturnStatus(id: string, status: ReturnStatus, adminNotes?: string): ReturnRequest | null {
+  updateReturnStatus(
+    id: string,
+    status: ReturnStatus,
+    adminNotes?: string,
+    options: { refundAmount?: number } = {}
+  ): ReturnRequest | null {
     const req = this.returnRequests.find((r) => r.id === id);
     if (!req) return null;
 
@@ -3570,8 +3637,10 @@ class FarmDataStore {
     if (!transition.allowed) {
       throw new BusinessError(transition.reason || 'تغییر وضعیت مرجوعی مجاز نیست.', 400);
     }
+    // Refund amount is validated before anything is changed, so a refused request leaves the record untouched.
+    const nextRefund = options.refundAmount !== undefined ? Number(options.refundAmount) : Number(req.refundAmount);
     if (status === 'REFUNDED') {
-      const refund = Number(req.refundAmount);
+      const refund = nextRefund;
       if (!Number.isFinite(refund) || refund < 0) {
         throw new BusinessError('مبلغ عودت نامعتبر است.', 400);
       }
@@ -3589,6 +3658,7 @@ class FarmDataStore {
     }
 
     req.status = status;
+    if (options.refundAmount !== undefined && Number.isFinite(nextRefund)) req.refundAmount = nextRefund;
     if (adminNotes !== undefined) req.adminNotes = adminNotes;
     req.updatedAt = new Date().toLocaleDateString('fa-IR');
     this.saveReturnRequests();
@@ -4695,8 +4765,11 @@ class FarmDataStore {
     return this.bulkInquiries[idx];
   }
 
+  /** true only when an inquiry with this id existed and was removed. */
   deleteBulkInquiry(id: string): boolean {
+    const before = this.bulkInquiries.length;
     this.bulkInquiries = this.bulkInquiries.filter((i) => i.id !== id);
+    if (this.bulkInquiries.length === before) return false;
     this.saveServerState();
     if (typeof window !== 'undefined') {
       try {
