@@ -42,6 +42,32 @@ const OTP_TTL_MS = 2 * 60 * 1000; // 2 minutes expiration
 const MAX_ATTEMPTS = 3;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_REQUESTS_PER_WINDOW = 4;
+// Upper bound for in-memory maps so that rotating keys cannot grow memory without limit
+const MAX_IN_MEMORY_KEYS = 10000;
+// Only this provider host may be used for Faraz/IPPanel dispatch (matches admin sms-settings allowlist)
+const FARAZ_ALLOWED_HOSTS = new Set(['ippanel.com']);
+const FARAZ_DEFAULT_ENDPOINT = 'https://ippanel.com/api/select';
+
+/** Resolves the Faraz/IPPanel endpoint: admin-configured apiUrl when https and allowlisted, else the default. */
+export function resolveFarazEndpoint(apiUrl?: string | null): string {
+  if (apiUrl) {
+    try {
+      const url = new URL(apiUrl.trim());
+      if (
+        url.protocol === 'https:' &&
+        !url.username &&
+        !url.password &&
+        !url.port &&
+        FARAZ_ALLOWED_HOSTS.has(url.hostname.toLowerCase())
+      ) {
+        return `${url.origin}/api/select`;
+      }
+    } catch {
+      // fall through to the default endpoint
+    }
+  }
+  return FARAZ_DEFAULT_ENDPOINT;
+}
 
 /**
  * Retrieves the currently active SMS provider settings
@@ -52,8 +78,9 @@ export function getActiveSmsConfig() {
   const apiKey = (storeSettings?.apiKey || process.env.SMS_API_KEY || '').trim();
   const senderNumber = (storeSettings?.senderNumber || process.env.SMS_SENDER_LINE || '10008585').trim();
   const patternCode = (storeSettings?.patternCode || process.env.SMS_PATTERN_CODE || 'profarm-otp').trim();
+  const apiUrl = (storeSettings?.apiUrl || '').trim();
   const isEnabled = storeSettings?.isEnabled ?? true;
-  return { provider, apiKey, senderNumber, patternCode, isEnabled };
+  return { provider, apiKey, senderNumber, patternCode, apiUrl, isEnabled };
 }
 
 /**
@@ -118,11 +145,13 @@ async function sendViaFarazSms(
   message: string,
   sender: string,
   otpCode?: string,
-  pattern?: string
+  pattern?: string,
+  apiUrl?: string
 ): Promise<{ success: boolean; error?: string }> {
+  const endpoint = resolveFarazEndpoint(apiUrl);
   try {
     if (otpCode && pattern) {
-      const res = await fetch('http://ippanel.com/api/select', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,7 +168,7 @@ async function sendViaFarazSms(
       if (res.ok) return { success: true };
     }
 
-    const res = await fetch('http://ippanel.com/api/select', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -176,7 +205,15 @@ export async function dispatchRealSms(
   }
 
   if (config.provider === 'FARAZ_SMS' || config.provider === 'MELIPAYAMAK') {
-    return await sendViaFarazSms(config.apiKey, phone, message, config.senderNumber, otpCode, config.patternCode);
+    return await sendViaFarazSms(
+      config.apiKey,
+      phone,
+      message,
+      config.senderNumber,
+      otpCode,
+      config.patternCode,
+      config.apiUrl
+    );
   }
 
   return { success: true };
@@ -218,20 +255,40 @@ function cleanupExpiredRecords(): void {
   }
 }
 
+/** Keeps the in-memory rate-limit map below MAX_IN_MEMORY_KEYS: drops expired keys, then the oldest ones. */
+function makeRoomForNewKey(now: number): void {
+  if (rateLimitStore.size < MAX_IN_MEMORY_KEYS) return;
+  for (const [key, val] of rateLimitStore.entries()) {
+    if (now > val.resetAt) rateLimitStore.delete(key);
+  }
+  while (rateLimitStore.size >= MAX_IN_MEMORY_KEYS) {
+    const oldest = rateLimitStore.keys().next().value;
+    if (oldest === undefined) break;
+    rateLimitStore.delete(oldest);
+  }
+}
+
 /**
- * Checks rate limiting for a phone number (supports distributed Redis or in-memory)
+ * In-memory rate limit for a key (phone, IP or any scoped key).
+ * Allows at most `maxRequests` requests per `windowMs`.
  */
-export function checkRateLimit(phone: string): { allowed: boolean; retryAfterSeconds?: number } {
+export function checkRateLimit(
+  key: string,
+  maxRequests: number = MAX_REQUESTS_PER_WINDOW,
+  windowMs: number = RATE_LIMIT_WINDOW_MS
+): { allowed: boolean; retryAfterSeconds?: number } {
   cleanupExpiredRecords();
   const now = Date.now();
-  const record = rateLimitStore.get(phone);
+  const record = rateLimitStore.get(key);
 
   if (!record || now > record.resetAt) {
-    rateLimitStore.set(phone, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    if (record) rateLimitStore.delete(key);
+    makeRoomForNewKey(now);
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
     return { allowed: true };
   }
 
-  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+  if (record.count >= maxRequests) {
     const retryAfterSeconds = Math.ceil((record.resetAt - now) / 1000);
     return { allowed: false, retryAfterSeconds };
   }
@@ -286,7 +343,7 @@ export async function checkDistributedRateLimit(
     console.warn('[Distributed RateLimit] Upstash call failed, falling back to in-memory:', err);
   }
 
-  return checkRateLimit(key);
+  return checkRateLimit(key, maxRequests, windowSeconds * 1000);
 }
 
 /**

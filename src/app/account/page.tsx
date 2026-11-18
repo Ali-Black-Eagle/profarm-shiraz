@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { farmStore } from '@/lib/db-store';
 import { Order, Address, Coupon, OrderStatus, ProductReview } from '@/types';
-import { formatToman, toPersianDigits, isValidIranPhone, getDeduplicatedPerks } from '@/lib/formatters';
+import { formatToman, toPersianDigits, isValidIranPhone, getDeduplicatedPerks, formatSubscriptionExpiry } from '@/lib/formatters';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import { UserInvoiceModal } from '@/components/modules/UserInvoiceModal';
 import {
@@ -1193,7 +1193,7 @@ function AccountContent() {
                       اعتبار:{' '}
                       {tier === 'FREE'
                         ? 'نامحدود'
-                        : (tier === 'PRO' ? user.proExpiresAt : user.plusExpiresAt) || 'ثبت در حساب کاربری'}
+                        : formatSubscriptionExpiry(tier === 'PRO' ? user.proExpiresAt : user.plusExpiresAt) || 'ثبت در حساب کاربری'}
                     </span>
                   </div>
 

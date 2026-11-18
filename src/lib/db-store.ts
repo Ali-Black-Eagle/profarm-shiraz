@@ -67,7 +67,14 @@ import {
   generateProductSeoKeywords,
 } from './seo-utils';
 import { hashPassword, verifyPassword, needsPasswordRehash } from './password';
-import { getDeduplicatedPerks, normalizePhoneNumber, isValidEmail } from './formatters';
+import {
+  getDeduplicatedPerks,
+  normalizePhoneNumber,
+  isValidEmail,
+  isValidIranPhone,
+  toEnglishDigits,
+  formatSubscriptionExpiry,
+} from './formatters';
 import { BusinessError } from './api-errors';
 
 export function sanitizeUser(user: User): User {
@@ -751,6 +758,8 @@ class FarmDataStore {
           if (mappedUser.phone) this.users.set(mappedUser.phone, mappedUser);
           if (mappedUser.id) this.users.set(mappedUser.id, mappedUser);
         }
+        // Users just loaded from PostgreSQL may carry the legacy admin hash: apply the admin policy again
+        this.applyAdminPasswordPolicy();
       }
 
       // 6. Coupons
@@ -1413,16 +1422,19 @@ class FarmDataStore {
   }
 
   private populateInitialUsers(): void {
-    INITIAL_ADMIN_ORDERS.forEach((ord) => {
-      if (ord.user) {
-        const u = { ...ord.user };
-        if (!u.username && u.phone) {
-          u.username = `user_${u.phone.slice(-4)}`;
+    // SECURITY: demo customers from the sample orders are seeded in non-production only
+    if (process.env.NODE_ENV !== 'production') {
+      INITIAL_ADMIN_ORDERS.forEach((ord) => {
+        if (ord.user) {
+          const u = { ...ord.user };
+          if (!u.username && u.phone) {
+            u.username = `user_${u.phone.slice(-4)}`;
+          }
+          if (u.phone) this.users.set(u.phone, u);
+          if (u.id) this.users.set(u.id, u);
         }
-        if (u.phone) this.users.set(u.phone, u);
-        if (u.id) this.users.set(u.id, u);
-      }
-    });
+      });
+    }
 
     // SECURITY (C-1 Fix):
     // 1. In browser: Do NOT compute PBKDF2 hashes or expose them in client state.
@@ -1434,6 +1446,8 @@ class FarmDataStore {
     let proPasswordHash = '';
 
     let generatedAdminPassword: string | null = null;
+    // Production without ADMIN_PASSWORD: the seeded admin is not created at all (see applyAdminPasswordPolicy)
+    let seedAdmin = true;
     if (!this.isBrowser()) {
       // SECURITY: no hard-coded admin password. See lib/admin-bootstrap.ts for the resolution order.
       const { resolveInitialAdminPassword } = require('./admin-bootstrap') as typeof import('./admin-bootstrap');
@@ -1442,10 +1456,10 @@ class FarmDataStore {
         adminPasswordHash = hashPassword(resolvedAdmin.password);
         if (resolvedAdmin.generated) generatedAdminPassword = resolvedAdmin.password;
       } else {
-        // Production without ADMIN_PASSWORD: refuse to create a known password.
-        // The seeded admin gets an unguessable hash until ADMIN_PASSWORD is configured.
-        console.error('[SECURITY] ADMIN_PASSWORD is not set. The initial admin account has no usable password until it is configured.');
-        adminPasswordHash = hashPassword(crypto.randomBytes(32).toString('hex'));
+        seedAdmin = false;
+        console.error(
+          '[SECURITY] ADMIN_PASSWORD is not set. The admin account was not created. Set ADMIN_PASSWORD and restart the server.'
+        );
       }
       if (process.env.NODE_ENV !== 'production') {
         userPasswordHash = hashPassword('user123');
@@ -1484,10 +1498,12 @@ class FarmDataStore {
         },
       ],
     };
-    if (adminUser.phone) this.users.set(adminUser.phone, adminUser);
-    if (adminUser.id) this.users.set(adminUser.id, adminUser);
-    if (generatedAdminPassword) {
-      this.pendingAdminCredentials = { user: adminUser, password: generatedAdminPassword };
+    if (seedAdmin) {
+      if (adminUser.phone) this.users.set(adminUser.phone, adminUser);
+      if (adminUser.id) this.users.set(adminUser.id, adminUser);
+      if (generatedAdminPassword) {
+        this.pendingAdminCredentials = { user: adminUser, password: generatedAdminPassword };
+      }
     }
 
     // SECURITY: Demo users (regular, plus, pro) are strictly seeded in non-production development/test only
@@ -1735,7 +1751,62 @@ class FarmDataStore {
     this.populateInitialBulkInquiries();
     this.initFromLocalStorage();
     this.loadServerState();
+    this.applyAdminPasswordPolicy();
     this.finalizeAdminBootstrap();
+  }
+
+  /**
+   * Admin password policy, applied at startup and after users are loaded from PostgreSQL.
+   * - ADMIN_PASSWORD_RESET=1 with ADMIN_INITIAL_PASSWORD/ADMIN_PASSWORD set: every admin password is reset
+   *   to the env value (any environment). Remove the flag after recovery.
+   * - Production only: an admin hash that still matches a legacy hard-coded password is replaced with the
+   *   env password, or with an unguessable random hash when no env password is configured.
+   * Development admin passwords are otherwise left untouched.
+   */
+  private applyAdminPasswordPolicy(): void {
+    if (this.isBrowser()) return;
+    // `next build` also evaluates this module with NODE_ENV=production. Builds must never write the data store,
+    // so the policy runs only when the server starts.
+    if (process.env.NEXT_PHASE === 'phase-production-build') return;
+    const { getEnvAdminPassword, isLegacyAdminHash, generateUnguessableAdminPassword } =
+      require('./admin-bootstrap') as typeof import('./admin-bootstrap');
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    const envPassword = getEnvAdminPassword();
+    const resetRequested = process.env.ADMIN_PASSWORD_RESET === '1' && Boolean(envPassword);
+    let changed = false;
+    let warnedLegacy = false;
+
+    // Each map key may hold its own copy of the same user object after a reload, so every copy is handled.
+    for (const u of this.users.values()) {
+      if (u.role !== 'ADMIN') continue;
+
+      if (resetRequested && envPassword) {
+        u.password = hashPassword(envPassword);
+        changed = true;
+        continue;
+      }
+
+      if (isProduction && u.password && isLegacyAdminHash(u.password)) {
+        if (envPassword) {
+          u.password = hashPassword(envPassword);
+        } else {
+          u.password = hashPassword(generateUnguessableAdminPassword());
+          if (!warnedLegacy) {
+            console.error(
+              '[SECURITY] The stored admin password was a legacy hard-coded value and has been disabled. Set ADMIN_PASSWORD (and ADMIN_PASSWORD_RESET=1 once) to restore admin access.'
+            );
+            warnedLegacy = true;
+          }
+        }
+        changed = true;
+      }
+    }
+
+    if (resetRequested) {
+      console.warn('[SECURITY] ADMIN_PASSWORD_RESET=1: admin password was reset from the environment. Remove this flag after recovery.');
+    }
+    if (changed) this.saveUsers();
   }
 
   /**
@@ -2790,6 +2861,18 @@ class FarmDataStore {
 
     const allUsers = Array.from(this.users.values()).filter((u, idx, arr) => arr.indexOf(u) === idx);
 
+    // Usernames must not look like a phone number or an email address (they are used as login identifiers)
+    if (typeof updates.username === 'string' && updates.username.trim()) {
+      const rawUname = toEnglishDigits(updates.username.trim());
+      if (rawUname.includes('@') || /^[+]?[\d\s\-()]+$/.test(rawUname) || isValidIranPhone(rawUname)) {
+        return {
+          success: false,
+          message: 'نام کاربری نمی‌تواند شماره تلفن یا آدرس ایمیل باشد.',
+          status: 400,
+        };
+      }
+    }
+
     // Username uniqueness
     if (typeof updates.username === 'string' && updates.username.trim()) {
       const cleanUname = updates.username.trim().toLowerCase();
@@ -2991,7 +3074,7 @@ class FarmDataStore {
       const vars: Record<string, string> = {
         '{customerName}': user.name || 'کاربر گرامی',
         '{tierName}': tier === 'PRO' ? 'پروفارم پرو (طلایی ۶ روزه)' : 'پروفارم پلاس (۵٪ تخفیف)',
-        '{expiresAt}': user.proExpiresAt || user.plusExpiresAt || '۱۴۰۵/۱۲/۲۹',
+        '{expiresAt}': formatSubscriptionExpiry(user.proExpiresAt || user.plusExpiresAt) || '۱۴۰۵/۱۲/۲۹',
         '{siteUrl}': 'profarm.ir',
       };
       const rendered = this.renderEventSms('SUBSCRIPTION_ACTIVATED', vars);
@@ -3001,6 +3084,85 @@ class FarmDataStore {
     }
 
     return user;
+  }
+
+  /**
+   * Activates a paid PLUS or PRO plan for the account with this id (called after a verified payment).
+   * Expiry is stored as an ISO timestamp. If the current expiry for the plan is still in the future,
+   * the new period is added on top of it; otherwise it starts now. Legacy non-ISO values count as expired.
+   */
+  activateSubscriptionForUser(userId: string, plan: 'PLUS' | 'PRO', months: number): User | null {
+    this.getAllUsers();
+    const user = Array.from(this.users.values()).find((u) => u.id === userId);
+    if (!user) return null;
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const currentExpiry = plan === 'PRO' ? user.proExpiresAt : user.plusExpiresAt;
+    const currentMs = currentExpiry && /^\d{4}-\d{2}-\d{2}T/.test(currentExpiry) ? Date.parse(currentExpiry) : NaN;
+    const base = !Number.isNaN(currentMs) && currentMs > now ? currentMs : now;
+    const expiresAt = new Date(base + Math.max(1, months) * 30 * DAY_MS).toISOString();
+
+    user.tier = plan;
+    user.subscriptionTier = plan;
+    user.isProMember = plan === 'PRO';
+    user.isPlusMember = plan === 'PLUS';
+    if (plan === 'PRO') {
+      user.proExpiresAt = expiresAt;
+    } else {
+      user.plusExpiresAt = expiresAt;
+    }
+
+    if (user.phone) this.users.set(user.phone, user);
+    if (user.id) this.users.set(user.id, user);
+    if (user.email) this.users.set(user.email.toLowerCase(), user);
+    this.saveUsers();
+    return user;
+  }
+
+  /**
+   * Completes a phone-only account (created by OTP sign-in, no password yet) through POST /api/auth/register.
+   * The caller must have verified the phone with phoneProof. Admins and accounts that already have a password are refused.
+   */
+  completePhoneRegistration(
+    userId: string,
+    params: { name: string; email?: string; password?: string }
+  ): { success: boolean; user?: User; message?: string; status?: number } {
+    this.getAllUsers();
+    const user = Array.from(this.users.values()).find((u) => u.id === userId);
+    if (!user) {
+      return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
+    }
+    if (user.role === 'ADMIN' || user.password) {
+      return { success: false, message: 'حساب کاربری با این شماره تلفن از قبل وجود دارد. لطفاً وارد شوید.', status: 409 };
+    }
+
+    const cleanEmail = params.email?.trim().toLowerCase() || undefined;
+    if (cleanEmail) {
+      if (user.email && user.email.trim().toLowerCase() !== cleanEmail) {
+        return { success: false, message: 'این شماره تلفن به حساب کاربری با ایمیل دیگری متصل است.', status: 409 };
+      }
+      const takenBy = Array.from(this.users.values()).find(
+        (u) => u.id !== user.id && u.email && u.email.trim().toLowerCase() === cleanEmail
+      );
+      if (takenBy) {
+        return { success: false, message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت شده است.', status: 409 };
+      }
+    }
+
+    if (params.name && params.name.trim()) user.name = params.name.trim();
+    if (cleanEmail) user.email = cleanEmail;
+    if (params.password && params.password.trim()) {
+      user.password = hashPassword(params.password.trim());
+      user.authProvider = 'PASSWORD';
+    }
+    user.isPhoneVerified = true;
+
+    if (user.phone) this.users.set(user.phone, user);
+    if (user.id) this.users.set(user.id, user);
+    if (user.email) this.users.set(user.email.toLowerCase(), user);
+    this.saveUsers();
+    return { success: true, user };
   }
 
   updateUserRole(identifier: string, role: UserRole): User | null {

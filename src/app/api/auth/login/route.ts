@@ -2,201 +2,139 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { sendOtp, verifyOtp, checkDistributedRateLimit } from '@/lib/sms';
 import { setSessionCookie } from '@/lib/session';
-import { getSecureClientIp } from '@/lib/formatters';
+import { getSecureClientIp, isValidIranPhone, normalizePhoneNumber } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
 
-interface PasswordRateLimit {
+interface FailureRecord {
   attempts: number;
   resetAt: number;
 }
+
+type LimitKind = 'ip' | 'pair' | 'identifier';
+
+interface LimitConfig {
+  /** Namespace used for the Upstash key (ratelimit:<ns>:<key>) */
+  ns: string;
+  /** Failures allowed inside one window */
+  max: number;
+  windowMs: number;
+  store: Map<string, FailureRecord>;
+}
+
 const g = (typeof globalThis !== 'undefined' ? globalThis : global) as unknown as {
-  __PROFARM_PWD_RATELIMIT_STORE__?: Map<string, PasswordRateLimit>;
-  __PROFARM_IP_RATELIMIT_STORE__?: Map<string, PasswordRateLimit>;
+  __PROFARM_IP_RATELIMIT_STORE__?: Map<string, FailureRecord>;
+  __PROFARM_PWD_RATELIMIT_STORE__?: Map<string, FailureRecord>;
+  __PROFARM_IDENTIFIER_RATELIMIT_STORE__?: Map<string, FailureRecord>;
 };
-const passwordLimitStore = g.__PROFARM_PWD_RATELIMIT_STORE__ || (g.__PROFARM_PWD_RATELIMIT_STORE__ = new Map<string, PasswordRateLimit>());
-const ipLimitStore = g.__PROFARM_IP_RATELIMIT_STORE__ || (g.__PROFARM_IP_RATELIMIT_STORE__ = new Map<string, PasswordRateLimit>());
+const ipStore = g.__PROFARM_IP_RATELIMIT_STORE__ || (g.__PROFARM_IP_RATELIMIT_STORE__ = new Map<string, FailureRecord>());
+const pairStore = g.__PROFARM_PWD_RATELIMIT_STORE__ || (g.__PROFARM_PWD_RATELIMIT_STORE__ = new Map<string, FailureRecord>());
+const identifierStore =
+  g.__PROFARM_IDENTIFIER_RATELIMIT_STORE__ ||
+  (g.__PROFARM_IDENTIFIER_RATELIMIT_STORE__ = new Map<string, FailureRecord>());
 
-// Lockout is keyed by `${ip}:${identifier}`: failures from one IP only lock that IP for that account.
-const MAX_PWD_ATTEMPTS = 5;
-// Looser separate cap for all failures from one IP (credential stuffing across many accounts)
-const MAX_IP_ATTEMPTS = 30;
-const PWD_WINDOW_MS = 10 * 60 * 1000; // 10 minutes lockout
-const PWD_WINDOW_SECONDS = 600;
+const TEN_MINUTES_MS = 10 * 60 * 1000;
 
-async function checkIpRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
-  const cleanIp = ip.trim();
+const LIMITS: Record<LimitKind, LimitConfig> = {
+  // All failed password logins from one IP (credential stuffing across many accounts)
+  ip: { ns: 'ip_login', max: 30, windowMs: TEN_MINUTES_MS, store: ipStore },
+  // Failed logins for one account from one IP: only that IP is locked out for that account
+  pair: { ns: 'pwd', max: 5, windowMs: TEN_MINUTES_MS, store: pairStore },
+  // Failed logins for one account from ANY IP: a global cap that does not depend on IP headers
+  identifier: { ns: 'id_login', max: 10, windowMs: 15 * 60 * 1000, store: identifierStore },
+};
+
+// Upper bound for each in-memory map (IP and identifier keys can be rotated by an attacker)
+const MAX_IN_MEMORY_KEYS = 10000;
+
+function makeRoom(store: Map<string, FailureRecord>, now: number): void {
+  if (store.size < MAX_IN_MEMORY_KEYS) return;
+  for (const [key, record] of store.entries()) {
+    if (now > record.resetAt) store.delete(key);
+  }
+  while (store.size >= MAX_IN_MEMORY_KEYS) {
+    const oldest = store.keys().next().value;
+    if (oldest === undefined) break;
+    store.delete(oldest);
+  }
+}
+
+/** Sends a Redis pipeline to Upstash when configured. Returns null when unavailable (local store is used). */
+async function upstashPipeline(commands: Array<Array<string | number>>): Promise<any[] | null> {
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!upstashUrl || !upstashToken) return null;
+  try {
+    const res = await fetch(`${upstashUrl}/pipeline`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${upstashToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(commands),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data) ? data : null;
+  } catch (err) {
+    console.warn('[Distributed RateLimit] Upstash call failed, using local store:', err);
+    return null;
+  }
+}
 
-  if (upstashUrl && upstashToken) {
-    try {
-      const redisKey = `ratelimit:ip_login:${cleanIp}`;
-      const res = await fetch(`${upstashUrl}/pipeline`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          ['GET', redisKey],
-          ['TTL', redisKey],
-        ]),
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const results = await res.json();
-        const attempts = parseInt(results?.[0]?.result || '0', 10);
-        const ttl = results?.[1]?.result || PWD_WINDOW_SECONDS;
-        if (attempts >= MAX_IP_ATTEMPTS) {
-          return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : PWD_WINDOW_SECONDS };
-        }
-        return { allowed: true };
-      }
-    } catch {}
+async function checkLimit(kind: LimitKind, key: string): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+  const cfg = LIMITS[kind];
+  const redisKey = `ratelimit:${cfg.ns}:${key}`;
+
+  const results = await upstashPipeline([
+    ['GET', redisKey],
+    ['TTL', redisKey],
+  ]);
+  if (results) {
+    const attempts = parseInt(String(results[0]?.result ?? '0'), 10) || 0;
+    const ttl = Number(results[1]?.result);
+    if (attempts >= cfg.max) {
+      return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : Math.ceil(cfg.windowMs / 1000) };
+    }
+    return { allowed: true };
   }
 
   const now = Date.now();
-  const record = ipLimitStore.get(cleanIp);
-  if (!record || now > record.resetAt) return { allowed: true };
-  if (record.attempts >= MAX_IP_ATTEMPTS) {
+  const record = cfg.store.get(key);
+  if (!record) return { allowed: true };
+  if (now > record.resetAt) {
+    cfg.store.delete(key);
+    return { allowed: true };
+  }
+  if (record.attempts >= cfg.max) {
     return { allowed: false, retryAfterSeconds: Math.ceil((record.resetAt - now) / 1000) };
   }
   return { allowed: true };
 }
 
-async function recordFailedIpAttempt(ip: string): Promise<void> {
-  const cleanIp = ip.trim();
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (upstashUrl && upstashToken) {
-    try {
-      const redisKey = `ratelimit:ip_login:${cleanIp}`;
-      await fetch(`${upstashUrl}/pipeline`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          ['INCR', redisKey],
-          ['EXPIRE', redisKey, PWD_WINDOW_SECONDS, 'NX'],
-        ]),
-        cache: 'no-store',
-      });
-    } catch {}
-  }
+async function recordFailure(kind: LimitKind, key: string): Promise<void> {
+  const cfg = LIMITS[kind];
+  const redisKey = `ratelimit:${cfg.ns}:${key}`;
+  await upstashPipeline([
+    ['INCR', redisKey],
+    ['EXPIRE', redisKey, Math.ceil(cfg.windowMs / 1000), 'NX'],
+  ]);
 
   const now = Date.now();
-  const record = ipLimitStore.get(cleanIp);
+  const record = cfg.store.get(key);
   if (!record || now > record.resetAt) {
-    ipLimitStore.set(cleanIp, { attempts: 1, resetAt: now + PWD_WINDOW_MS });
+    if (record) cfg.store.delete(key);
+    makeRoom(cfg.store, now);
+    cfg.store.set(key, { attempts: 1, resetAt: now + cfg.windowMs });
   } else {
     record.attempts += 1;
   }
 }
 
-async function checkPasswordRateLimit(identifier: string): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
-  const cleanId = identifier.trim().toLowerCase();
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (upstashUrl && upstashToken) {
-    try {
-      const redisKey = `ratelimit:pwd:${cleanId}`;
-      const res = await fetch(`${upstashUrl}/pipeline`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          ['GET', redisKey],
-          ['TTL', redisKey],
-        ]),
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const results = await res.json();
-        const attempts = parseInt(results?.[0]?.result || '0', 10);
-        const ttl = results?.[1]?.result || PWD_WINDOW_SECONDS;
-        if (attempts >= MAX_PWD_ATTEMPTS) {
-          return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : PWD_WINDOW_SECONDS };
-        }
-        return { allowed: true };
-      }
-    } catch (err) {
-      console.warn('[Distributed RateLimit] Upstash pwd check failed, using local store:', err);
-    }
-  }
-
-  const now = Date.now();
-  const record = passwordLimitStore.get(cleanId);
-
-  if (!record || now > record.resetAt) {
-    return { allowed: true };
-  }
-
-  if (record.attempts >= MAX_PWD_ATTEMPTS) {
-    const retryAfterSeconds = Math.ceil((record.resetAt - now) / 1000);
-    return { allowed: false, retryAfterSeconds };
-  }
-
-  return { allowed: true };
-}
-
-async function recordFailedPasswordAttempt(identifier: string): Promise<void> {
-  const cleanId = identifier.trim().toLowerCase();
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (upstashUrl && upstashToken) {
-    try {
-      const redisKey = `ratelimit:pwd:${cleanId}`;
-      await fetch(`${upstashUrl}/pipeline`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          ['INCR', redisKey],
-          ['EXPIRE', redisKey, PWD_WINDOW_SECONDS, 'NX'],
-        ]),
-        cache: 'no-store',
-      });
-    } catch (err) {
-      console.warn('[Distributed RateLimit] Upstash pwd fail record failed:', err);
-    }
-  }
-
-  const now = Date.now();
-  const record = passwordLimitStore.get(cleanId);
-
-  if (!record || now > record.resetAt) {
-    passwordLimitStore.set(cleanId, { attempts: 1, resetAt: now + PWD_WINDOW_MS });
-  } else {
-    record.attempts += 1;
-  }
-}
-
-async function clearPasswordRateLimit(identifier: string): Promise<void> {
-  const cleanId = identifier.trim().toLowerCase();
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (upstashUrl && upstashToken) {
-    try {
-      const redisKey = `ratelimit:pwd:${cleanId}`;
-      await fetch(`${upstashUrl}/del/${redisKey}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${upstashToken}` },
-        cache: 'no-store',
-      });
-    } catch {}
-  }
-
-  passwordLimitStore.delete(cleanId);
+async function clearLimit(kind: LimitKind, key: string): Promise<void> {
+  const cfg = LIMITS[kind];
+  await upstashPipeline([['DEL', `ratelimit:${cfg.ns}:${key}`]]);
+  cfg.store.delete(key);
 }
 
 export async function POST(req: NextRequest) {
@@ -212,9 +150,9 @@ export async function POST(req: NextRequest) {
     const rawIdentifier = identifier || username || phone;
     const userIdentifier = typeof rawIdentifier === 'string' ? rawIdentifier.trim() : '';
 
-    // Check IP-level rate limiting to prevent DoS against admin account and credential stuffing
+    // Per-IP cap across all accounts (credential stuffing). Keys are only as trustworthy as getSecureClientIp.
     const clientIp = getSecureClientIp(req);
-    const ipCheck = await checkIpRateLimit(clientIp);
+    const ipCheck = await checkLimit('ip', clientIp);
     if (!ipCheck.allowed) {
       return NextResponse.json(
         {
@@ -225,16 +163,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Password Login Mode (with Brute-Force Rate Limiting)
+    // 1. Password Login Mode (with brute-force limits)
     if (password && typeof password === 'string' && userIdentifier) {
-      // Lockout key combines IP and identifier so one IP cannot lock the account for everyone
-      const lockoutKey = `${clientIp}:${userIdentifier}`;
-      const rateCheck = await checkPasswordRateLimit(lockoutKey);
-      if (!rateCheck.allowed) {
+      const accountKey = userIdentifier.toLowerCase();
+
+      // Global per-account cap, independent of IP, so rotating IPs or headers cannot bypass it
+      const accountCheck = await checkLimit('identifier', accountKey);
+      if (!accountCheck.allowed) {
         return NextResponse.json(
           {
             success: false,
-            message: `تعداد تلاش‌های ناموفق ورود بیش از حد مجاز است. لطفاً ${rateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
+            message: `تعداد تلاش‌های ناموفق برای این حساب کاربری بیش از حد مجاز است. لطفاً ${accountCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
+          },
+          { status: 429 }
+        );
+      }
+
+      // Lockout key combines IP and identifier so one IP cannot lock the account for everyone
+      const pairKey = `${clientIp}:${accountKey}`;
+      const pairCheck = await checkLimit('pair', pairKey);
+      if (!pairCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های ناموفق ورود بیش از حد مجاز است. لطفاً ${pairCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
           },
           { status: 429 }
         );
@@ -242,16 +194,18 @@ export async function POST(req: NextRequest) {
 
       const user = farmStore.verifyUserPassword(userIdentifier, password);
       if (!user) {
-        await recordFailedPasswordAttempt(lockoutKey);
-        await recordFailedIpAttempt(clientIp);
+        await recordFailure('pair', pairKey);
+        await recordFailure('ip', clientIp);
+        await recordFailure('identifier', accountKey);
         return NextResponse.json(
           { success: false, message: 'شماره تلفن/ایمیل یا رمز عبور وارد شده نادرست است.' },
           { status: 401 }
         );
       }
 
-      // Success! Clear failed attempts
-      await clearPasswordRateLimit(lockoutKey);
+      // Success! Clear failed attempts for this account
+      await clearLimit('pair', pairKey);
+      await clearLimit('identifier', accountKey);
 
       const safeUser = sanitizeUser(user);
       const res = NextResponse.json({
@@ -274,7 +228,37 @@ export async function POST(req: NextRequest) {
 
     // 2. OTP Verification Mode
     if (code && userIdentifier) {
-      const verifyResult = await verifyOtp(userIdentifier, code);
+      if (!isValidIranPhone(userIdentifier)) {
+        return NextResponse.json(
+          { success: false, message: 'لطفاً شماره موبایل معتبر ۱۱ رقمی وارد نمایید (مانند ۰۹۱۷۱۲۳۴۵۶۷).' },
+          { status: 400 }
+        );
+      }
+      const phone = normalizePhoneNumber(userIdentifier);
+
+      // Same verify limiters as POST /api/auth/otp: per IP and per phone
+      const verifyIpCheck = await checkDistributedRateLimit(`otp_verify_ip:${clientIp}`, 20, 300);
+      if (!verifyIpCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyIpCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+          },
+          { status: 429 }
+        );
+      }
+      const verifyPhoneCheck = await checkDistributedRateLimit(`otp_verify_phone:${phone}`, 10, 900);
+      if (!verifyPhoneCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های تایید کد برای این شماره بیش از حد مجاز است. لطفاً ${verifyPhoneCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+          },
+          { status: 429 }
+        );
+      }
+
+      const verifyResult = await verifyOtp(phone, code);
       if (!verifyResult.success) {
         return NextResponse.json(verifyResult, { status: 400 });
       }
@@ -314,6 +298,13 @@ export async function POST(req: NextRequest) {
 
     // 3. Send OTP Mode (with IP rate limiting to prevent SMS toll fraud & bombing)
     if (userIdentifier) {
+      if (!isValidIranPhone(userIdentifier)) {
+        return NextResponse.json(
+          { success: false, message: 'لطفاً شماره موبایل معتبر ۱۱ رقمی وارد نمایید (مانند ۰۹۱۷۱۲۳۴۵۶۷).' },
+          { status: 400 }
+        );
+      }
+
       const ipRateCheck = await checkDistributedRateLimit(`otp_ip:${clientIp}`, 10, 600);
       if (!ipRateCheck.allowed) {
         return NextResponse.json(
@@ -325,7 +316,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const sendResult = await sendOtp(userIdentifier);
+      const sendResult = await sendOtp(normalizePhoneNumber(userIdentifier));
       return NextResponse.json(sendResult);
     }
 

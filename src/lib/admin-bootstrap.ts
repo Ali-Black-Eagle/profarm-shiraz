@@ -12,12 +12,15 @@
  * also bundled for the browser, does not pull node built-ins into the client build.
  */
 import crypto from 'crypto';
+import { verifyPassword } from './password';
 
 export const ADMIN_USERPASS_FILENAME = 'admin userpass.txt';
 export const ADMIN_BOOTSTRAP_PHONE = '09170000000';
 
 const GENERATED_PASSWORD_LENGTH = 20;
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%';
+// Hard-coded passwords that older builds seeded. They are never accepted from the environment and,
+// in production, a stored admin hash that still matches one of them is replaced at startup.
 const LEGACY_DEFAULT_PASSWORDS = new Set(['admin', 'Admin@ProFarm2026!#Shiraz']);
 
 function generatePassword(): string {
@@ -26,6 +29,27 @@ function generatePassword(): string {
     out += PASSWORD_ALPHABET[crypto.randomInt(PASSWORD_ALPHABET.length)];
   }
   return out;
+}
+
+/** An unguessable password (256 random bits). Used to lock an account until an admin password is configured. */
+export function generateUnguessableAdminPassword(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/** Admin password from ADMIN_INITIAL_PASSWORD / ADMIN_PASSWORD, or null. Legacy literals are ignored. */
+export function getEnvAdminPassword(): string | null {
+  const value = (process.env.ADMIN_INITIAL_PASSWORD || process.env.ADMIN_PASSWORD || '').trim();
+  if (!value || LEGACY_DEFAULT_PASSWORDS.has(value)) return null;
+  return value;
+}
+
+/** True when a stored PBKDF2 hash is one of the legacy hard-coded admin passwords. */
+export function isLegacyAdminHash(storedHash?: string | null): boolean {
+  if (!storedHash) return false;
+  for (const legacy of LEGACY_DEFAULT_PASSWORDS) {
+    if (verifyPassword(legacy, storedHash)) return true;
+  }
+  return false;
 }
 
 /** Reads the password from the Persian "کلمه عبور: ..." line of admin userpass.txt. */

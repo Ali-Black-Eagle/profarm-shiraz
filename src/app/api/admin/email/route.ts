@@ -61,8 +61,9 @@ export async function POST(req: NextRequest) {
       });
 
       if (!sendResult.success) {
+        console.error('[Admin Email] Send failed:', sendResult.message);
         return NextResponse.json(
-          { success: false, message: sendResult.message },
+          { success: false, message: 'ارسال ایمیل با خطا مواجه شد. لطفاً تنظیمات سرور ایمیل را بررسی فرمایید.' },
           { status: 500 }
         );
       }
@@ -90,6 +91,14 @@ export async function POST(req: NextRequest) {
         subject: cleanSubject,
         text: cleanContent,
       });
+
+      if (!sendResult.success) {
+        console.error('[Admin Email] User send failed:', sendResult.message);
+        return NextResponse.json(
+          { success: false, message: 'ارسال ایمیل به کاربر با خطا مواجه شد. لطفاً تنظیمات سرور ایمیل را بررسی فرمایید.' },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         success: true,

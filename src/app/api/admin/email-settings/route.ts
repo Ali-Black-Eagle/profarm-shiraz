@@ -41,11 +41,27 @@ export async function POST(req: NextRequest) {
 
     // A masked or empty password keeps the stored one
     let smtpPass = current.smtpPass;
+    let suppliedPass: string | undefined;
     if (typeof body.smtpPass === 'string') {
       const trimmed = body.smtpPass.trim();
       if (trimmed.length > 0 && !trimmed.includes('••')) {
         smtpPass = trimmed;
+        suppliedPass = trimmed;
       }
+    }
+
+    // SECURITY: the stored password must never be sent to a different SMTP host.
+    // Changing the host therefore requires a new password typed in this same request.
+    const requestedHost = typeof body.smtpHost === 'string' ? body.smtpHost.trim() : '';
+    const hostChanged = Boolean(requestedHost) && requestedHost !== current.smtpHost;
+    if (hostChanged && !suppliedPass) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'برای تغییر سرور SMTP، کلمه عبور جدید آن سرور را در همین درخواست وارد فرمایید.',
+        },
+        { status: 400 }
+      );
     }
 
     const parsedPort = body.smtpPort ? parseInt(String(body.smtpPort), 10) : NaN;

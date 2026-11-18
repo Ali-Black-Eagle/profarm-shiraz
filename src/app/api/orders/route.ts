@@ -144,6 +144,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (isSubscription) {
+      // Only the two paid plans can be bought. Anything else is rejected instead of defaulting to PRO.
+      if (subscriptionPlan !== 'PLUS' && subscriptionPlan !== 'PRO') {
+        return NextResponse.json(
+          { success: false, message: 'طرح اشتراک انتخابی نامعتبر است. لطفاً پلاس یا پرو را انتخاب فرمایید.' },
+          { status: 400 }
+        );
+      }
+
       const planPrice =
         subscriptionPlan === 'PLUS'
           ? subSettings.plusMonthlyPrice
@@ -201,7 +209,7 @@ export async function POST(req: NextRequest) {
 
         if (!prod) {
           return NextResponse.json(
-            { success: false, message: `محصول «${i.productId}» در فروشگاه یافت نشد.` },
+            { success: false, message: 'یکی از کالاهای سبد خرید در فروشگاه یافت نشد. لطفاً سبد خرید را بررسی فرمایید.' },
             { status: 400 }
           );
         }

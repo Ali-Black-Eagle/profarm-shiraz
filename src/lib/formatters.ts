@@ -220,68 +220,88 @@ export function calculateCartDiscounts(
 }
 
 /**
- * Safely extracts client IP address, resistant to X-Forwarded-For spoofing.
- * Prioritizes trusted CDN and reverse proxy headers:
- * 1. ArvanCloud edge header: ar-real-ip
- * 2. Cloudflare edge header: cf-connecting-ip
- * 3. True-Client-IP
- * 4. X-Real-IP
- * 5. Rightmost untrusted entry in X-Forwarded-For (closest to proxy)
+ * Returns the client IP used as a rate-limit key.
+ *
+ * Forwarded/CDN headers (ar-real-ip, cf-connecting-ip, true-client-ip, x-real-ip, x-forwarded-for) are
+ * client-controlled unless a proxy or CDN in front of the app overwrites them. They are therefore read
+ * ONLY when the operator sets TRUST_PROXY_HEADERS=1 (see .env.example).
+ *
+ * Without that flag the direct connection IP is used when the runtime exposes it; otherwise the constant
+ * 'unknown'. Note: all clients that map to 'unknown' share one bucket for IP-keyed limits.
  */
 export function getSecureClientIp(req: any): string {
-  if (!req || !req.headers) return '127.0.0.1';
-
-  // Helper to extract header value from NextRequest or plain headers map
-  const getHeader = (name: string): string | null => {
-    try {
-      if (typeof req.headers.get === 'function') {
-        return req.headers.get(name);
+  if (process.env.TRUST_PROXY_HEADERS === '1' && req && req.headers) {
+    // Helper to extract header value from NextRequest or plain headers map
+    const getHeader = (name: string): string | null => {
+      try {
+        if (typeof req.headers.get === 'function') {
+          return req.headers.get(name);
+        }
+        return req.headers[name] || req.headers[name.toLowerCase()] || null;
+      } catch {
+        return null;
       }
-      return req.headers[name] || req.headers[name.toLowerCase()] || null;
-    } catch {
-      return null;
+    };
+
+    // 1. ArvanCloud edge header
+    const arvanIp = getHeader('ar-real-ip');
+    if (arvanIp && typeof arvanIp === 'string') {
+      const clean = arvanIp.trim();
+      if (isValidIp(clean)) return clean;
     }
-  };
 
-  // 1. ArvanCloud edge header (cannot be forged when served through ArvanCloud CDN)
-  const arvanIp = getHeader('ar-real-ip');
-  if (arvanIp && typeof arvanIp === 'string') {
-    const clean = arvanIp.trim();
-    if (isValidIp(clean)) return clean;
-  }
+    // 2. Cloudflare connecting IP
+    const cfIp = getHeader('cf-connecting-ip');
+    if (cfIp && typeof cfIp === 'string') {
+      const clean = cfIp.trim();
+      if (isValidIp(clean)) return clean;
+    }
 
-  // 2. Cloudflare connecting IP (cannot be forged when behind Cloudflare)
-  const cfIp = getHeader('cf-connecting-ip');
-  if (cfIp && typeof cfIp === 'string') {
-    const clean = cfIp.trim();
-    if (isValidIp(clean)) return clean;
-  }
+    // 3. True-Client-IP (Akamai, Enterprise CDNs)
+    const trueClientIp = getHeader('true-client-ip');
+    if (trueClientIp && typeof trueClientIp === 'string') {
+      const clean = trueClientIp.trim();
+      if (isValidIp(clean)) return clean;
+    }
 
-  // 3. True-Client-IP (Akamai, Enterprise CDNs)
-  const trueClientIp = getHeader('true-client-ip');
-  if (trueClientIp && typeof trueClientIp === 'string') {
-    const clean = trueClientIp.trim();
-    if (isValidIp(clean)) return clean;
-  }
+    // 4. X-Real-IP (set by the reverse proxy from the socket address)
+    const xRealIp = getHeader('x-real-ip');
+    if (xRealIp && typeof xRealIp === 'string') {
+      const clean = xRealIp.trim();
+      if (isValidIp(clean)) return clean;
+    }
 
-  // 4. X-Real-IP (Standard reverse proxy / Nginx socket IP)
-  const xRealIp = getHeader('x-real-ip');
-  if (xRealIp && typeof xRealIp === 'string') {
-    const clean = xRealIp.trim();
-    if (isValidIp(clean)) return clean;
-  }
-
-  // 5. X-Forwarded-For: Take the rightmost valid entry (closest proxy/client, preventing client spoofing the left entry)
-  const xForwardedFor = getHeader('x-forwarded-for');
-  if (xForwardedFor && typeof xForwardedFor === 'string') {
-    const parts = xForwardedFor.split(',').map((p: string) => p.trim()).filter(Boolean);
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const candidate = parts[i];
-      if (isValidIp(candidate)) return candidate;
+    // 5. X-Forwarded-For: rightmost valid entry (closest proxy), never the client-supplied left side
+    const xForwardedFor = getHeader('x-forwarded-for');
+    if (xForwardedFor && typeof xForwardedFor === 'string') {
+      const parts = xForwardedFor.split(',').map((p: string) => p.trim()).filter(Boolean);
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const candidate = parts[i];
+        if (isValidIp(candidate)) return candidate;
+      }
     }
   }
 
-  return '127.0.0.1';
+  // Direct socket IP, when the runtime exposes it (NextRequest.ip is not typed in Next 16)
+  const directIp = req && typeof req.ip === 'string' ? req.ip.trim() : '';
+  if (directIp && isValidIp(directIp)) return directIp;
+
+  return 'unknown';
+}
+
+/**
+ * Formats a stored subscription expiry for display. New values are ISO timestamps; legacy values
+ * (Persian/Jalali strings) are returned unchanged.
+ */
+export function formatSubscriptionExpiry(value?: string | null): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const ms = Date.parse(value);
+    if (!Number.isNaN(ms)) {
+      return toPersianDigits(new Date(ms).toLocaleDateString('fa-IR'));
+    }
+  }
+  return value;
 }
 
 function isValidIp(ip: string): boolean {

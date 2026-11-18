@@ -4,6 +4,7 @@ import { setSessionCookie, verifyPhoneProof } from '@/lib/session';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { isValidEmail } from '@/lib/email';
 import { apiErrorResponse } from '@/lib/api-errors';
+import type { User } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,17 +55,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auto username: email or phone (no separate username field needed)
-    const autoUsername = cleanEmail || cleanPhone;
+    // A phone account created by OTP sign-in (POST /api/auth/otp verify) has no password yet.
+    // The OTP-verified owner completes it here instead of getting a 409.
+    const existingPhoneUser = cleanPhone ? farmStore.getUserByPhone(cleanPhone) : undefined;
+    let user: User;
+    if (existingPhoneUser && !existingPhoneUser.password) {
+      const completed = farmStore.completePhoneRegistration(existingPhoneUser.id, {
+        name: cleanName,
+        email: cleanEmail || undefined,
+        password: cleanPassword || undefined,
+      });
+      if (!completed.success || !completed.user) {
+        return NextResponse.json(
+          { success: false, message: completed.message || 'خطا در تکمیل ثبت‌نام' },
+          { status: completed.status || 409 }
+        );
+      }
+      user = completed.user;
+    } else {
+      // Auto username: email or phone (no separate username field needed)
+      const autoUsername = cleanEmail || cleanPhone;
 
-    const user = farmStore.registerUser({
-      name: cleanName,
-      email: cleanEmail || undefined,
-      phone: cleanPhone || undefined,
-      phoneVerified: Boolean(cleanPhone),
-      username: autoUsername,
-      password: cleanPassword || undefined,
-    });
+      user = farmStore.registerUser({
+        name: cleanName,
+        email: cleanEmail || undefined,
+        phone: cleanPhone || undefined,
+        phoneVerified: Boolean(cleanPhone),
+        username: autoUsername,
+        password: cleanPassword || undefined,
+      });
+    }
 
     const safeUser = sanitizeUser(user);
     const res = NextResponse.json({

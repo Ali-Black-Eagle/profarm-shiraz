@@ -119,7 +119,7 @@ async function main() {
   const plusUserPassword = hashPassword('plus123');
   const proUserPassword = hashPassword('pro123');
 
-  const usersToSeed = [
+  const usersToSeedAll = [
     {
       id: 'usr-admin',
       phone: '09170000000',
@@ -277,6 +277,12 @@ async function main() {
       },
     },
   ];
+
+  // SECURITY: demo accounts with fixed passwords (user123 / plus123 / pro123) are never seeded in production
+  const usersToSeed =
+    process.env.NODE_ENV === 'production'
+      ? usersToSeedAll.filter((u) => u.id === 'usr-admin')
+      : usersToSeedAll;
 
   for (const u of usersToSeed) {
     const userRecord = await prisma.user.upsert({

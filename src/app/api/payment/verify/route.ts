@@ -3,6 +3,27 @@ import { verifyPayment } from '@/lib/zarinpal';
 import { verifySnappPayPayment } from '@/lib/snapppay';
 import { farmStore } from '@/lib/db-store';
 import { isMockGatewayEnabled, verifyMockAuthority, MOCK_AUTHORITY_PREFIX } from '@/lib/mock-gateway';
+import type { Order } from '@/types';
+
+// Subscriptions are sold for one month (see POST /api/orders)
+const SUBSCRIPTION_MONTHS = 1;
+
+/**
+ * Activates the paid plan for the account that placed the order (order.userId), never for a phone
+ * number typed at checkout. Plans outside PLUS/PRO are ignored.
+ */
+function activateSubscriptionFromOrder(order: Order): void {
+  const plan = order.subscriptionPlan;
+  if (!order.isSubscription || (plan !== 'PLUS' && plan !== 'PRO')) return;
+  if (!order.userId) {
+    console.error(`[Subscription] Order ${order.orderNumber} has no owner account; plan not activated.`);
+    return;
+  }
+  const updated = farmStore.activateSubscriptionForUser(order.userId, plan, SUBSCRIPTION_MONTHS);
+  if (!updated) {
+    console.error(`[Subscription] Owner account not found for order ${order.orderNumber}; plan not activated.`);
+  }
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -34,9 +55,7 @@ export async function GET(req: NextRequest) {
   // SECURITY: Validate that the callback's authority strictly matches the one registered on this order
   const incomingAuthority = (authority || token || '').trim();
   if (!order.payment?.authority || !incomingAuthority || incomingAuthority !== order.payment.authority) {
-    console.warn(
-      `[Security Alert] Authority mismatch or missing for order ${orderNumber}. Expected: ${order.payment?.authority}, Received: ${incomingAuthority}`
-    );
+    console.warn(`[Security Alert] Authority mismatch or missing for order ${orderNumber}.`);
     return NextResponse.redirect(
       new URL('/checkout?error=invalid_payment_authority', req.url)
     );
@@ -83,27 +102,7 @@ export async function GET(req: NextRequest) {
       // Send ORDER_PLACED notification SMS now that payment is confirmed
       farmStore.sendOrderPlacedSms(order);
 
-      if (order.isSubscription && order.subscriptionPlan) {
-        const userPhone = order.address?.phone || order.user?.phone;
-        if (userPhone) {
-          const isPlus = order.subscriptionPlan === 'PLUS';
-          farmStore.toggleProMembership(userPhone, true);
-          const u = farmStore.getUserByPhone(userPhone);
-          if (u) {
-            u.tier = order.subscriptionPlan;
-            u.isProMember = true;
-            u.isPlusMember = isPlus;
-            const exp = new Date();
-            exp.setDate(exp.getDate() + 30);
-            const expJalali = exp.toLocaleDateString('fa-IR');
-            if (isPlus) {
-              u.plusExpiresAt = expJalali;
-            } else {
-              u.proExpiresAt = expJalali;
-            }
-          }
-        }
-      }
+      activateSubscriptionFromOrder(order);
       farmStore.saveServerState();
 
       return NextResponse.redirect(
@@ -166,27 +165,7 @@ export async function GET(req: NextRequest) {
     // Send ORDER_PLACED notification SMS now that payment is confirmed
     farmStore.sendOrderPlacedSms(order);
 
-    if (order.isSubscription && order.subscriptionPlan) {
-      const userPhone = order.address?.phone || order.user?.phone;
-      if (userPhone) {
-        const isPlus = order.subscriptionPlan === 'PLUS';
-        farmStore.toggleProMembership(userPhone, true);
-        const u = farmStore.getUserByPhone(userPhone);
-        if (u) {
-          u.tier = order.subscriptionPlan;
-          u.isProMember = true;
-          u.isPlusMember = isPlus;
-          const exp = new Date();
-          exp.setDate(exp.getDate() + 30);
-          const expJalali = exp.toLocaleDateString('fa-IR');
-          if (isPlus) {
-            u.plusExpiresAt = expJalali;
-          } else {
-            u.proExpiresAt = expJalali;
-          }
-        }
-      }
-    }
+    activateSubscriptionFromOrder(order);
     farmStore.saveServerState();
 
     return NextResponse.redirect(

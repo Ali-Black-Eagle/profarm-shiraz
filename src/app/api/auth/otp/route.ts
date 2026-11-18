@@ -110,6 +110,17 @@ export async function POST(req: NextRequest) {
           { status: 429 }
         );
       }
+      // Per-phone cap: a rotated IP still cannot try unlimited codes for one number
+      const verifyPhoneCheck = await checkDistributedRateLimit(`otp_verify_phone:${cleanPhone}`, 10, 900);
+      if (!verifyPhoneCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های تایید کد برای این شماره بیش از حد مجاز است. لطفاً ${verifyPhoneCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+          },
+          { status: 429 }
+        );
+      }
 
       const verifyResult = await verifyOtp(cleanPhone, code);
       if (!verifyResult.success) {

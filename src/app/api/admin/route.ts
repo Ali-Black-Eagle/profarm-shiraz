@@ -113,7 +113,8 @@ export async function POST(req: NextRequest) {
           );
         }
       }
-      const updated = farmStore.updateUserRole(identifier, role);
+      // Use the resolved account id, not the raw identifier typed by the admin (phone/email matching is above)
+      const updated = farmStore.updateUserRole(targetUser.id, role);
       return NextResponse.json({ success: true, user: updated ? sanitizeUser(updated) : null });
     }
 

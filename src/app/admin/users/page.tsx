@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { farmStore } from '@/lib/db-store';
 import { User, SubscriptionTier, UserRole } from '@/types';
-import { toPersianDigits } from '@/lib/formatters';
+import { toPersianDigits, formatSubscriptionExpiry } from '@/lib/formatters';
 import { formatToJalali } from '@/lib/jalali';
 import { useAuth } from '@/hooks/useAuth';
 import { Dialog } from '@/components/ui/Dialog';
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
     setEditingUser(user);
     const tier: SubscriptionTier = user.subscriptionTier || (user.isProMember ? 'PRO' : user.isPlusMember ? 'PLUS' : 'FREE');
     setSelectedTier(tier);
-    const expiry = tier === 'PRO' ? (user.proExpiresAt || jalaliExpiryFromNow(1)) : tier === 'PLUS' ? (user.plusExpiresAt || jalaliExpiryFromNow(1)) : '';
+    const expiry = tier === 'PRO' ? (formatSubscriptionExpiry(user.proExpiresAt) || jalaliExpiryFromNow(1)) : tier === 'PLUS' ? (formatSubscriptionExpiry(user.plusExpiresAt) || jalaliExpiryFromNow(1)) : '';
     setCustomExpiry(expiry);
     setUserRole(user.role || 'USER');
     setSaveError(null);
@@ -424,7 +424,7 @@ export default function AdminUsersPage() {
                 filteredUsers.map((user) => {
                   const isPro = user.isProMember || user.subscriptionTier === 'PRO';
                   const isPlus = !isPro && (user.isPlusMember || user.subscriptionTier === 'PLUS');
-                  const expiry = isPro ? user.proExpiresAt : isPlus ? user.plusExpiresAt : null;
+                  const expiry = isPro ? formatSubscriptionExpiry(user.proExpiresAt) : isPlus ? formatSubscriptionExpiry(user.plusExpiresAt) : null;
 
                   return (
                     <tr key={user.id || user.phone} className="hover:bg-gray-50/70 transition-colors">
