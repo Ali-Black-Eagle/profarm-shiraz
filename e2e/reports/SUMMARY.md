@@ -69,9 +69,13 @@ The 3 skipped tests need the clock moved forward (subscription expiry, the rolli
 
 ## Still open
 - ~~**zod:** below 4.6.6, high advisory.~~ Resolved: upgraded to 4.6.7 (merged from `chore/zod-v4`); `npm audit` reports 0 vulnerabilities and the full suite still passes.
-- **Unverified email claim:** a logged-in user can put an unused email on their profile, which blocks registration with that email. Fixing it needs email verification.
-- **Session version coverage:** only admin APIs and `/api/auth/me` check it. Other customer routes accept an older token until it expires.
-- **CSP:** it still allows `unsafe-inline`/`unsafe-eval`. Cash-on-delivery orders can hold stock indefinitely. OTP codes are 5 digits.
+- ~~**Unverified email claim.**~~ Resolved: emails are reserved only after a 6-digit code is entered (profile change and email sign-up). Codes are never logged or stored in plain text.
+- ~~**Session version coverage.**~~ Resolved: every customer route goes through `requireUser`/`getOptionalUser`, so a password change logs out old sessions everywhere.
+- **CSP:** production no longer allows `unsafe-eval`; `unsafe-inline` remains (Next.js needs it without nonces).
+- ~~**COD stock hold.**~~ Resolved: unconfirmed cash-on-delivery orders are cancelled after `codConfirmationHours` (default 48), with at most 3 open per account and per phone.
+- **OTP codes** are still 5 digits (attempts are capped).
+- **Postgres mode:** run `npx prisma db push` once to add `isEmailVerified`, `pendingEmail` and `sessionVersion` to the `User` table.
+- **Verification codes** live in memory: lost on restart and not shared across several server instances.
 - **Untested here:**
   - Live ZarinPal/SnappPay, real SMS and SMTP.
   - The Postgres mirror running live.
