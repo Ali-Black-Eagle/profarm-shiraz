@@ -254,6 +254,8 @@ export interface Product {
   description: string;
   category: string;
   price: number; // تومان
+  /** false = inactive: hidden from customers (set by the admin). Missing means active. */
+  isAvailable?: boolean;
   costPrice?: number; // قیمت خرید از مزرعه / تمام شده (تومان)
   packSize?: string | null; // مانند "بسته ۳۰ عددی" یا "شیشه ۵۰۰ گرمی"
   /** Number of eggs per pack (explicit; preferred over guessing from packSize / title). */
@@ -429,6 +431,8 @@ export interface Order {
   paidAfterCancel?: boolean;
   paymentMethod?: 'zarinpal' | 'snapppay' | 'cod' | string;
   isShiraz?: boolean;
+  /** Set when the order reaches DELIVERED (ISO). The 7-day return window starts here. */
+  deliveredAt?: string | null;
 
   createdAt: string;
   updatedAt?: string;
@@ -633,6 +637,10 @@ export type ReturnStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'REFUNDED';
 export interface ReturnRequest {
   id: string;
   orderNumber: string;
+  /** Account that opened the request (customer returns). Absent on admin-created records. */
+  userId?: string;
+  /** Product slug/id of the returned line (customer returns). */
+  productId?: string;
   customerName: string;
   customerPhone: string;
   productTitle?: string;

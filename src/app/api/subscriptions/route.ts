@@ -10,11 +10,39 @@ export async function GET() {
     const settings = farmStore.getSubscriptionSettings();
     const stats = farmStore.getSubscriptionStats();
 
+    // Public plan summary for the membership page. Prices, quotas and percentages come from the admin settings;
+    // member counts are aggregates only (no member names, phones or emails).
+    const plans = {
+      PLUS: {
+        monthlyPrice: settings.plusMonthlyPrice,
+        eggDiscountPercent: settings.plusEggDiscountPercent,
+        eggQuota: settings.plusEggMaxQuota,
+        deliveryDaysPerWeek: settings.plusDeliveryDaysPerWeek,
+        maxCapacity: settings.plusMaxCapacity,
+        remainingCapacity: stats.plusRemaining,
+        isFull: stats.isPlusFull,
+        features: settings.plusFeatures,
+      },
+      PRO: {
+        monthlyPrice: settings.proMonthlyPrice,
+        eggDiscountPercent: settings.proEggDiscountPercent,
+        eggQuota: settings.proEggMaxQuota,
+        otherDiscountPercent: settings.proOtherDiscountPercent,
+        shippingDiscountPercent: settings.proShippingDiscountPercent,
+        deliveryDaysPerWeek: settings.proDeliveryDaysPerWeek,
+        maxCapacity: settings.proMaxCapacity,
+        remainingCapacity: stats.proRemaining,
+        isFull: stats.isProFull,
+        features: settings.proFeatures,
+      },
+    };
+
     return NextResponse.json(
       {
         success: true,
         settings,
         stats,
+        plans,
       },
       {
         headers: {

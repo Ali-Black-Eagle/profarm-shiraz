@@ -4,17 +4,10 @@ import { getSessionFromRequest } from '@/lib/session';
 import { getSecureClientIp } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { apiErrorResponse } from '@/lib/api-errors';
-import { quoteCart, CartQuote } from '@/lib/pricing';
+import { quoteCart } from '@/lib/pricing';
+import { publicQuote } from '@/lib/public-api';
 
 export const dynamic = 'force-dynamic';
-
-/** Quote without the internal product snapshots (cost prices never leave the server). */
-function publicQuote(quote: CartQuote) {
-  return {
-    ...quote,
-    lines: quote.lines.map(({ product: _product, costPrice: _cost, ...line }) => line),
-  };
-}
 
 /**
  * POST /api/orders/quote

@@ -4,6 +4,9 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { getSecureClientIp } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getSessionFromRequest } from '@/lib/session';
+import { quoteCart } from '@/lib/pricing';
+import { publicCoupon, publicQuote } from '@/lib/public-api';
 
 export async function GET(request: Request) {
   try {
@@ -51,12 +54,58 @@ export async function GET(request: Request) {
   }
 }
 
+/** Legacy cart shape ({ product: { id | slug }, quantity }) mapped to { productId, quantity }. */
+function legacyCartItems(cartItems: unknown): { productId: string; quantity: number }[] {
+  if (!Array.isArray(cartItems)) return [];
+  return cartItems.map((ci: any) => ({
+    productId: String(ci?.productId ?? ci?.product?.slug ?? ci?.product?.id ?? ''),
+    quantity: Number(ci?.quantity),
+  }));
+}
+
+/** Prices the cart with the session account (guests as FREE) and reports whether the coupon applies. */
+function validateCouponForCart(request: Request, body: any) {
+  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  const items = Array.isArray(body.items) ? body.items : legacyCartItems(body.cartItems);
+  const session = getSessionFromRequest(request);
+  const user = session ? farmStore.getAllUsers().find((u) => u.id === session.userId) ?? null : null;
+  const address = body.address && typeof body.address === 'object' ? body.address : {};
+  const city = typeof address.city === 'string' ? address.city : typeof body.city === 'string' ? body.city : undefined;
+  const province =
+    typeof address.province === 'string' ? address.province : typeof body.province === 'string' ? body.province : undefined;
+  const slotId = typeof body.slotId === 'string' ? body.slotId : null;
+
+  if (!code) {
+    return { success: true, isValid: false, valid: false, message: 'لطفاً کد تخفیف را وارد نمایید.', discountAmount: 0 };
+  }
+
+  const quote = quoteCart({ user, items, couponCode: code, slotId, city, province, requireSlot: false });
+  const coupon = quote.couponCode ? farmStore.getCouponByCode(quote.couponCode) : undefined;
+  const valid = Boolean(coupon) && quote.lines.length > 0;
+  const message = valid
+    ? quote.couponMessage ?? ''
+    : quote.couponError ?? (quote.lines.length === 0 ? 'سبد خرید خالی است.' : 'کد تخفیف وارد شده معتبر نمی‌باشد.');
+
+  return {
+    success: true,
+    isValid: valid,
+    valid,
+    message,
+    discountAmount: valid ? quote.couponDiscount : 0,
+    targetType: coupon?.targetType,
+    coupon: valid && coupon ? publicCoupon(coupon) : undefined,
+    quote: publicQuote(quote),
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Check if this is a validation request (allowed for customers)
-    if (body.action === 'validate') {
+    // Validation (customers, also guests): priced through quoteCart, the same function that charges the order.
+    // Body: { code, items: [{productId, quantity}], slotId?, address?: {city, province} }.
+    // The legacy body { action: 'validate', code, cartItems, shippingFee, itemsSubtotal } is still accepted.
+    if (body.action === 'validate' || Array.isArray(body.items)) {
       // SECURITY: Rate limit coupon validation to prevent brute-force attacks (15 attempts / 5 mins)
       const ip = getSecureClientIp(request);
       const rateCheck = await checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
@@ -70,9 +119,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const { code, cartItems = [], shippingFee = 0, itemsSubtotal = 0 } = body;
-      const result = farmStore.validateAndApplyCoupon(code, cartItems, shippingFee, itemsSubtotal);
-      return NextResponse.json(result);
+      return NextResponse.json(validateCouponForCart(request, body));
     }
 
     // Otherwise it's coupon creation -> requires ADMIN

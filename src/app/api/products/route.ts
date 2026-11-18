@@ -2,41 +2,68 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { matchesSearch, toPublicProduct } from '@/lib/public-api';
 
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/products
+ * ?slug=<slug>          one active product + related products (same category first, max ?limit, default 4)
+ * ?category=, ?search=  filters (search ignores case, ي/ك vs ی/ک and spacing inside words)
+ * ?organic=true, ?bulk=true, ?limit=<1..200>
+ * Inactive products (isAvailable === false) are never listed. costPrice is never returned.
+ */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const slug = searchParams.get('slug')?.trim() || '';
     const category = searchParams.get('category');
-    const search = searchParams.get('search')?.toLowerCase();
+    const search = searchParams.get('search')?.trim() || '';
     const organicOnly = searchParams.get('organic') === 'true';
     const bulkOnly = searchParams.get('bulk') === 'true';
+    const limitRaw = searchParams.get('limit');
+    const parsedLimit = Math.floor(Number(limitRaw));
+    const limit = limitRaw && Number.isFinite(parsedLimit) ? Math.min(200, Math.max(1, parsedLimit)) : null;
 
-    let products = farmStore.getProducts();
+    const visible = farmStore.getProducts().filter((p) => p.isAvailable !== false);
 
+    if (slug) {
+      const product = visible.find((p) => p.slug === slug || p.id === slug);
+      if (!product) {
+        return NextResponse.json({ success: false, message: 'محصول مورد نظر یافت نشد.' }, { status: 404 });
+      }
+      const others = visible.filter((p) => p.id !== product.id);
+      const sameCategory = others.filter((p) => p.category === product.category);
+      const rest = others.filter((p) => p.category !== product.category);
+      const related = [...sameCategory, ...rest].slice(0, limit ?? 4);
+      return NextResponse.json({
+        success: true,
+        product: toPublicProduct(product),
+        related: related.map((p) => toPublicProduct(p)),
+      });
+    }
+
+    let products = visible;
     if (category && category !== 'همه محصولات') {
       products = products.filter((p) => p.category === category);
     }
-
     if (search) {
-      products = products.filter(
-        (p) =>
-          p.title.toLowerCase().includes(search) ||
-          p.description.toLowerCase().includes(search)
-      );
+      products = products.filter((p) => matchesSearch([p.title, p.description, p.category], search));
     }
-
     if (organicOnly) {
       products = products.filter((p) => p.isOrganicCertified);
     }
-
     if (bulkOnly) {
       products = products.filter((p) => p.isBulkEligible);
     }
 
+    const count = products.length;
+    if (limit !== null) products = products.slice(0, limit);
+
     return NextResponse.json({
       success: true,
-      products,
-      count: products.length,
+      products: products.map((p) => toPublicProduct(p)),
+      count,
     });
   } catch (error: unknown) {
     return apiErrorResponse(error, 'products GET', 'خطا در دریافت لیست محصولات');

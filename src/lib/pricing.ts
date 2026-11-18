@@ -68,6 +68,8 @@ export interface CartQuote {
   couponCode: string | null;
   couponDiscount: number;
   couponMessage: string | null;
+  /** Why the requested coupon was not applied (null when no coupon was requested or it was applied). */
+  couponError: string | null;
   total: number;
   isBulk: boolean;
   isShiraz: boolean;
@@ -97,6 +99,7 @@ function emptyQuote(tier: SubscriptionTier): CartQuote {
     couponCode: null,
     couponDiscount: 0,
     couponMessage: null,
+    couponError: null,
     total: 0,
     isBulk: false,
     isShiraz: true,
@@ -261,6 +264,7 @@ export function quoteCart(input: QuoteInput): CartQuote {
   let couponDiscount = 0;
   let couponCode: string | null = null;
   let couponMessage: string | null = null;
+  let couponError: string | null = null;
   if (input.couponCode && String(input.couponCode).trim()) {
     const couponResult = farmStore.validateAndApplyCoupon(
       String(input.couponCode),
@@ -277,6 +281,7 @@ export function quoteCart(input: QuoteInput): CartQuote {
       couponCode = couponResult.coupon.code;
       couponMessage = couponResult.message;
     } else {
+      couponError = couponResult.message;
       quote.errors.push(couponResult.message);
     }
   }
@@ -309,6 +314,7 @@ export function quoteCart(input: QuoteInput): CartQuote {
   quote.couponCode = couponCode;
   quote.couponDiscount = couponDiscount;
   quote.couponMessage = couponMessage;
+  quote.couponError = couponError;
   quote.total = Math.max(0, afterTier + shipping - couponDiscount);
   quote.isBulk = isBulk;
   quote.isShiraz = isShiraz;

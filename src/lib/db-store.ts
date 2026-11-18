@@ -4,6 +4,7 @@
  */
 import crypto from 'crypto';
 import {
+  Address,
   Product,
   Order,
   OrderItem,
@@ -2961,6 +2962,15 @@ class FarmDataStore {
     return BOM + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
   }
 
+  /** Replaces the saved address book of one account. Used by /api/account/addresses. Returns null for an unknown account. */
+  setUserAddresses(userId: string, addresses: Address[]): User | null {
+    const user = this.getAllUsers().find((u) => u.id === userId);
+    if (!user) return null;
+    user.addresses = addresses;
+    this.saveUsers();
+    return user;
+  }
+
   // --- USERS & PRO MEMBERSHIP ---
   private saveUsers(): void {
     // SECURITY: Always sanitize users (remove password hash) before writing to localStorage
@@ -3538,7 +3548,8 @@ class FarmDataStore {
   createReturnRequest(data: Omit<ReturnRequest, 'id' | 'createdAt' | 'updatedAt'>): ReturnRequest {
     const newReq: ReturnRequest = {
       ...data,
-      id: `ret-${Date.now()}`,
+      // Random suffix: several lines of one return can be created within the same millisecond.
+      id: `ret-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
       createdAt: new Date().toLocaleDateString('fa-IR'),
       updatedAt: new Date().toLocaleDateString('fa-IR'),
     };
@@ -4350,6 +4361,9 @@ class FarmDataStore {
       this.cancelOrderSideEffects(order);
     } else {
       order.status = newStatus;
+      if (newStatus === 'DELIVERED') {
+        order.deliveredAt = new Date().toISOString();
+      }
       this.countOrderCouponOnce(order);
     }
     order.updatedAt = new Date().toISOString();

@@ -1,15 +1,13 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
-import { requestPayment } from '@/lib/zarinpal';
-import { requestSnappPayPayment } from '@/lib/snapppay';
 import { Order, OrderItem, Product } from '@/types';
 import { getSessionFromRequest } from '@/lib/session';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
-import { isMockGatewayEnabled, createMockAuthority } from '@/lib/mock-gateway';
+import { initOnlinePayment, OnlinePaymentMethod } from '@/lib/payment-init';
 import { quoteCart } from '@/lib/pricing';
 import { withOrderLock } from '@/lib/order-lock';
 
@@ -24,6 +22,23 @@ function sanitizeText(str?: string | null, maxLen = 200): string {
 function publicProductSnapshot(product: Product): Product {
   const { costPrice: _cost, ...rest } = product;
   return rest as Product;
+}
+
+/**
+ * Pagination for GET /api/orders. Only when ?page is present; without it the response keeps its original shape.
+ * ?pageSize defaults to 20 (max 50). Orders are returned newest first, as stored.
+ */
+function paginatedOrdersResponse(list: Order[], searchParams: URLSearchParams): NextResponse | null {
+  if (!searchParams.has('page')) return null;
+  const pageSize = Math.min(50, Math.max(1, Math.floor(Number(searchParams.get('pageSize')) || 20)));
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(totalPages, Math.max(1, Math.floor(Number(searchParams.get('page')) || 1)));
+  return NextResponse.json({
+    success: true,
+    orders: list.slice((page - 1) * pageSize, page * pageSize),
+    pagination: { page, pageSize, total, totalPages },
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -49,7 +64,7 @@ export async function GET(req: NextRequest) {
       );
       return NextResponse.json({ success: true, order: single || null, orders: single ? [single] : [] });
     }
-    return NextResponse.json({ success: true, orders: allOrders });
+    return paginatedOrdersResponse(allOrders, searchParams) ?? NextResponse.json({ success: true, orders: allOrders });
   }
 
   // SECURITY: customers see only orders linked to their account id.
@@ -69,7 +84,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, order: matchedOrder, orders: [matchedOrder] });
   }
 
-  return NextResponse.json({ success: true, orders: userOrders });
+  return paginatedOrdersResponse(userOrders, searchParams) ?? NextResponse.json({ success: true, orders: userOrders });
 }
 
 export async function POST(req: NextRequest) {
@@ -260,96 +275,37 @@ export async function POST(req: NextRequest) {
     }
 
     // Online payment. If the gateway refuses the request, the order is cancelled at once so its stock is released.
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const callbackBase = `${appUrl}/api/payment/verify?orderNumber=${encodeURIComponent(orderNumber)}`;
-
     const failAndRelease = async (message: string) => {
       await withOrderLock(orderNumber, () => farmStore.updateOrderStatus(orderNumber, 'CANCELLED'));
       return NextResponse.json({ success: false, message }, { status: 400 });
     };
 
-    if (method === 'snapppay') {
-      const snappPayReq = await requestSnappPayPayment({
-        amount,
-        description: `خرید اقساطی ۴ ماهه اسنپ‌پی سفارش کد ${orderNumber}`,
-        orderNumber,
-        callbackUrl: `${callbackBase}&gateway=snapppay`,
-        mobile: phone,
-      });
-
-      if (!snappPayReq.success || !snappPayReq.paymentUrl) {
-        return failAndRelease(snappPayReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت اقساطی اسنپ‌پی');
-      }
-
-      farmStore.attachPaymentToOrder(orderNumber, {
-        id: `pay-${Date.now()}`,
-        orderId: orderNumber,
-        amount,
-        gateway: 'snapppay',
-        authority: snappPayReq.paymentToken || null,
-        status: 'INITIATED',
-        createdAt: new Date().toISOString(),
-      });
-
-      return NextResponse.json({
-        success: true,
-        order: newOrder,
-        paymentToken: snappPayReq.paymentToken,
-        paymentUrl: snappPayReq.paymentUrl,
-        plan: snappPayReq.plan,
-        gateway: 'snapppay',
-      });
-    }
-
-    // DEV ONLY: mock gateway (lib/mock-gateway.ts). Never active outside NODE_ENV=development with PAYMENT_MOCK_GATEWAY=1.
-    if (isMockGatewayEnabled()) {
-      const mockAuthority = createMockAuthority(orderNumber, amount);
-      farmStore.attachPaymentToOrder(orderNumber, {
-        id: `pay-${Date.now()}`,
-        orderId: orderNumber,
-        amount,
-        gateway: 'zarinpal',
-        authority: mockAuthority,
-        status: 'INITIATED',
-        createdAt: new Date().toISOString(),
-      });
-
-      return NextResponse.json({
-        success: true,
-        order: newOrder,
-        authority: mockAuthority,
-        paymentUrl: `/checkout/mock-gateway?orderNumber=${encodeURIComponent(orderNumber)}&Authority=${encodeURIComponent(mockAuthority)}&amount=${amount}`,
-        gateway: 'zarinpal',
-      });
-    }
-
-    const paymentReq = await requestPayment({
-      amount,
-      description: `سفارش محصولات ارگانیک شیراز کد ${orderNumber}`,
+    const payment = await initOnlinePayment({
       orderNumber,
-      callbackUrl: `${callbackBase}&gateway=zarinpal`,
+      amount,
+      method: method as OnlinePaymentMethod,
       mobile: phone,
     });
-
-    if (!paymentReq.success || !paymentReq.paymentUrl) {
-      return failAndRelease(paymentReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت زرین‌پال');
+    if (!payment.success) {
+      return failAndRelease(payment.message);
     }
 
-    farmStore.attachPaymentToOrder(orderNumber, {
-      id: `pay-${Date.now()}`,
-      orderId: orderNumber,
-      amount,
-      gateway: 'zarinpal',
-      authority: paymentReq.authority || null,
-      status: 'INITIATED',
-      createdAt: new Date().toISOString(),
-    });
+    if (payment.gateway === 'snapppay') {
+      return NextResponse.json({
+        success: true,
+        order: newOrder,
+        paymentToken: payment.paymentToken,
+        paymentUrl: payment.paymentUrl,
+        plan: payment.plan,
+        gateway: 'snapppay',
+      });
+    }
 
     return NextResponse.json({
       success: true,
       order: newOrder,
-      authority: paymentReq.authority,
-      paymentUrl: paymentReq.paymentUrl,
+      authority: payment.authority,
+      paymentUrl: payment.paymentUrl,
       gateway: 'zarinpal',
     });
   } catch (error: unknown) {
