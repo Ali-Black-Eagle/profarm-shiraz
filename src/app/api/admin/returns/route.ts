@@ -25,7 +25,7 @@ const RETURN_STATUSES: ReturnStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'REF
 const patchSchema = z.object({
   id: textField(200, 'شناسه مرجوعی'),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'REFUNDED'], {
-    errorMap: () => ({ message: 'وضعیت مرجوعی نامعتبر است' }),
+    error: 'وضعیت مرجوعی نامعتبر است',
   }),
   refundAmount: z.preprocess(normalizeNumeric, z.number().int().min(0).max(1_000_000_000_000).optional()).optional(),
   adminNote: z.string().trim().max(1000, 'یادداشت مدیر نمی‌تواند بیشتر از ۱۰۰۰ نویسه باشد').nullable().optional(),

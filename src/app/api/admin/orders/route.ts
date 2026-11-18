@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 const patchSchema = z.object({
   orderId: textField(200, 'شناسه سفارش'),
   status: z.enum(ORDER_STATUSES as [OrderStatus, ...OrderStatus[]], {
-    errorMap: () => ({ message: 'وضعیت سفارش نامعتبر است' }),
+    error: 'وضعیت سفارش نامعتبر است',
   }),
 });
 

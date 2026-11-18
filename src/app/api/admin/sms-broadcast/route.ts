@@ -24,7 +24,7 @@ const SEGMENTS: Record<'ALL' | SubscriptionTier, { target: SmsTargetSegment; tit
 };
 
 const sendSchema = z.object({
-  segment: z.enum(['ALL', 'FREE', 'PLUS', 'PRO'], { errorMap: () => ({ message: 'بخش مخاطبان نامعتبر است' }) }),
+  segment: z.enum(['ALL', 'FREE', 'PLUS', 'PRO'], { error: 'بخش مخاطبان نامعتبر است' }),
   message: z
     .string()
     .trim()
@@ -32,7 +32,7 @@ const sendSchema = z.object({
     .max(MAX_MESSAGE_LENGTH, `متن پیام نمی‌تواند بیشتر از ${MAX_MESSAGE_LENGTH} نویسه باشد`),
   title: z.string().trim().max(120).optional(),
   confirm: z.literal(true, {
-    errorMap: () => ({ message: 'برای ارسال، تایید صریح لازم است (confirm: true).' }),
+    error: 'برای ارسال، تایید صریح لازم است (confirm: true).',
   }),
 });
 

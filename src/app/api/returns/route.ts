@@ -23,7 +23,7 @@ const RETURN_REASONS = [
 
 const returnSchema = z.object({
   orderNumber: z.string().trim().min(1).max(64),
-  reason: z.enum(RETURN_REASONS, { errorMap: () => ({ message: 'دلیل مرجوعی نامعتبر است.' }) }),
+  reason: z.enum(RETURN_REASONS, { error: 'دلیل مرجوعی نامعتبر است.' }),
   description: z.string().trim().max(1000).optional(),
   items: z
     .array(

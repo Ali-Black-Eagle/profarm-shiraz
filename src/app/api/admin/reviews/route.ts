@@ -13,7 +13,7 @@ const REVIEW_STATUSES: ReviewStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 const patchSchema = z.object({
   id: textField(200, 'شناسه دیدگاه'),
   status: z.enum(['APPROVED', 'REJECTED'], {
-    errorMap: () => ({ message: 'وضعیت دیدگاه باید «APPROVED» یا «REJECTED» باشد' }),
+    error: 'وضعیت دیدگاه باید «APPROVED» یا «REJECTED» باشد',
   }),
   adminReply: z.string().trim().max(1000, 'پاسخ مدیر نمی‌تواند بیشتر از ۱۰۰۰ نویسه باشد').nullable().optional(),
 });
