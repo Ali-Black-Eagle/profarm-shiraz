@@ -349,7 +349,7 @@ test.describe('P2 mobile returning customer journey', () => {
     } else {
       const body = await res.json().catch(() => ({}));
       expect(res.status(), body.message).toBe(200);
-      await expect.soft(page.getByText('تغییرات حساب کاربری ذخیره شد').first(), 'success feedback is shown').toBeVisible();
+      await expect.soft(page.getByText(/تغییرات حساب کاربری ذخیره شد|با موفقیت به‌روزرسانی شد/).first(), 'success feedback is shown').toBeVisible();
       await expect(pass).toHaveValue('');
     }
     await checkLayout(page, 'account settings');

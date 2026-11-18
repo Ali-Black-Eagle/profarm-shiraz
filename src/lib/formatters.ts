@@ -154,6 +154,9 @@ export function getEggsPerPack(product: { packSize?: string | null; eggPackSize?
   return packStr.includes('20') || packStr.includes('۲۰') ? 20 : 30;
 }
 
+/** "egg"/"eggs" as a whole id segment, so ids like "veggie-box" don't count as eggs. */
+const EGG_ID_PATTERN = /(^|[-_])eggs?([-_]|$)/i;
+
 /** Whether a product is an egg product (category, title or id). */
 export function isEggProduct(
   product: { category?: string; title?: string; id?: string },
@@ -162,8 +165,8 @@ export function isEggProduct(
   return (
     product.category === 'تخم‌مرغ و ماکیان' ||
     (product.title || '').includes('تخم‌مرغ') ||
-    (product.id || '').includes('egg') ||
-    (productId || '').includes('egg')
+    EGG_ID_PATTERN.test(product.id || '') ||
+    EGG_ID_PATTERN.test(productId || '')
   );
 }
 
