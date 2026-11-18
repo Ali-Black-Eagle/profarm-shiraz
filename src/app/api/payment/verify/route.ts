@@ -55,11 +55,8 @@ async function processCallback(
   const { gateway, authority, token, status, orderNumber } = p;
   const redirect = (path: string) => NextResponse.redirect(new URL(path, req.url));
 
-  if (!farmStore.getOrderById(orderNumber)) {
-    return redirect('/checkout?error=order_not_found');
-  }
-  // Pending online orders past the payment timeout are released first (same timeout as order creation)
-  farmStore.releaseExpiredPendingOrders();
+  // Only this order is looked at. The global expiry sweep never runs here: that is what used to cancel an order
+  // while its own payment was being verified.
   const order = farmStore.getOrderById(orderNumber);
   if (!order) return redirect('/checkout?error=order_not_found');
 
@@ -86,8 +83,26 @@ async function processCallback(
     return redirect('/checkout?error=payment_cancelled_or_failed');
   }
 
+  // Payment deadline. An unpaid order past its deadline is released here. A payment that still arrives may revive it,
+  //    but only when stock, slot and coupon can be taken again. Otherwise the gateway is NOT asked: ZarinPal reverses
+  //    payments it cannot verify, so the customer keeps their money and sees an expiry message.
+  farmStore.expireOrderIfDue(orderNumber);
+  const current = farmStore.getOrderById(orderNumber) ?? order;
+  let reviveExpired = false;
+  if (current.status === 'CANCELLED' && current.cancelledByExpiry) {
+    const check = farmStore.canReviveExpiredOrder(current);
+    if (!check.ok) {
+      console.warn(`[Payment] Order ${orderNumber} expired and cannot be revived (${check.reason}). Gateway not called.`);
+      return redirect('/checkout?error=order_expired');
+    }
+    reviveExpired = true;
+  } else if (current.status !== 'PENDING_PAYMENT') {
+    // Cancelled by a customer or an admin: no online payment applies, so the gateway is not asked.
+    return redirect('/checkout?error=order_not_payable');
+  }
+
   // Use the immutable server-side total (ignore any query param tampering)
-  const amountToVerify = order.totalAmount;
+  const amountToVerify = current.totalAmount;
 
   // 2. Ask the gateway
   let verifyResult: { success: boolean; refId?: string; message?: string };
@@ -119,9 +134,12 @@ async function processCallback(
     );
   }
 
-  // 3. Record the confirmed payment (only PENDING_PAYMENT becomes paid; cancelled orders are never revived)
+  // 3. Record the confirmed payment. A pending order becomes paid; an order released by expiry is revived, or the
+  //    payment is flagged PAID_AFTER_CANCEL when its resources have gone in the meantime (refund needed).
   const refId = verifyResult.refId || (gateway === 'snapppay' ? 'SNP-' : 'REF-') + Date.now();
-  const recorded = farmStore.recordSuccessfulPayment(orderNumber, { refId, gateway });
+  const recorded = reviveExpired
+    ? farmStore.reviveExpiredOrder(orderNumber, { refId, gateway })
+    : farmStore.recordSuccessfulPayment(orderNumber, { refId, gateway });
 
   switch (recorded.outcome) {
     case 'PAID': {

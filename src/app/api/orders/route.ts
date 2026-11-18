@@ -11,6 +11,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { isMockGatewayEnabled, createMockAuthority } from '@/lib/mock-gateway';
 import { quoteCart } from '@/lib/pricing';
+import { withOrderLock } from '@/lib/order-lock';
 
 const PAYMENT_METHODS = ['zarinpal', 'snapppay', 'cod'];
 
@@ -145,6 +146,9 @@ export async function POST(req: NextRequest) {
     const slotId =
       typeof deliverySlot === 'string' ? deliverySlot : deliverySlot && typeof deliverySlot === 'object' ? deliverySlot.id : null;
 
+    // Unpaid orders past their payment deadline give back stock, slot and coupon first (each under its order lock)
+    await farmStore.releaseExpiredPendingOrdersLocked();
+
     // ONE pricing function: the quote decides the total that is charged.
     const quote = quoteCart({
       user,
@@ -152,6 +156,7 @@ export async function POST(req: NextRequest) {
       couponCode: typeof appliedCouponCode === 'string' ? appliedCouponCode : null,
       slotId: isSub ? null : slotId,
       city: isSub ? undefined : typeof city === 'string' ? city : '',
+      province: typeof province === 'string' ? province : undefined,
       requireSlot: !isSub,
       isSubscription: isSub,
       subscriptionPlan,
@@ -172,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
     const cityName = sanitizeText(city, 50) || 'شیراز';
-    const addressId = `addr-${Date.now()}`;
+    const addressId = `addr-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
     const orderItems: OrderItem[] = quote.lines.map((line, idx) => ({
       id: `item-${Date.now()}-${idx}`,
@@ -259,7 +264,7 @@ export async function POST(req: NextRequest) {
     const callbackBase = `${appUrl}/api/payment/verify?orderNumber=${encodeURIComponent(orderNumber)}`;
 
     const failAndRelease = async (message: string) => {
-      await farmStore.updateOrderStatus(orderNumber, 'CANCELLED');
+      await withOrderLock(orderNumber, () => farmStore.updateOrderStatus(orderNumber, 'CANCELLED'));
       return NextResponse.json({ success: false, message }, { status: 400 });
     };
 

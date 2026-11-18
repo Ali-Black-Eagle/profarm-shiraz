@@ -14,6 +14,8 @@ import {
   toEnglishDigits,
   isValidIranPhone,
   normalizePhoneNumber,
+  isShirazCity,
+  isFarsProvince,
 } from '@/lib/formatters';
 import { SITE_CONFIG } from '@/lib/site-config';
 import { Button } from '@/components/ui/Button';
@@ -117,7 +119,8 @@ function CheckoutContent() {
   const totalCount = getTotalItemsCount();
   const userTier = user?.tier || (user?.isProMember ? 'PRO' : 'FREE');
   const discounts = calculateCartDiscounts(items, userTier);
-  const isPro = !!user?.isProMember;
+  // PRO-only flag for UI copy. PLUS members get the same delivery days as FREE (Sunday and Wednesday).
+  const isPro = userTier === 'PRO';
   const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
   const couponDiscount = couponResult?.discountAmount || 0;
 
@@ -126,14 +129,6 @@ function CheckoutContent() {
     subscriptionPlan === 'PLUS'
       ? subSettings.plusMonthlyPrice || 149000
       : subSettings.proMonthlyPrice || 329000;
-
-  const finalAmount = isSubscription
-    ? Math.max(0, subPrice - couponDiscount)
-    : Math.max(0, discounts.finalPayable - couponDiscount);
-
-  const totalSavings = isSubscription
-    ? couponDiscount
-    : discounts.totalDiscount + couponDiscount;
 
   const totalPrice = isSubscription ? subPrice : discounts.itemsSubtotal;
 
@@ -484,6 +479,10 @@ function CheckoutContent() {
         setErrorMessage('شناسه تایید پرداخت نامعتبر است. سفارش تایید نشد.');
       } else if (err === 'order_not_found') {
         setErrorMessage('سفارش مورد نظر یافت نشد.');
+      } else if (err === 'order_expired') {
+        setErrorMessage('مهلت پرداخت این سفارش به پایان رسیده و سفارش لغو شده است. لطفاً سفارش را دوباره ثبت فرمایید. وجهی کسر نشده است.');
+      } else if (err === 'order_not_payable') {
+        setErrorMessage('این سفارش دیگر قابل پرداخت نیست.');
       } else if (err === 'snapppay_verification_failed') {
         setErrorMessage('تایید پرداخت اقساطی اسنپ‌پی با خطا مواجه شد. در صورت کسر وجه، مبلغ بازگردانده خواهد شد.');
       } else if (err === 'payment_verification_failed') {
@@ -508,7 +507,7 @@ function CheckoutContent() {
       };
     });
 
-    const generated = generateDeliverySlots(isPro, 12, map);
+    const generated = generateDeliverySlots(userTier, 12, map);
     setSlots(generated);
     const firstAvailable = generated.find((s) => s.isAvailable);
     if (firstAvailable) {
@@ -516,12 +515,23 @@ function CheckoutContent() {
     } else {
       setSelectedSlot(null);
     }
-  }, [isPro, isSubscription]);
+  }, [userTier, isSubscription]);
 
-  const isCityShiraz =
-    city.trim() === 'شیراز' || city.trim() === 'شهر شیراز' || city.trim() === '';
+  // Same rule as the server (pricing.quoteCart): city Shiraz AND province Fars (an empty city or province is accepted).
+  const isCityShiraz = (city.trim() === '' || isShirazCity(city)) && isFarsProvince(province);
   const meetsBulkCriteria = totalCount >= 10 || totalPrice >= 5000000;
   const isBlockedByShirazRule = !isSubscription && !isCityShiraz && !(isBulkOrder && meetsBulkCriteria);
+
+  // The server charges no courier fee outside Shiraz (bulk orders only; the freight is quoted separately).
+  // The summary shows the same number, so the displayed total is the charged total.
+  const shippingCharged = isSubscription || !isCityShiraz ? 0 : discounts.finalShipping;
+  const finalAmount = isSubscription
+    ? Math.max(0, subPrice - couponDiscount)
+    : Math.max(0, discounts.itemsSubtotal - discounts.eggDiscount - discounts.otherDiscount + shippingCharged - couponDiscount);
+
+  const totalSavings = isSubscription
+    ? couponDiscount
+    : discounts.eggDiscount + discounts.otherDiscount + (isCityShiraz ? discounts.shippingDiscount : 0) + couponDiscount;
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1251,7 +1261,7 @@ function CheckoutContent() {
             <CouponInputBox
               cartItems={items}
               itemsSubtotal={totalPrice}
-              shippingFee={isSubscription ? 0 : discounts.finalShipping}
+              shippingFee={shippingCharged}
               onCouponChange={(res) => setCouponResult(res)}
               showSuggestions={false}
             />
@@ -1355,13 +1365,13 @@ function CheckoutContent() {
 
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <span>هزینه ارسال با پیک پروفارم:</span>
-                        {discounts.shippingDiscount > 0 && (
+                        <span>{isCityShiraz ? 'هزینه ارسال با پیک پروفارم:' : 'پس‌کرایه خارج از شیراز (جداگانه):'}</span>
+                        {isCityShiraz && discounts.shippingDiscount > 0 && (
                           <span className="text-xs text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
                         )}
                       </span>
                       <span className="font-bold text-farm-primary">
-                        {formatToman(discounts.finalShipping)}
+                        {formatToman(shippingCharged)}
                       </span>
                     </div>
                   </>

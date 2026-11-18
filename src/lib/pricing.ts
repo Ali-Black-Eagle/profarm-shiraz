@@ -6,7 +6,7 @@
  */
 import type { CartItem, DeliverySlot, Product, SubscriptionTier, User } from '@/types';
 import { farmStore } from './db-store';
-import { calculateCartDiscounts, isBulkOrder, isShirazCity } from './formatters';
+import { calculateCartDiscounts, isBulkOrder, isShirazAddress } from './formatters';
 import { getEffectiveTier } from './subscription';
 
 export interface QuoteItemInput {
@@ -22,6 +22,8 @@ export interface QuoteInput {
   slotId?: string | null;
   /** City from the delivery address. Omit (undefined) for a cart preview that has no address yet. */
   city?: string | null;
+  /** Province from the delivery address. Empty means Fars. Shiraz needs the city AND Fars. */
+  province?: string | null;
   /** true when placing an order: a delivery slot is then mandatory. */
   requireSlot?: boolean;
   isSubscription?: boolean;
@@ -188,8 +190,9 @@ export function quoteCart(input: QuoteInput): CartQuote {
   if (rawItems.length === 0) quote.errors.push('سبد خرید نمی‌تواند خالی باشد.');
   if (rawItems.length > 100) quote.errors.push('تعداد اقلام سفارش بیش از حد مجاز است.');
 
-  const cartItems: CartItem[] = [];
-  const entries: { productId: string; product: Product; quantity: number }[] = [];
+  // Lines are resolved one by one, then merged per product. The stock check uses the combined quantity, so two
+  // lines of the same product cannot each pass a check that only their sum fails.
+  const perProduct = new Map<string, { product: Product; quantity: number }>();
   for (const raw of rawItems.slice(0, 100)) {
     if (!raw || typeof raw !== 'object' || typeof raw.productId !== 'string' || !raw.productId) {
       quote.errors.push('اطلاعات کالا در سبد خرید نامعتبر است.');
@@ -205,20 +208,32 @@ export function quoteCart(input: QuoteInput): CartQuote {
       quote.errors.push(`تعداد انتخابی برای محصول «${prod.title}» نامعتبر است (باید بین ۱ تا ۱۰۰۰ باشد).`);
       continue;
     }
-    if ((prod.stock ?? 0) < qty) {
+    const previous = perProduct.get(prod.id);
+    perProduct.set(prod.id, { product: prod, quantity: (previous?.quantity ?? 0) + qty });
+  }
+
+  const cartItems: CartItem[] = [];
+  const entries: { productId: string; product: Product; quantity: number }[] = [];
+  for (const { product: prod, quantity } of Array.from(perProduct.values())) {
+    if (quantity > 1000) {
+      quote.errors.push(`تعداد انتخابی برای محصول «${prod.title}» نامعتبر است (باید بین ۱ تا ۱۰۰۰ باشد).`);
+      continue;
+    }
+    if ((prod.stock ?? 0) < quantity) {
       quote.stockIssue = true;
       quote.errors.push(
-        `متاسفانه موجودی محصول «${prod.title}» کافی نیست. موجودی فعلی: ${prod.stock ?? 0} عدد، تعداد درخواستی: ${qty} عدد.`
+        `متاسفانه موجودی محصول «${prod.title}» کافی نیست. موجودی فعلی: ${prod.stock ?? 0} عدد، تعداد درخواستی: ${quantity} عدد.`
       );
     }
-    entries.push({ productId: prod.slug, product: prod, quantity: qty });
-    cartItems.push({ product: prod, quantity: qty });
+    entries.push({ productId: prod.slug, product: prod, quantity });
+    cartItems.push({ product: prod, quantity });
   }
 
   const subtotal = cartItems.reduce((sum, c) => sum + c.product.price * c.quantity, 0);
   // Without an address (cart preview) the Shiraz rule is not evaluated and the Shiraz shipping is shown.
+  // Shiraz needs the city Shiraz AND the province Fars (or an empty province).
   const deliveryKnown = input.city !== undefined;
-  const isShiraz = deliveryKnown ? isShirazCity(input.city) : true;
+  const isShiraz = deliveryKnown ? isShirazAddress(input.city, input.province) : true;
   const isBulk = isBulkOrder(cartItems, subtotal);
 
   const settings = farmStore.getSubscriptionSettings();

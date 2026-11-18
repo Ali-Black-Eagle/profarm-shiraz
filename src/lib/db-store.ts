@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import {
   Product,
   Order,
+  OrderItem,
   Payment,
   DeliverySlot,
   AvailableDeliverySlot,
@@ -82,7 +83,7 @@ import {
   canTransitionReturn,
   isCodOrder,
 } from './order-utils';
-import { getEffectiveTier } from './subscription';
+import { getEffectiveTier, getSubscriptionExpiryMs } from './subscription';
 import {
   generateSeoSlug,
   generateProductSeoTitle,
@@ -97,8 +98,14 @@ import {
   isValidIranPhone,
   toEnglishDigits,
   formatSubscriptionExpiry,
+  getEggsPerPack,
+  isEggProduct,
 } from './formatters';
 import { BusinessError } from './api-errors';
+import { isOrderLocked, withOrderLock } from './order-lock';
+
+/** Extra minutes after the payment window before an unpaid online order is released (late gateway callbacks). */
+const PAYMENT_EXPIRY_GRACE_MS = 5 * 60 * 1000;
 
 export function sanitizeUser(user: User): User {
   const { password, ...safeUser } = user;
@@ -826,6 +833,43 @@ class FarmDataStore {
   }
 
   /**
+   * Renames tempPath over targetPath. On Windows the rename fails with EPERM, EBUSY or EACCES while an editor, an
+   * antivirus scan or the indexer holds the target, so it is retried with a short, growing pause (about 250 ms in
+   * total). If every retry fails, the temp file is copied over the target and removed. A failed copy is logged and rethrown.
+   */
+  private replaceFileWithRetry(fs: any, tempPath: string, targetPath: string): void {
+    const RETRYABLE = new Set(['EPERM', 'EBUSY', 'EACCES']);
+    const pause = (ms: number) => {
+      try {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+      } catch {
+        // No SharedArrayBuffer in this runtime: retry without the pause.
+      }
+    };
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        fs.renameSync(tempPath, targetPath);
+        return;
+      } catch (err: any) {
+        lastError = err;
+        if (!RETRYABLE.has(err?.code)) break;
+        pause(25 * (attempt + 1));
+      }
+    }
+    try {
+      fs.copyFileSync(tempPath, targetPath);
+      fs.rmSync(tempPath, { force: true });
+      console.warn(
+        `[FarmStore] Rename to ${targetPath} failed (${lastError?.code || 'unknown'}); the state was copied over it instead.`
+      );
+    } catch (copyErr) {
+      console.error(`[FarmStore] Could not replace ${targetPath}: rename and copy both failed.`, copyErr);
+      throw copyErr;
+    }
+  }
+
+  /**
    * Writes the whole server state atomically: temp file, fsync, the current file rotated to .bak (only when it
    * is readable, so a damaged file never replaces a good backup), then rename over the target. A crash leaves
    * either the old file or the new one, never a partial file.
@@ -851,10 +895,10 @@ class FarmDataStore {
         if (fs.existsSync(filePath) && this.isReadableJsonFile(filePath)) {
           const backupTemp = `${backupPath}.${process.pid}.tmp`;
           fs.copyFileSync(filePath, backupTemp);
-          fs.renameSync(backupTemp, backupPath);
+          this.replaceFileWithRetry(fs, backupTemp, backupPath);
         }
 
-        fs.renameSync(tempPath, filePath);
+        this.replaceFileWithRetry(fs, tempPath, filePath);
         tempPath = null;
         this.memoryStampMs = Date.now();
       }
@@ -991,43 +1035,29 @@ class FarmDataStore {
   }
 
   /**
-   * A PostgreSQL copy replaces the in-memory copy only when it is strictly newer. When either timestamp is
-   * unknown the in-memory copy is kept, because the JSON file is the source of truth.
+   * The JSON/in-memory store is authoritative. PostgreSQL may only ADD records that memory does not have.
+   * A record is considered present when any of its keys (id, slug, code, orderNumber) is already known in memory.
+   * Existing records are never replaced by the mirror, whatever their timestamps say.
    */
-  private dbWins(dbMs: number, memoryMs: number): boolean {
-    return Number.isFinite(dbMs) && Number.isFinite(memoryMs) && dbMs > memoryMs;
-  }
-
-  /** Merges incoming records into the current list one record at a time. Records are matched by any of their keys. */
-  private mergeRecords<T extends { updatedAt?: any; createdAt?: any }>(
+  private addMissingRecords<T>(
     current: T[],
     incoming: T[],
     keysOf: (record: T) => Array<string | undefined>
   ): T[] {
     const result = [...current];
-    const index = new Map<string, number>();
-    const indexRecord = (record: T, position: number) => {
+    const known = new Set<string>();
+    const remember = (record: T) => {
       for (const key of keysOf(record)) {
-        if (key && !index.has(key)) index.set(key, position);
+        if (key) known.add(key);
       }
     };
-    result.forEach((record, position) => indexRecord(record, position));
+    result.forEach(remember);
 
     for (const rec of incoming) {
       const keys = keysOf(rec).filter((k): k is string => Boolean(k));
-      const found = keys.map((k) => index.get(k)).find((i) => i !== undefined);
-      if (found === undefined) {
-        result.push(rec);
-        indexRecord(rec, result.length - 1);
-        continue;
-      }
-      const memoryRec = result[found];
-      const dbTime = this.timeOf(rec.updatedAt ?? rec.createdAt);
-      const memoryTime = this.timeOf(memoryRec.updatedAt ?? memoryRec.createdAt);
-      if (this.dbWins(dbTime, memoryTime)) {
-        result[found] = rec;
-      }
-      indexRecord(result[found], found);
+      if (keys.some((k) => known.has(k))) continue;
+      result.push(rec);
+      remember(rec);
     }
     return result;
   }
@@ -1112,17 +1142,19 @@ class FarmDataStore {
       const dbTemplates = await prisma.smsEventTemplate.findMany().catch(failed('SMS templates'));
 
       const iso = (value: any) => (value instanceof Date ? value.toISOString() : value ?? undefined);
-      const memoryStamp = this.memoryStampMs > 0 ? this.memoryStampMs : NaN;
+      // True once a JSON state has been loaded or saved in this process. Until then memory only holds defaults.
+      const memoryHasState = this.memoryStampMs > 0;
 
       // Phase 2: merge synchronously, so no concurrent in-memory change can be lost.
-      // Singleton settings: applied only when the PostgreSQL row is newer than the in-memory state.
-      if (siteRow?.content && typeof siteRow.content === 'object' && this.dbWins(this.timeOf(siteRow.updatedAt), memoryStamp)) {
+      // Singleton settings: PostgreSQL fills them in only when there is no JSON state at all (fresh install).
+      // Once a JSON state exists, memory is authoritative and these rows are never applied.
+      if (!memoryHasState && siteRow?.content && typeof siteRow.content === 'object') {
         this.siteContent = { ...DEFAULT_SITE_CONTENT, ...(siteRow.content as any) };
       }
-      if (subRow?.settings && typeof subRow.settings === 'object' && this.dbWins(this.timeOf(subRow.updatedAt), memoryStamp)) {
+      if (!memoryHasState && subRow?.settings && typeof subRow.settings === 'object') {
         this.subscriptionSettings = { ...DEFAULT_SUBSCRIPTION_SETTINGS, ...(subRow.settings as any) };
       }
-      if (payRow?.settings && typeof payRow.settings === 'object' && this.dbWins(this.timeOf(payRow.updatedAt), memoryStamp)) {
+      if (!memoryHasState && payRow?.settings && typeof payRow.settings === 'object') {
         this.paymentSettings = { ...DEFAULT_PAYMENT_SETTINGS, ...(payRow.settings as any) };
       }
 
@@ -1135,7 +1167,7 @@ class FarmDataStore {
           createdAt: iso(p.createdAt),
           updatedAt: iso(p.updatedAt),
         }));
-        this.products = this.mergeRecords(this.products, mapped, (p) => [p.id, p.slug]);
+        this.products = this.addMissingRecords(this.products, mapped, (p) => [p.id, p.slug]);
       }
 
       // Users: PostgreSQL only adds accounts that are missing in memory (memory is authoritative) and fills in
@@ -1196,10 +1228,14 @@ class FarmDataStore {
           createdAt: iso(c.createdAt) || new Date().toISOString(),
           updatedAt: iso(c.updatedAt),
         }));
-        this.coupons = this.mergeRecords(this.coupons, mapped, (c) => [c.id, c.code]);
+        this.coupons = this.addMissingRecords(this.coupons, mapped, (c) => [c.id, c.code]);
       }
 
       if (dbOrders && dbOrders.length > 0) {
+        // LOSSY COPY: the Prisma Order model has no Json column for the full order, so fields that exist only in
+        // the JSON store (shippingFee, coupon data, payment gateway details, flags) are not restored from here.
+        // That is acceptable only because the mirror never replaces an order that memory already has; it adds
+        // orders only when the JSON file is missing them entirely. Restore the full copy by adding a Json column.
         const mapped: Order[] = dbOrders.map((o: any) => ({
           id: o.id,
           orderNumber: o.orderNumber,
@@ -1263,7 +1299,7 @@ class FarmDataStore {
           createdAt: iso(o.createdAt) || new Date().toISOString(),
           updatedAt: iso(o.updatedAt),
         }));
-        this.orders = this.mergeRecords(this.orders, mapped, (o) => [o.id, o.orderNumber]);
+        this.orders = this.addMissingRecords(this.orders, mapped, (o) => [o.id, o.orderNumber]);
         this.orders.sort((a, b) => (this.timeOf(b.createdAt) || 0) - (this.timeOf(a.createdAt) || 0));
       }
 
@@ -1273,7 +1309,7 @@ class FarmDataStore {
           createdAt: iso(r.createdAt) || new Date().toISOString(),
           updatedAt: iso(r.updatedAt),
         }));
-        this.reviews = this.mergeRecords(this.reviews, mapped, (r) => [r.id]);
+        this.reviews = this.addMissingRecords(this.reviews, mapped, (r) => [r.id]);
       }
 
       if (dbReturns && dbReturns.length > 0) {
@@ -1282,7 +1318,7 @@ class FarmDataStore {
           createdAt: iso(rt.createdAt) || new Date().toISOString(),
           updatedAt: iso(rt.updatedAt),
         }));
-        this.returnRequests = this.mergeRecords(this.returnRequests, mapped, (rt) => [rt.id]);
+        this.returnRequests = this.addMissingRecords(this.returnRequests, mapped, (rt) => [rt.id]);
       }
 
       if (dbTemplates && dbTemplates.length > 0) {
@@ -1291,7 +1327,7 @@ class FarmDataStore {
           availableVariables: (t.availableVariables as any) || [],
           updatedAt: iso(t.updatedAt),
         }));
-        this.smsEventTemplates = this.mergeRecords(this.smsEventTemplates, mapped, (t) => [t.id]);
+        this.smsEventTemplates = this.addMissingRecords(this.smsEventTemplates, mapped, (t) => [t.id]);
       }
 
       this.hasSyncedFromPrisma = true;
@@ -3372,7 +3408,7 @@ class FarmDataStore {
   /**
    * Activates a paid PLUS or PRO plan for the account with this id (called after a verified payment).
    * Expiry is stored as an ISO timestamp. If the current expiry for the plan is still in the future,
-   * the new period is added on top of it; otherwise it starts now. Legacy non-ISO values count as expired.
+   * the new period is added on top of it; otherwise it starts now. Legacy Jalali dates are read as well (see getSubscriptionExpiryMs).
    */
   activateSubscriptionForUser(userId: string, plan: 'PLUS' | 'PRO', months: number): User | null {
     this.getAllUsers();
@@ -3381,9 +3417,9 @@ class FarmDataStore {
 
     const DAY_MS = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    const currentExpiry = plan === 'PRO' ? user.proExpiresAt : user.plusExpiresAt;
-    const currentMs = currentExpiry && /^\d{4}-\d{2}-\d{2}T/.test(currentExpiry) ? Date.parse(currentExpiry) : NaN;
-    const base = !Number.isNaN(currentMs) && currentMs > now ? currentMs : now;
+    // Same expiry reader as the tier check, so Jalali (legacy) and ISO dates both extend correctly.
+    const currentMs = getSubscriptionExpiryMs(user, plan) ?? NaN;
+    const base = Number.isFinite(currentMs) && currentMs > now ? currentMs : now;
     const expiresAt = new Date(base + Math.max(1, months) * 30 * DAY_MS).toISOString();
 
     user.tier = plan;
@@ -3716,13 +3752,9 @@ class FarmDataStore {
    * been swept yet are ignored too, so a read-only check gives the same answer as a sweep would.
    */
   countSlotBookings(slotId: string, now: Date = new Date()): number {
-    const timeoutMs = this.getPaymentTimeoutMinutes() * 60 * 1000;
     return this.getOrders().filter((o) => {
       if (o.status === 'CANCELLED' || o.deliverySlotId !== slotId) return false;
-      if (o.status === 'PENDING_PAYMENT' && !isCodOrder(o)) {
-        const created = new Date(o.createdAt).getTime();
-        if (!Number.isNaN(created) && now.getTime() - created > timeoutMs) return false;
-      }
+      if (this.isPendingPaymentExpired(o, now.getTime())) return false;
       return true;
     }).length;
   }
@@ -3862,30 +3894,183 @@ class FarmDataStore {
   }
 
   /**
-   * Auto-cancels online orders still PENDING_PAYMENT after the payment timeout (see getPaymentTimeoutMinutes).
-   * COD orders are not subject to the timeout. Uses the same cancel side effects as an admin cancel.
+   * Deadline (ms) after which an unpaid online order may be released: the payment's creation time (or the order's,
+   * when no payment exists yet) + the payment timeout + a 5 minute grace. NaN when the order has no readable time.
+   */
+  getPaymentDeadlineMs(order: Order, timeoutMinutes: number = this.getPaymentTimeoutMinutes()): number {
+    const anchor = this.timeOf(order.payment?.createdAt ?? order.createdAt);
+    return Number.isFinite(anchor) ? anchor + timeoutMinutes * 60 * 1000 + PAYMENT_EXPIRY_GRACE_MS : NaN;
+  }
+
+  /** True for an unpaid online order (COD never expires) whose payment deadline has passed. */
+  isPendingPaymentExpired(order: Order, nowMs: number = Date.now(), timeoutMinutes?: number): boolean {
+    if (order.status !== 'PENDING_PAYMENT' || isCodOrder(order)) return false;
+    const deadline = this.getPaymentDeadlineMs(order, timeoutMinutes ?? this.getPaymentTimeoutMinutes());
+    return Number.isFinite(deadline) && nowMs > deadline;
+  }
+
+  /** Marks one unpaid order as expired and gives back its stock, slot and coupon. The caller holds the order lock. */
+  private expireOrder(order: Order): void {
+    if (order.payment && order.payment.status === 'INITIATED') {
+      order.payment = { ...order.payment, status: 'FAILED' };
+    }
+    order.status = 'CANCELLED';
+    order.cancelledByExpiry = true;
+    order.updatedAt = new Date().toISOString();
+    this.cancelOrderSideEffects(order);
+  }
+
+  /**
+   * Releases unpaid online orders past their payment deadline (see getPaymentDeadlineMs).
+   * Synchronous, so nothing else in this process runs during it. An order whose callback is in flight (its lock is
+   * held, for example while the gateway is being asked) is skipped and left for a later sweep.
    */
   releaseExpiredPendingOrders(timeoutMinutes: number = this.getPaymentTimeoutMinutes()): number {
     this.getOrders();
     const now = Date.now();
-    const timeoutMs = timeoutMinutes * 60 * 1000;
     let releasedCount = 0;
-
     for (const order of this.orders) {
-      if (order.status !== 'PENDING_PAYMENT' || isCodOrder(order)) continue;
-      const orderTime = new Date(order.createdAt).getTime();
-      if (Number.isNaN(orderTime) || now - orderTime <= timeoutMs) continue;
-
-      if (order.payment && order.payment.status === 'INITIATED') {
-        order.payment = { ...order.payment, status: 'FAILED' };
-      }
-      order.status = 'CANCELLED';
-      order.updatedAt = new Date().toISOString();
-      this.cancelOrderSideEffects(order);
+      if (!this.isPendingPaymentExpired(order, now, timeoutMinutes)) continue;
+      if (isOrderLocked(order.orderNumber)) continue;
+      this.expireOrder(order);
       releasedCount++;
     }
-
     return releasedCount;
+  }
+
+  /**
+   * The same sweep with each order under withOrderLock. The order is checked again inside its lock, so a callback
+   * that is verifying it with the gateway finishes first.
+   */
+  async releaseExpiredPendingOrdersLocked(timeoutMinutes: number = this.getPaymentTimeoutMinutes()): Promise<number> {
+    this.getOrders();
+    const candidates = this.orders
+      .filter((o) => this.isPendingPaymentExpired(o, Date.now(), timeoutMinutes))
+      .map((o) => o.orderNumber);
+    let releasedCount = 0;
+    for (const key of candidates) {
+      releasedCount += await withOrderLock(key, () => {
+        const order = this.orders.find((o) => o.orderNumber === key);
+        if (!order || !this.isPendingPaymentExpired(order, Date.now(), timeoutMinutes)) return 0;
+        this.expireOrder(order);
+        return 1;
+      });
+    }
+    return releasedCount;
+  }
+
+  /**
+   * Releases one unpaid order when its payment deadline has passed. Returns true when it was released.
+   * The caller must hold this order's lock (see withOrderLock).
+   */
+  expireOrderIfDue(orderNumber: string, nowMs: number = Date.now()): boolean {
+    this.getOrders();
+    const order = this.orders.find((o) => o.orderNumber === orderNumber);
+    if (!order || !this.isPendingPaymentExpired(order, nowMs)) return false;
+    this.expireOrder(order);
+    return true;
+  }
+
+  /** Active unpaid online orders that hold a use of this coupon but are not counted yet. Expired ones never count. */
+  private countPendingCouponReservations(code: string, nowMs: number): number {
+    return this.getOrders().filter(
+      (o) =>
+        o.couponCode === code &&
+        !o.couponCounted &&
+        o.status === 'PENDING_PAYMENT' &&
+        !this.isPendingPaymentExpired(o, nowMs)
+    ).length;
+  }
+
+  /**
+   * Whether an order released by expiry can take its stock, slot and coupon back right now.
+   * A slot whose date has passed is ignored (the order is then only checked for stock and coupon).
+   */
+  canReviveExpiredOrder(order: Order, nowMs: number = Date.now()): { ok: true } | { ok: false; reason: string } {
+    for (const item of order.items || []) {
+      if (!item.productId || item.productId.startsWith('sub-')) continue;
+      const prod = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
+      if (!prod) return { ok: false, reason: 'product_missing' };
+      if ((prod.stock ?? 0) < item.quantity) return { ok: false, reason: 'stock' };
+    }
+
+    const slotId = order.deliverySlotId || order.deliverySlot?.id || null;
+    const parsed = slotId ? parseSlotId(slotId) : null;
+    if (slotId && parsed && parsed.isoDate > getTehranIsoDate(new Date(nowMs))) {
+      const setting = this.getDailyCapacitySetting(parsed.isoDate);
+      if (setting.isClosedManually) return { ok: false, reason: 'slot_closed' };
+      if (this.countSlotBookings(slotId, new Date(nowMs)) >= setting.maxCapacity) {
+        return { ok: false, reason: 'slot_full' };
+      }
+    }
+
+    if (order.couponCode && !order.couponCounted) {
+      const coupon = this.getCouponByCode(order.couponCode);
+      if (
+        coupon?.usageLimit &&
+        (coupon.usageCount || 0) + this.countPendingCouponReservations(coupon.code, nowMs) >= coupon.usageLimit
+      ) {
+        return { ok: false, reason: 'coupon_limit' };
+      }
+    }
+    return { ok: true };
+  }
+
+  /** Inverse of cancelOrderSideEffects for a revived order: takes the stock and the coupon use again. */
+  private reapplyOrderSideEffects(order: Order): void {
+    for (const item of order.items || []) {
+      if (!item.productId || item.productId.startsWith('sub-')) continue;
+      const prod = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
+      if (prod) {
+        prod.stock = Math.max(0, (prod.stock || 0) - item.quantity);
+      }
+    }
+    order.sideEffectsReleased = false;
+    order.couponCounted = false;
+    this.countOrderCouponOnce(order);
+    this.saveProducts();
+  }
+
+  /**
+   * Called after the gateway confirmed a payment for an order that expiry released. When the resources can still be
+   * taken, they are taken again and the order becomes PROCESSING (outcome PAID). Otherwise the payment is recorded
+   * as PAID_AFTER_CANCEL, for a refund. Other states go through recordSuccessfulPayment.
+   * It bypasses the transition table on purpose (CANCELLED is final there). Callers must hold the order lock.
+   */
+  reviveExpiredOrder(
+    orderNumber: string,
+    confirmation: { refId: string; gateway?: string }
+  ): { outcome: 'PAID' | 'ALREADY_PAID' | 'PAID_AFTER_CANCEL' | 'NOT_PAYABLE'; order: Order | null } {
+    this.getOrders();
+    const order = this.orders.find((o) => o.orderNumber === orderNumber);
+    if (!order) return { outcome: 'NOT_PAYABLE', order: null };
+    if (order.status !== 'CANCELLED' || !order.cancelledByExpiry) {
+      return this.recordSuccessfulPayment(orderNumber, confirmation);
+    }
+
+    const base = order.payment || {
+      id: `pay-${Date.now()}`,
+      orderId: order.orderNumber,
+      amount: order.totalAmount,
+      gateway: confirmation.gateway || 'zarinpal',
+      status: 'INITIATED' as const,
+    };
+    order.payment = { ...base, status: 'SUCCESS', refId: confirmation.refId };
+    order.updatedAt = new Date().toISOString();
+
+    if (!this.canReviveExpiredOrder(order).ok) {
+      order.paidAfterCancel = true;
+      this.saveOrders();
+      return { outcome: 'PAID_AFTER_CANCEL', order };
+    }
+
+    this.reapplyOrderSideEffects(order);
+    order.status = 'PROCESSING';
+    order.cancelledByExpiry = false;
+    order.settlementRef = confirmation.refId;
+    order.settlementStatus = 'SETTLED';
+    this.saveOrders();
+    return { outcome: 'PAID', order };
   }
 
   /**
@@ -3994,15 +4179,51 @@ class FarmDataStore {
     return { outcome: 'PAID', order };
   }
 
+  /**
+   * One line per product: lines for the same product (matched by id or slug) are summed. Lines without a product
+   * and subscription lines (sub-*) are kept unchanged.
+   */
+  private mergeOrderItems(items: OrderItem[]): OrderItem[] {
+    const byProduct = new Map<string, OrderItem>();
+    const result: OrderItem[] = [];
+    for (const item of items) {
+      if (!item.productId || item.productId.startsWith('sub-')) {
+        result.push(item);
+        continue;
+      }
+      const prod = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
+      const key = prod ? prod.id : item.productId;
+      const existing = byProduct.get(key);
+      if (!existing) {
+        const copy = { ...item };
+        byProduct.set(key, copy);
+        result.push(copy);
+        continue;
+      }
+      existing.quantity += item.quantity;
+      existing.totalPrice += item.totalPrice;
+      if (item.discountAmount !== undefined) {
+        existing.discountAmount = (existing.discountAmount ?? 0) + item.discountAmount;
+      }
+      if (item.eggDiscountedCount !== undefined) {
+        existing.eggDiscountedCount = (existing.eggDiscountedCount ?? 0) + item.eggDiscountedCount;
+      }
+    }
+    return result;
+  }
+
   createOrder(orderData: Omit<Order, 'id' | 'createdAt'>): Order {
     this.getOrders();
     this.getProducts();
 
-    // 1. Release any expired pending orders before verifying stock
+    // 1. Release any expired pending orders before verifying stock (busy orders are skipped, see the sweep)
     this.releaseExpiredPendingOrders();
 
-    // 2. ATOMIC PRE-CHECK: Verify all requested physical items have sufficient stock
-    for (const item of orderData.items) {
+    // 2. Repeated lines of one product are summed first, so the stock check sees the real total
+    const items = this.mergeOrderItems(orderData.items || []);
+
+    // 3. ATOMIC PRE-CHECK: Verify all requested physical items have sufficient stock
+    for (const item of items) {
       if (item.productId && !item.productId.startsWith('sub-')) {
         const prod = this.products.find(
           (p) => p.id === item.productId || p.slug === item.productId
@@ -4022,14 +4243,16 @@ class FarmDataStore {
 
     const newOrder: Order = {
       ...orderData,
-      id: `ord-${Date.now()}`,
+      items,
+      // Random suffix: two orders created in the same millisecond must not share an id.
+      id: `ord-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
       createdAt: new Date().toISOString(),
       couponCounted: false,
       sideEffectsReleased: false,
       paidAfterCancel: false,
     };
 
-    // 3. ATOMIC STOCK DEDUCTION: Only runs if all items passed the check
+    // 4. ATOMIC STOCK DEDUCTION: Only runs if all items passed the check
     newOrder.items.forEach((item) => {
       if (item.productId && !item.productId.startsWith('sub-')) {
         const prod = this.products.find(
@@ -4197,7 +4420,6 @@ class FarmDataStore {
 
     const now = Date.now();
     const cutoffTime = now - 30 * 24 * 60 * 60 * 1000;
-    const pendingTimeoutMs = this.getPaymentTimeoutMinutes() * 60 * 1000;
     let totalEggsDiscounted = 0;
 
     for (const ord of this.getOrders()) {
@@ -4208,12 +4430,16 @@ class FarmDataStore {
 
       const isPaid = ['PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(ord.status);
       const isActivePending =
-        ord.status === 'PENDING_PAYMENT' && (isCodOrder(ord) || now - orderCreatedAt < pendingTimeoutMs);
+        ord.status === 'PENDING_PAYMENT' && (isCodOrder(ord) || !this.isPendingPaymentExpired(ord, now));
       if (!isPaid && !isActivePending) continue;
 
       for (const item of ord.items || []) {
-        const n = Math.floor(Number(item.eggDiscountedCount));
-        if (Number.isFinite(n) && n > 0) totalEggsDiscounted += n;
+        if (typeof item.eggDiscountedCount === 'number' && Number.isFinite(item.eggDiscountedCount)) {
+          totalEggsDiscounted += Math.max(0, Math.floor(item.eggDiscountedCount));
+        } else if (isEggProduct(item.product ?? {}, item.productId)) {
+          // Legacy line (saved before eggDiscountedCount existed): count every egg on it, as the old estimate did.
+          totalEggsDiscounted += getEggsPerPack(item.product ?? {}) * (item.quantity || 1);
+        }
       }
     }
 
@@ -4955,12 +5181,20 @@ class FarmDataStore {
       if (now > end) return invalid('این کد تخفیف منقضی شده است.');
     }
 
-    if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
-      return invalid('ظرفیت استفاده از این کد تخفیف به اتمام رسیده است.');
+    // Counted uses, plus unpaid orders that still hold a place (so pending checkouts cannot overshoot the limit).
+    if (coupon.usageLimit) {
+      const reserved = this.countPendingCouponReservations(coupon.code, now);
+      if ((coupon.usageCount || 0) + reserved >= coupon.usageLimit) {
+        return invalid('ظرفیت استفاده از این کد تخفیف به اتمام رسیده است.');
+      }
     }
     if (coupon.perUserLimit && options.userId) {
       const used = this.getOrders().filter(
-        (o) => o.userId === options.userId && o.couponCode === coupon.code && o.status !== 'CANCELLED'
+        (o) =>
+          o.userId === options.userId &&
+          o.couponCode === coupon.code &&
+          o.status !== 'CANCELLED' &&
+          !this.isPendingPaymentExpired(o, now)
       ).length;
       if (used >= coupon.perUserLimit) {
         return invalid('شما قبلاً از این کد تخفیف به حداکثر تعداد مجاز استفاده کرده‌اید.');

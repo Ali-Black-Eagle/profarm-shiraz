@@ -29,8 +29,11 @@ export function getSubscriptionExpiryMs(user: Partial<TierFields>, tier: Subscri
 /**
  * The tier that applies right now:
  * - FREE stays FREE.
- * - A paid plan whose expiry is in the past becomes FREE.
- * - A paid plan with no readable expiry keeps its stored tier (accounts set by admins without a date).
+ * - The stored paid plan applies while its expiry is in the future, or while it has no readable expiry
+ *   (accounts set by admins without a date).
+ * - When the stored plan has expired, the other paid plan applies if it is still running (for example a PRO
+ *   that ended while a PLUS bought earlier is still active). It needs a readable future expiry to apply.
+ * - Otherwise the account is FREE.
  */
 export function getEffectiveTier(
   user: Partial<TierFields> | null | undefined,
@@ -39,8 +42,12 @@ export function getEffectiveTier(
   const stored = getStoredTier(user);
   if (stored === 'FREE' || !user) return 'FREE';
   const expiry = getSubscriptionExpiryMs(user, stored);
-  if (expiry === null) return stored;
-  return expiry > nowMs ? stored : 'FREE';
+  if (expiry === null || expiry > nowMs) return stored;
+
+  const other: SubscriptionTier = stored === 'PRO' ? 'PLUS' : 'PRO';
+  const otherExpiry = getSubscriptionExpiryMs(user, other);
+  if (otherExpiry !== null && otherExpiry > nowMs) return other;
+  return 'FREE';
 }
 
 /** Days left on the plan that applies now (0 when none). */

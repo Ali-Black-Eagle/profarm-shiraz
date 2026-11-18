@@ -61,8 +61,32 @@ export default function DailyManifestPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const refreshCapacities = () => {
+  // Capacity and closures are server state: read them from the admin API. The local store is only an offline fallback.
+  const refreshCapacities = async () => {
+    try {
+      const res = await fetch('/api/admin?type=dailyCapacities');
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.dailyCapacities)) {
+        setCapacities(data.dailyCapacities);
+        return;
+      }
+    } catch {
+      // Fall back to the local copy below
+    }
     setCapacities(farmStore.getDailyCapacities());
+  };
+
+  const callAdminAction = async (action: string, payload: Record<string, unknown>) => {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'ثبت تغییر روی سرور انجام نشد.');
+    }
+    return data;
   };
 
   const filterManifestOrders = (all: Order[]): Order[] => {
@@ -147,16 +171,25 @@ export default function DailyManifestPage() {
     }
   };
 
-  const handleToggleCloseDay = (dateIso: string) => {
-    const updated = farmStore.toggleDailyCapacityClose(dateIso);
-    setCapacities(updated);
+  const handleToggleCloseDay = async (dateIso: string) => {
+    const current = capacities.find((c) => c.dateIso === dateIso);
+    try {
+      await callAdminAction('toggleDayClosed', { isoDate: dateIso, closed: !current?.isClosedManually });
+      await refreshCapacities();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ثبت تغییر روی سرور انجام نشد.');
+    }
   };
 
-  const handleSaveCapacity = (dateIso: string) => {
+  const handleSaveCapacity = async (dateIso: string) => {
     if (editingCapacityInput > 0) {
-      const updated = farmStore.setDailyCapacity(dateIso, { maxCapacity: editingCapacityInput });
-      setCapacities(updated);
-      setEditingDateIso(null);
+      try {
+        await callAdminAction('setDailyCapacity', { isoDate: dateIso, maxOrders: editingCapacityInput });
+        await refreshCapacities();
+        setEditingDateIso(null);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'ثبت ظرفیت روی سرور انجام نشد.');
+      }
     }
   };
 

@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       name: safeUser.name || 'کاربر گوگل',
       role: 'USER', // Strictly USER
       tier: getEffectiveTier(safeUser),
-      isProMember: getEffectiveTier(safeUser) !== 'FREE',
+      isProMember: getEffectiveTier(safeUser) === 'PRO',
     });
 
     return res;

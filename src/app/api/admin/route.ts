@@ -3,6 +3,14 @@ import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { canTransition } from '@/lib/order-utils';
+import { withOrderLock } from '@/lib/order-lock';
+
+/** A civil date written as YYYY-MM-DD that exists (no 2026-02-30). */
+function isValidIsoDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,6 +33,10 @@ export async function GET(req: NextRequest) {
     if (type === 'siteContent') {
       const content = farmStore.getSiteContent();
       return NextResponse.json({ success: true, content });
+    }
+
+    if (type === 'dailyCapacities') {
+      return NextResponse.json({ success: true, dailyCapacities: farmStore.getDailyCapacities() });
     }
 
     return NextResponse.json({ success: false, message: 'نوع داده درخواستی نامعتبر است.' }, { status: 400 });
@@ -54,15 +66,49 @@ export async function POST(req: NextRequest) {
       if (!existingOrder) {
         return NextResponse.json({ success: false, message: 'سفارش مورد نظر یافت نشد.' }, { status: 404 });
       }
-      const transition = canTransition(existingOrder, status);
-      if (!transition.allowed) {
+      // Under the order's lock, so a payment callback or an expiry sweep cannot interleave with this change.
+      // The transition is checked again inside the lock, on the state that is current at that moment.
+      const outcome = await withOrderLock(existingOrder.orderNumber, async () => {
+        const current = farmStore.getOrderById(orderId);
+        if (!current) return { code: 404 as const, message: 'سفارش مورد نظر یافت نشد.' };
+        const transition = canTransition(current, status);
+        if (!transition.allowed) {
+          return { code: 400 as const, message: transition.reason || 'تغییر وضعیت سفارش مجاز نیست.' };
+        }
+        const order = await farmStore.updateOrderStatus(orderId, status);
+        return { code: 200 as const, order };
+      });
+      if (outcome.code !== 200) {
+        return NextResponse.json({ success: false, message: outcome.message }, { status: outcome.code });
+      }
+      return NextResponse.json({ success: true, order: outcome.order });
+    }
+
+    if (action === 'setDailyCapacity') {
+      const { isoDate, maxOrders } = payload || {};
+      if (!isValidIsoDate(isoDate)) {
+        return NextResponse.json({ success: false, message: 'تاریخ روز تحویل نامعتبر است.' }, { status: 400 });
+      }
+      if (!Number.isInteger(maxOrders) || maxOrders < 0 || maxOrders > 1000) {
         return NextResponse.json(
-          { success: false, message: transition.reason || 'تغییر وضعیت سفارش مجاز نیست.' },
+          { success: false, message: 'ظرفیت روزانه باید عدد صحیح بین ۰ تا ۱۰۰۰ باشد.' },
           { status: 400 }
         );
       }
-      const updated = await farmStore.updateOrderStatus(orderId, status);
-      return NextResponse.json({ success: true, order: updated });
+      farmStore.setDailyCapacity(isoDate, { maxCapacity: maxOrders });
+      return NextResponse.json({ success: true, dailyCapacities: farmStore.getDailyCapacities() });
+    }
+
+    if (action === 'toggleDayClosed') {
+      const { isoDate, closed } = payload || {};
+      if (!isValidIsoDate(isoDate)) {
+        return NextResponse.json({ success: false, message: 'تاریخ روز تحویل نامعتبر است.' }, { status: 400 });
+      }
+      if (typeof closed !== 'boolean') {
+        return NextResponse.json({ success: false, message: 'وضعیت تعطیلی روز نامعتبر است.' }, { status: 400 });
+      }
+      farmStore.setDailyCapacity(isoDate, { isClosedManually: closed });
+      return NextResponse.json({ success: true, dailyCapacities: farmStore.getDailyCapacities() });
     }
 
     if (action === 'updateProduct') {

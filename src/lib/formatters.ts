@@ -278,6 +278,17 @@ export function isShirazCity(city?: string | null): boolean {
   return n === 'شیراز' || n === 'شهر شیراز' || n === 'شهرشیراز' || n === 'shiraz';
 }
 
+/** Province check for the Shiraz rule: an empty province counts as Fars (the checkout default). */
+export function isFarsProvince(province?: string | null): boolean {
+  if (!province || typeof province !== 'string' || !province.trim()) return true;
+  return normalizePersianText(province) === 'فارس';
+}
+
+/** Shiraz rule for a delivery address: the city is Shiraz and the province is Fars (or not given). */
+export function isShirazAddress(city?: string | null, province?: string | null): boolean {
+  return isShirazCity(city) && isFarsProvince(province);
+}
+
 /**
  * Returns the client IP used as a rate-limit key.
  *

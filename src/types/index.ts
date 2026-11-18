@@ -423,6 +423,8 @@ export interface Order {
   couponCounted?: boolean;
   /** true once cancelOrderSideEffects has restored stock, slot and coupon for this order. */
   sideEffectsReleased?: boolean;
+  /** true when the payment deadline (not a customer or admin) cancelled this unpaid order. A late payment may revive it. */
+  cancelledByExpiry?: boolean;
   /** Payment confirmed by the gateway after the order was already cancelled. Needs a manual refund. */
   paidAfterCancel?: boolean;
   paymentMethod?: 'zarinpal' | 'snapppay' | 'cod' | string;

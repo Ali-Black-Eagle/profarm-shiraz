@@ -8,6 +8,11 @@
 const g = globalThis as unknown as { __PROFARM_ORDER_LOCKS__?: Map<string, Promise<unknown>> };
 const locks: Map<string, Promise<unknown>> = g.__PROFARM_ORDER_LOCKS__ || (g.__PROFARM_ORDER_LOCKS__ = new Map());
 
+/** true while a callback for this order holds or waits for the lock. Synchronous sweeps use it to skip busy orders. */
+export function isOrderLocked(orderKey: string): boolean {
+  return locks.has(orderKey);
+}
+
 export async function withOrderLock<T>(orderKey: string, fn: () => Promise<T> | T): Promise<T> {
   const previous = locks.get(orderKey) || Promise.resolve();
   const run = previous.catch(() => undefined).then(() => fn());

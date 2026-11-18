@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
   const tier = getEffectiveTier(fullUser);
   safeUser.tier = tier;
   safeUser.subscriptionTier = tier;
-  safeUser.isProMember = tier !== 'FREE';
+  safeUser.isProMember = tier === 'PRO';
   safeUser.isPlusMember = tier === 'PLUS';
   const usedEggQuotaThisMonth = farmStore.getUserRolling30DaysEggDiscountUsed(safeUser.id);
   safeUser.eggDiscountUsed = usedEggQuotaThisMonth;

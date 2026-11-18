@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         name: attachResult.user.name || 'کاربر گرامی',
         role: attachResult.user.role,
         tier: getEffectiveTier(attachResult.user),
-        isProMember: getEffectiveTier(attachResult.user) !== 'FREE',
+        isProMember: getEffectiveTier(attachResult.user) === 'PRO',
       });
 
       return res;
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
         name: user.name || 'کاربر گرامی',
         role: user.role,
         tier: getEffectiveTier(user),
-        isProMember: getEffectiveTier(user) !== 'FREE',
+        isProMember: getEffectiveTier(user) === 'PRO',
       });
 
       return res;
