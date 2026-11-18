@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { farmStore } from '@/lib/db-store';
+import React, { useMemo, useState, useRef } from 'react';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import { Product, ProductStatus, ProductSpecification, ProductFaq } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { INITIAL_CATEGORIES } from '@/lib/initial-data';
@@ -48,11 +48,18 @@ import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 export default function AdminProductsPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const productsState = useAdminFetch<{ products: Product[] }>('/api/admin/products');
+  const categoriesState = useAdminFetch<{ categories: { name: string; productCount: number }[] }>('/api/admin/categories');
+  const products = useMemo(() => productsState.data?.products ?? [], [productsState.data]);
+  const categories = useMemo(
+    () => (categoriesState.data?.categories ?? []).map((c) => c.name),
+    [categoriesState.data]
+  );
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Status Filter State
   const [statusFilter, setStatusFilter] = useState<'ALL' | ProductStatus>('ALL');
@@ -115,68 +122,54 @@ export default function AdminProductsPage() {
     { label: 'روغن زیتون سروستان', url: '/images/prod-olive-oil.jpg' },
   ];
 
-  const refreshProducts = () => {
-    setProducts([...farmStore.getProducts()]);
-    setCategories([...farmStore.getCategories()]);
-  };
+  const showToast = (msg: string) => toast.success(msg);
 
-  useEffect(() => {
-    refreshProducts();
-  }, []);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const handleAddCategory = (e?: React.FormEvent) => {
+  const handleAddCategory = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newCategoryInput.trim()) return;
-    const res = farmStore.addCategory(newCategoryInput);
-    if (res.success) {
-      setCategories([...res.categories]);
-      setCategory(newCategoryInput.trim());
-      setNewCategoryInput('');
-      showToast(res.message);
-      toast.success(res.message);
-    } else {
-      toast.error(res.message);
+    const name = newCategoryInput.trim();
+    if (!name || busy) return;
+    setBusy(true);
+    const result = await adminRequest<{ message: string; categories: { name: string; productCount: number }[] }>(
+      '/api/admin/categories',
+      { method: 'POST', body: { name } }
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    categoriesState.setData(() => ({ categories: result.data.categories }));
+    setCategory(name);
+    setNewCategoryInput('');
+    showToast(result.data.message || 'دسته‌بندی جدید اضافه شد.');
   };
 
   const handleDeleteCategory = async (catName: string) => {
+    if (busy) return;
     const productsInCat = products.filter((p) => p.category === catName).length;
     const ok = await confirm({
       title: 'حذف دسته‌بندی محصول',
       description:
         productsInCat > 0
-          ? `توجه: ${toPersianDigits(productsInCat)} محصول در این دسته‌بندی تعریف شده است. آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`
+          ? `توجه: ${toPersianDigits(productsInCat)} محصول در این دسته‌بندی تعریف شده است. تا زمانی که کالاها منتقل نشوند، حذف انجام نمی‌شود. آیا ادامه می‌دهید؟`
           : `آیا از حذف دسته‌بندی «${catName}» اطمینان دارید؟`,
       confirmLabel: 'حذف دسته‌بندی',
       cancelLabel: 'انصراف',
       variant: 'danger',
     });
     if (!ok) return;
-    const res = farmStore.deleteCategory(catName);
-    setCategories([...res.categories]);
-    showToast(res.message);
-    toast.success(res.message);
-  };
-
-  const handleResetCategories = async () => {
-    const ok = await confirm({
-      title: 'بازنشانی دسته‌بندی‌ها',
-      description: 'آیا از بازنشانی دسته‌بندی‌ها به مقادیر اولیه اطمینان دارید؟',
-      confirmLabel: 'بازنشانی پیش‌فرض',
-      cancelLabel: 'انصراف',
-      variant: 'warning',
-    });
-    if (ok) {
-      const defs = farmStore.resetCategories();
-      setCategories([...defs]);
-      showToast('دسته‌بندی‌ها به حالت پیش‌فرض بازنشانی شدند.');
-      toast.success('دسته‌بندی‌ها به حالت پیش‌فرض بازنشانی شدند.');
+    setBusy(true);
+    const result = await adminRequest<{ message: string; categories: { name: string; productCount: number }[] }>(
+      `/api/admin/categories?name=${encodeURIComponent(catName)}`,
+      { method: 'DELETE' }
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    categoriesState.setData(() => ({ categories: result.data.categories }));
+    showToast(result.data.message || 'دسته‌بندی حذف شد.');
   };
 
   const handleOpenAddModal = () => {
@@ -184,8 +177,7 @@ export default function AdminProductsPage() {
     setEditingId(null);
     setTitle('');
     setPackSize('');
-    const availableCats = farmStore.getCategories().filter((c) => c !== 'همه محصولات');
-    setCategory(availableCats[0] || INITIAL_CATEGORIES[1]);
+    setCategory(categories[0] || INITIAL_CATEGORIES[1]);
     setPrice(180000);
     setCostPrice('');
     setStock(25);
@@ -227,6 +219,7 @@ export default function AdminProductsPage() {
     setSeoDescription('');
     setSeoKeywordsText('');
 
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -268,6 +261,7 @@ export default function AdminProductsPage() {
     setSeoDescription(prod.seoDescription || '');
     setSeoKeywordsText(prod.seoKeywords ? prod.seoKeywords.join('، ') : '');
 
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -320,30 +314,35 @@ export default function AdminProductsPage() {
   };
 
   // Quick Status Switcher directly from Table
-  const handleQuickStatusChange = (prodId: string, newStatus: ProductStatus) => {
-    farmStore.updateProduct(prodId, { status: newStatus });
-    refreshProducts();
+  const handleQuickStatusChange = async (prodId: string, newStatus: ProductStatus) => {
+    const current = products.find((p) => p.id === prodId);
+    if (!current || busy) return;
+    const previous = current.status;
+    setBusy(true);
+    productsState.setData((prev) =>
+      prev ? { ...prev, products: prev.products.map((p) => (p.id === prodId ? { ...p, status: newStatus } : p)) } : prev
+    );
+    const result = await adminRequest<{ product: Product }>(
+      '/api/admin/products?action=status',
+      { method: 'POST', body: { id: prodId, status: newStatus } }
+    );
+    setBusy(false);
+    if (!result.ok) {
+      productsState.setData((prev) =>
+        prev ? { ...prev, products: prev.products.map((p) => (p.id === prodId ? { ...p, status: previous } : p)) } : prev
+      );
+      toast.error(result.message);
+      return;
+    }
     const label = newStatus === 'AVAILABLE' ? 'موجود' : newStatus === 'OUT_OF_STOCK' ? 'ناموجود' : 'به زودی';
     showToast(`وضعیت محصول به «${label}» تغییر یافت.`);
   };
 
-  // Upload local images from device
+  // Local image files are not uploaded to the server yet (the stored image must be a URL or a public path).
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setImages((prev) => [...prev, event.target!.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Reset input so re-uploading same file works
+    toast.error('آپلود فایل از دستگاه هنوز پشتیبانی نمی‌شود. نشانی تصویر (URL) را وارد کنید.');
     if (fileInputRef.current) fileInputRef.current.value = '';
+    e.target.value = '';
   };
 
   // Add image via URL
@@ -369,11 +368,46 @@ export default function AdminProductsPage() {
     });
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setFormError(null);
+
+    const fail = (message: string) => {
+      setFormError(message);
+      toast.error(message);
+    };
 
     if (!title.trim()) {
-      toast.error('لطفاً عنوان محصول را وارد کنید.');
+      fail('لطفاً عنوان محصول را وارد کنید.');
+      return;
+    }
+    if (!category || !categories.includes(category)) {
+      fail('دسته‌بندی انتخاب‌شده معتبر نیست. ابتدا دسته‌بندی را تعریف کنید.');
+      return;
+    }
+    if (!Number.isInteger(price) || price < 0) {
+      fail('قیمت فروش باید عدد صحیح و بزرگ‌تر یا مساوی صفر باشد.');
+      return;
+    }
+    if (costPrice !== '' && (!Number.isInteger(Number(costPrice)) || Number(costPrice) < 0)) {
+      fail('بهای تمام‌شده باید عدد صحیح و بزرگ‌تر یا مساوی صفر باشد.');
+      return;
+    }
+    if (!Number.isInteger(stock) || stock < 0) {
+      fail('موجودی انبار باید عدد صحیح و بزرگ‌تر یا مساوی صفر باشد.');
+      return;
+    }
+    if (weightKg !== '' && (!Number.isFinite(Number(weightKg)) || Number(weightKg) < 0)) {
+      fail('وزن باید عدد مثبت باشد.');
+      return;
+    }
+    if (!Number.isInteger(minBulkQuantity) || minBulkQuantity < 1) {
+      fail('حداقل تعداد عمده باید عدد صحیح و حداقل ۱ باشد.');
+      return;
+    }
+    if (images.some((img) => img.length > 500)) {
+      fail('نشانی یکی از تصاویر بیش از حد طولانی است.');
       return;
     }
 
@@ -409,9 +443,9 @@ export default function AdminProductsPage() {
     const extraFields = {
       specifications: validSpecs,
       highlights: parsedHighlights,
-      storageInstructions: storageInstructions.trim() || undefined,
-      originLocation: originLocation.trim() || undefined,
-      shelfLife: shelfLife.trim() || undefined,
+      storageInstructions: storageInstructions.trim(),
+      originLocation: originLocation.trim(),
+      shelfLife: shelfLife.trim(),
       nutritionalInfo,
       faqs: validFaqs,
     };
@@ -423,62 +457,68 @@ export default function AdminProductsPage() {
 
     const seoPayload = {
       slug: slug.trim() || undefined,
-      seoTitle: seoTitle.trim() || undefined,
-      seoDescription: seoDescription.trim() || undefined,
+      seoTitle: seoTitle.trim(),
+      seoDescription: seoDescription.trim(),
       seoKeywords: parsedKeywords.length > 0 ? parsedKeywords : undefined,
     };
 
-    if (isEditing && editingId) {
-      farmStore.updateProduct(editingId, {
-        title,
-        packSize: parsedPackSize,
-        category,
-        price,
-        costPrice: parsedCostPrice,
-        stock,
-        status,
-        weightKg: parsedWeight,
-        dimensions: parsedDimensions,
-        description: parsedDescription,
-        images: finalImages,
-        isOrganicCertified,
-        isBulkEligible,
-        minBulkQuantity,
-        ...extraFields,
-        ...seoPayload,
-      });
-      showToast(`محصول «${title}» با موفقیت به‌روزرسانی شد.`);
-    } else {
-      farmStore.addProduct({
-        title,
-        packSize: parsedPackSize,
-        category,
-        price,
-        costPrice: parsedCostPrice,
-        stock,
-        status,
-        weightKg: parsedWeight,
-        dimensions: parsedDimensions,
-        description: parsedDescription,
-        images: finalImages,
-        isOrganicCertified,
-        isBulkEligible,
-        minBulkQuantity,
-        ...extraFields,
-        ...seoPayload,
-      });
-      showToast(`محصول ارگانیک جدید «${title}» با موفقیت و رعایت کامل اصول سئو به کاتالوگ انبار اضافه شد.`);
-    }
+    // Shared body for create and update. Cleared text fields are sent as empty strings so an edit can clear them.
+    const body = {
+      title: title.trim(),
+      packSize: parsedPackSize ?? null,
+      category,
+      price,
+      costPrice: parsedCostPrice,
+      stock,
+      status,
+      weightKg: parsedWeight,
+      dimensions: parsedDimensions ?? null,
+      description: parsedDescription,
+      images: finalImages,
+      isOrganicCertified,
+      isBulkEligible,
+      minBulkQuantity,
+      ...extraFields,
+      ...seoPayload,
+    };
 
+    setSaving(true);
+    const result = isEditing && editingId
+      ? await adminRequest<{ product: Product }>('/api/admin/products', {
+          method: 'PATCH',
+          body: { id: editingId, ...body },
+        })
+      : await adminRequest<{ product: Product }>('/api/admin/products', { method: 'POST', body });
+    setSaving(false);
+
+    if (!result.ok) {
+      fail(result.message);
+      return;
+    }
+    void productsState.reload();
+    void categoriesState.reload();
     setIsModalOpen(false);
+    showToast(
+      isEditing
+        ? `محصول «${title.trim()}» با موفقیت به‌روزرسانی شد.`
+        : `محصول ارگانیک جدید «${title.trim()}» با موفقیت به کاتالوگ انبار اضافه شد.`
+    );
   };
 
-  const handleClone = (prod: Product) => {
-    const cloned = farmStore.cloneProduct(prod.slug);
-    if (cloned) {
-      refreshProducts();
-      showToast(`نسخه رونوشت از «${prod.title}» ساخته شد.`);
+  const handleClone = async (prod: Product) => {
+    if (busy) return;
+    setBusy(true);
+    const result = await adminRequest<{ product: Product; message?: string }>(
+      '/api/admin/products?action=clone',
+      { method: 'POST', body: { id: prod.id } }
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    void productsState.reload();
+    showToast(result.data.message || `نسخه رونوشت از «${prod.title}» ساخته شد.`);
   };
 
   return (
@@ -514,12 +554,14 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {toastMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-sm font-bold text-emerald-900 flex items-center gap-2.5 animate-in fade-in shadow-xs">
-          <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      <AdminStatus
+        hasData={productsState.data !== null}
+        loading={productsState.loading}
+        error={productsState.error}
+        onRetry={() => void productsState.reload()}
+        isEmpty={productsState.data !== null && products.length === 0}
+        emptyText="هنوز کالایی در انبار ثبت نشده است. با دکمه «افزودن محصول جدید» اولین کالا را تعریف کنید."
+      />
 
       {/* Status Filters Bar */}
       <div className="flex flex-wrap items-center gap-2.5 pb-1">
@@ -1565,6 +1607,11 @@ export default function AdminProductsPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-gray-100">
+                {formError && (
+                  <p role="alert" className="text-xs font-bold text-rose-700 self-center mr-auto">
+                    {formError}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -1574,10 +1621,11 @@ export default function AdminProductsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-7 py-2.5 rounded-xl bg-farm-primary text-white font-bold hover:bg-farm-primary-dark shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+                  disabled={saving}
+                  className="px-7 py-2.5 rounded-xl bg-farm-primary text-white font-bold hover:bg-farm-primary-dark shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-102 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4 text-[#D4A373]" />
-                  <span>{isEditing ? 'ذخیره تغییرات محصول' : 'ثبت قطعی در انبار شیراز'}</span>
+                  <span>{saving ? 'در حال ذخیره...' : isEditing ? 'ذخیره تغییرات محصول' : 'ثبت قطعی در انبار شیراز'}</span>
                 </button>
               </div>
             </form>
@@ -1622,14 +1670,6 @@ export default function AdminProductsPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-gray-600">
                 <span>دسته‌بندی‌های فعال ({toPersianDigits(categories.filter((c) => c !== 'همه محصولات').length)} دسته):</span>
-                <button
-                  type="button"
-                  onClick={handleResetCategories}
-                  className="text-xs text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>بازنشانی پیش‌فرض</span>
-                </button>
               </div>
 
               <div className="divide-y divide-gray-100 border border-farm-border rounded-2xl overflow-hidden max-h-72 overflow-y-auto">

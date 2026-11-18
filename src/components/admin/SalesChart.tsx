@@ -28,13 +28,13 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
             <span>تحلیل مالی و بازدهی فروشگاه شیراز</span>
           </div>
           <h3 className="text-base sm:text-lg font-black text-farm-primary mt-0.5">
-            نمودار روند فروش ۷ روز اخیر (تومان)
+            نمودار فروش خالص این هفته (شنبه تا جمعه، تومان)
           </h3>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="text-right">
-            <span className="block text-xs text-farm-text-muted font-medium">مجموع فروش ۷ روز اخیر:</span>
+            <span className="block text-xs text-farm-text-muted font-medium">مجموع فروش این هفته:</span>
             <span className="text-base font-black text-farm-primary">
               {formatToman(totalWeeklySales)}
             </span>
@@ -68,7 +68,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
       {/* Interactive Bar Chart (Keyboard & Touch Accessible) */}
       {totalWeeklySales === 0 ? (
         <div className="py-10 px-4 rounded-2xl bg-farm-bg border border-dashed border-farm-border text-center space-y-1">
-          <p className="text-sm font-bold text-farm-text">هنوز سفارش پرداخت‌شده‌ای در ۷ روز اخیر ثبت نشده است.</p>
+          <p className="text-sm font-bold text-farm-text">هنوز سفارش پرداخت‌شده‌ای در این هفته ثبت نشده است.</p>
           <p className="text-xs text-farm-text-muted">به محض تایید پرداخت سفارش‌های جدید، نمودار واقعی اینجا نمایش داده می‌شود.</p>
         </div>
       ) : (

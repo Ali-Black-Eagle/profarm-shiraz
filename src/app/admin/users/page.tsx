@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { farmStore } from '@/lib/db-store';
+import { adminQuery, adminRequest, AdminPager, AdminPagination, AdminStatus, useAdminFetch } from "@/components/admin/admin-client";
 import { User, SubscriptionTier, UserRole } from '@/types';
 import { toPersianDigits, formatSubscriptionExpiry } from '@/lib/formatters';
 import { formatToJalali } from '@/lib/jalali';
@@ -37,52 +37,23 @@ export default function AdminUsersPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const [page, setPage] = useState(1);
   const [filterTier, setFilterTier] = useState<'ALL' | 'PRO' | 'PLUS' | 'FREE'>('ALL');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const usersState = useAdminFetch<{ users: User[]; pagination: AdminPagination }>(
+    adminQuery('/api/admin/users', { page, pageSize: 20 })
+  );
+  const users = useMemo(() => usersState.data?.users ?? [], [usersState.data]);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('FREE');
-  const [customExpiry, setCustomExpiry] = useState<string>('');
+  /** Months to add to the plan (0 = no extension). The server extends the plan by this many months. */
+  const [extendMonths, setExtendMonths] = useState<number>(0);
   const [userRole, setUserRole] = useState<UserRole>('USER');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  const loadUsers = async () => {
-    try {
-      const res = await fetch('/api/admin?type=users');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.users)) {
-        const unique = new Map<string, User>();
-        data.users.forEach((u: User) => {
-          const key = u.id || u.phone;
-          if (key && !unique.has(key)) {
-            unique.set(key, u);
-          }
-        });
-        setUsers(Array.from(unique.values()));
-        return;
-      }
-    } catch (e) {
-      console.warn('Failed to load users from API, falling back to store:', e);
-    }
-
-    const rawUsers = farmStore.getAllUsers();
-    const unique = new Map<string, User>();
-    rawUsers.forEach((u) => {
-      const key = u.id || u.phone;
-      if (key && !unique.has(key)) {
-        unique.set(key, u);
-      }
-    });
-    setUsers(Array.from(unique.values()));
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setNotification({ type, text });
@@ -103,8 +74,7 @@ export default function AdminUsersPage() {
     setEditingUser(user);
     const tier: SubscriptionTier = user.subscriptionTier || (user.isProMember ? 'PRO' : user.isPlusMember ? 'PLUS' : 'FREE');
     setSelectedTier(tier);
-    const expiry = tier === 'PRO' ? (formatSubscriptionExpiry(user.proExpiresAt) || jalaliExpiryFromNow(1)) : tier === 'PLUS' ? (formatSubscriptionExpiry(user.plusExpiresAt) || jalaliExpiryFromNow(1)) : '';
-    setCustomExpiry(expiry);
+    setExtendMonths(0);
     setUserRole(user.role || 'USER');
     setSaveError(null);
     setIsEditModalOpen(true);
@@ -112,22 +82,29 @@ export default function AdminUsersPage() {
 
   const handleQuickExtend = (months: number) => {
     // Real Jalali expiration date, counted from today
-    setCustomExpiry(jalaliExpiryFromNow(months));
+    setExtendMonths(months);
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser) return;
+    if (!editingUser || isSaving) return;
     setSaveError(null);
 
-    const isRoleChanging = editingUser.role !== userRole;
-    if (isRoleChanging) {
+    const currentTier: SubscriptionTier =
+      editingUser.subscriptionTier || (editingUser.isProMember ? 'PRO' : editingUser.isPlusMember ? 'PLUS' : 'FREE');
+    const roleChanged = editingUser.role !== userRole;
+    const tierChanged = selectedTier !== currentTier;
+    // Only send the subscription part when the tier changes or a duration was chosen. A role-only change never extends a plan.
+    const subscriptionChanged = tierChanged || (selectedTier !== 'FREE' && extendMonths > 0);
+
+    if (!roleChanged && !subscriptionChanged) {
+      setIsEditModalOpen(false);
+      return;
+    }
+
+    if (roleChanged) {
       if (isEditingSelf && userRole !== 'ADMIN') {
         setSaveError('امکان تغییر نقش حساب کاربری خودتان به کاربر عادی وجود ندارد.');
-        return;
-      }
-      if (isEditingLastAdmin && userRole !== 'ADMIN') {
-        setSaveError('این حساب آخرین مدیر ارشد سامانه است و نمی‌توان نقش آن را کاهش داد.');
         return;
       }
       const confirmRole = await confirm({
@@ -142,68 +119,28 @@ export default function AdminUsersPage() {
       if (!confirmRole) return;
     }
 
-    setIsSaving(true);
-    try {
-      // 1. Update subscription on server
-      const subRes = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateUserSubscription',
-          payload: {
-            identifier: editingUser.id || editingUser.phone,
-            tier: selectedTier,
-            expiryDate: selectedTier !== 'FREE' ? customExpiry : undefined,
-          },
-        }),
-      });
-      const subData = await subRes.json().catch(() => ({}));
-      if (!subRes.ok || !subData.success) {
-        setSaveError(subData.error || subData.message || 'خطا در ذخیره اشتراک کاربر در سرور.');
-        return;
-      }
-
-      // 2. Update role on server if changed
-      if (isRoleChanging) {
-        const roleRes = await fetch('/api/admin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'updateUserRole',
-            payload: {
-              identifier: editingUser.phone || editingUser.id,
-              role: userRole,
-            },
-          }),
-        });
-        const roleData = await roleRes.json().catch(() => ({}));
-        if (!roleRes.ok || !roleData.success) {
-          setSaveError(roleData.error || roleData.message || 'خطا در تغییر نقش کاربر در سرور.');
-          return;
-        }
-      }
-
-      // Sync local store ONLY after server confirms success
-      const userIdentifier = editingUser.id || editingUser.phone || '';
-      if (userIdentifier) {
-        farmStore.updateUserSubscription(
-          userIdentifier,
-          selectedTier,
-          selectedTier !== 'FREE' ? customExpiry : undefined
-        );
-        if (isRoleChanging) {
-          farmStore.updateUserRole(userIdentifier, userRole);
-        }
-      }
-
-      await loadUsers();
-      setIsEditModalOpen(false);
-      showToast(`اشتراک و دسترسی‌های کاربر ${editingUser.name || editingUser.phone || 'کاربر'} با موفقیت در سرور ذخیره شد.`);
-    } catch {
-      setSaveError('خطا در ارتباط با سرور. تغییرات ذخیره نشد؛ لطفاً مجدداً تلاش کنید.');
-    } finally {
-      setIsSaving(false);
+    const body: Record<string, unknown> = { id: editingUser.id };
+    if (roleChanged) body.role = userRole;
+    if (subscriptionChanged) {
+      body.tier = selectedTier;
+      if (selectedTier !== 'FREE') body.months = extendMonths > 0 ? extendMonths : 1;
     }
+
+    setIsSaving(true);
+    const result = await adminRequest<{ user: User }>('/api/admin/users', { method: 'PATCH', body });
+    setIsSaving(false);
+    if (!result.ok) {
+      setSaveError(result.message);
+      return;
+    }
+    const updated = result.data.user;
+    if (updated) {
+      usersState.setData((prev) =>
+        prev ? { ...prev, users: prev.users.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)) } : prev
+      );
+    }
+    setIsEditModalOpen(false);
+    showToast(`تغییرات کاربر ${editingUser.name || editingUser.phone || 'کاربر'} با موفقیت در سرور ذخیره شد.`);
   };
 
   const filteredUsers = users.filter((u) => {
@@ -247,6 +184,13 @@ export default function AdminUsersPage() {
           </span>
         </div>
       </div>
+
+      <AdminStatus
+        hasData={usersState.data !== null}
+        loading={usersState.loading}
+        error={usersState.error}
+        onRetry={() => void usersState.reload()}
+      />
 
       {notification && (
         <div
@@ -318,7 +262,7 @@ export default function AdminUsersPage() {
 
       {/* Mobile Users Cards (Mobile only, zero horizontal scrolling) */}
       <div className="md:hidden flex flex-col gap-3.5">
-        {filteredUsers.length === 0 ? (
+        {usersState.data !== null && filteredUsers.length === 0 ? (
           <div className="bg-white rounded-2xl border border-farm-border p-8 text-center text-gray-500 font-medium">
             هیچ کاربری در این فیلتر یافت نشد.
           </div>
@@ -414,7 +358,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-farm-border">
-              {filteredUsers.length === 0 ? (
+              {usersState.data !== null && filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-gray-500 font-medium">
                     هیچ کاربری در این فیلتر یافت نشد.
@@ -568,7 +512,7 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => {
                       setSelectedTier('PRO');
-                      if (!customExpiry) setCustomExpiry(jalaliExpiryFromNow(1));
+                      setExtendMonths(1);
                     }}
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'PRO'
@@ -589,7 +533,7 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => {
                       setSelectedTier('PLUS');
-                      if (!customExpiry) setCustomExpiry(jalaliExpiryFromNow(1));
+                      setExtendMonths(1);
                     }}
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'PLUS'
@@ -610,7 +554,7 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => {
                       setSelectedTier('FREE');
-                      setCustomExpiry('');
+                      setExtendMonths(0);
                     }}
                     className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
                       selectedTier === 'FREE'
@@ -640,14 +584,11 @@ export default function AdminUsersPage() {
                     <span className="text-xs text-amber-800">تمدید سریع:</span>
                   </div>
 
-                  <input
-                    type="text"
-                    required
-                    placeholder={`مثال: ${jalaliExpiryFromNow(3)}`}
-                    value={customExpiry}
-                    onChange={(e) => setCustomExpiry(e.target.value)}
-                    className="w-full px-4 py-2 rounded-xl border border-amber-300 bg-white text-gray-900 font-bold text-xs focus:outline-none focus:border-amber-600"
-                  />
+                  <p className="text-xs font-bold text-amber-900" aria-live="polite">
+                    {extendMonths > 0
+                      ? `تمدید ${toPersianDigits(extendMonths)} ماه به اعتبار فعلی اشتراک`
+                      : 'بدون تمدید. برای افزودن مدت از دکمه‌های زیر استفاده کنید.'}
+                  </p>
 
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     <button
@@ -733,6 +674,7 @@ export default function AdminUsersPage() {
             </form>
         )}
       </Dialog>
+      <AdminPager pagination={usersState.data?.pagination} onPage={setPage} disabled={usersState.loading} />
     </div>
   );
 }

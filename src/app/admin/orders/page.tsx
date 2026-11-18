@@ -1,7 +1,27 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { farmStore } from '@/lib/db-store';
+import { adminQuery, adminRequest, AdminPager, AdminPagination, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
+
+/** An order as the admin API returns it: the stored order plus the statuses it may move to now. */
+type AdminOrder = Order & { allowedNextStatuses?: OrderStatus[] };
+
+type OrdersPayload = {
+  orders: AdminOrder[];
+  pagination: AdminPagination;
+  counts: Record<OrderStatus, number> & { matching: number };
+};
+
+type DeliverySlotOption = {
+  id: string;
+  isoDate: string;
+  jalaliLabel: string;
+  window: string;
+  isClosed: boolean;
+  isFull: boolean;
+  isAllowedForTier: boolean;
+  remainingCapacity: number;
+};
 import { Order, OrderStatus, Product, OrderItem } from '@/types';
 import { formatToman, toPersianDigits, isValidIranPhone } from '@/lib/formatters';
 import { formatToJalali } from '@/lib/jalali';
@@ -32,13 +52,35 @@ import {
 export default function AdminOrdersPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const productsState = useAdminFetch<{ products: Product[] }>('/api/admin/products');
+  const products = useMemo(() => productsState.data?.products ?? [], [productsState.data]);
+  const slotsState = useAdminFetch<{ slots: DeliverySlotOption[] }>('/api/delivery-slots?days=14');
+  const slots = useMemo(() => slotsState.data?.slots ?? [], [slotsState.data]);
   const [smsNotification, setSmsNotification] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   // Search & Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  // Filtering, search and pagination all happen on the server
+  const ordersState = useAdminFetch<OrdersPayload>(
+    adminQuery('/api/admin/orders', { status: statusFilter, q: debouncedQuery, page, pageSize: 20 })
+  );
+  const orders = useMemo(() => ordersState.data?.orders ?? [], [ordersState.data]);
+  const orderCounts = ordersState.data?.counts;
+  const totalOrderCount = orderCounts
+    ? orderCounts.PENDING_PAYMENT + orderCounts.PROCESSING + orderCounts.OUT_FOR_DELIVERY + orderCounts.DELIVERED + orderCounts.CANCELLED
+    : 0;
 
   // Modals state
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
@@ -52,21 +94,12 @@ export default function AdminOrdersPage() {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [orderItemsList, setOrderItemsList] = useState<{ product: Product; quantity: number }[]>([]);
-  const [deliveryDate, setDeliveryDate] = useState('امروز / فردا');
-  const [deliveryTimeWindow, setDeliveryTimeWindow] = useState('۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)');
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card-on-delivery' | 'paid-offline'>('cash');
 
-  const fetchOrdersAndProducts = () => {
-    setOrders([...farmStore.getOrders()]);
-    const prods = farmStore.getProducts();
-    setProducts(prods);
-    if (prods.length > 0 && !selectedProductId) {
-      setSelectedProductId(prods[0].id);
-    }
+  const reloadOrders = () => {
+    void ordersState.reload();
   };
-
-  useEffect(() => {
-    fetchOrdersAndProducts();
-  }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const statusLabel = getOrderStatusMeta(newStatus).label;
@@ -84,36 +117,58 @@ export default function AdminOrdersPage() {
       if (!ok) return;
     }
 
-    try {
-      const res = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateOrderStatus',
-          payload: { orderId, status: newStatus },
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        const errMsg = data.error || data.message || 'تغییر وضعیت سفارش مجاز نیست.';
-        setSmsNotification(`خطا: ${errMsg}`);
-        toast.error(errMsg);
-        setTimeout(() => setSmsNotification(null), 5000);
-        return;
+    if (busyOrderId) return;
+    const matches = (o: Order) => o.orderNumber === orderId || o.id === orderId;
+    const previous = orders.find(matches)?.status;
+    setBusyOrderId(orderId);
+    // Optimistic update, rolled back if the server refuses. The server sends the customer SMS once.
+    ordersState.setData((prev) =>
+      prev ? { ...prev, orders: prev.orders.map((o) => (matches(o) ? { ...o, status: newStatus } : o)) } : prev
+    );
+    const result = await adminRequest<{ order: Order }>('/api/admin/orders', {
+      method: 'PATCH',
+      body: { orderId, status: newStatus },
+    });
+    setBusyOrderId(null);
+    if (!result.ok) {
+      if (previous) {
+        ordersState.setData((prev) =>
+          prev ? { ...prev, orders: prev.orders.map((o) => (matches(o) ? { ...o, status: previous } : o)) } : prev
+        );
       }
-      const updated = await farmStore.updateOrderStatus(orderId, newStatus);
-      fetchOrdersAndProducts();
-      const phone = updated?.address?.phone || updated?.user?.phone || '';
-      const okMsg = `وضعیت سفارش به «${statusLabel}» تغییر یافت${phone ? ` (شماره تماس مشتری: ${toPersianDigits(phone)})` : ''}.`;
-      setSmsNotification(okMsg);
-      toast.success(okMsg);
-      setTimeout(() => setSmsNotification(null), 5000);
-    } catch {
-      const errMsg = 'خطا در ارتباط با سرور؛ وضعیت سفارش تغییر نکرد.';
-      setSmsNotification(errMsg);
-      toast.error(errMsg);
-      setTimeout(() => setSmsNotification(null), 5000);
+      toast.error(result.message);
+      return;
     }
+    const phone = result.data.order?.address?.phone || result.data.order?.user?.phone || '';
+    const okMsg = `وضعیت سفارش به «${statusLabel}» تغییر یافت${phone ? ` (شماره تماس مشتری: ${toPersianDigits(phone)})` : ''}.`;
+    setSmsNotification(okMsg);
+    toast.success(okMsg);
+    setTimeout(() => setSmsNotification(null), 5000);
+    void ordersState.reload();
+  };
+
+  /** Dropdown options: the current status (shown, disabled) plus only the statuses the server allows next. */
+  const renderStatusOptions = (order: AdminOrder) => {
+    const labels: Record<OrderStatus, string> = {
+      PENDING_PAYMENT: 'در انتظار پرداخت',
+      PROCESSING: 'در حال آماده‌سازی',
+      OUT_FOR_DELIVERY: 'تحویل به پیک شیراز',
+      DELIVERED: 'تحویل داده شد',
+      CANCELLED: 'لغو سفارش',
+    };
+    const allowed = order.allowedNextStatuses ?? [];
+    return (
+      <>
+        <option value={order.status} disabled>
+          {labels[order.status]}
+        </option>
+        {allowed.map((s) => (
+          <option key={s} value={s}>
+            {labels[s]}
+          </option>
+        ))}
+      </>
+    );
   };
 
   const handleAddItemToManualOrder = (productToAdd?: Product, qtyToAdd?: number) => {
@@ -157,14 +212,10 @@ export default function AdminOrdersPage() {
     setOrderItemsList([]);
   };
 
+  /** Preview of the items only. Shipping and discounts are calculated and stored by the server. */
   const calculateManualTotal = () => {
-    const itemsTotal = orderItemsList.reduce(
-      (sum, i) => sum + i.product.price * i.quantity,
-      0
-    );
-    const baseShipping = farmStore.getSubscriptionSettings().baseShippingFee;
-    const shipping = itemsTotal === 0 ? 0 : itemsTotal >= 500000 ? 0 : baseShipping;
-    return { itemsTotal, shipping, finalTotal: itemsTotal + shipping };
+    const itemsTotal = orderItemsList.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+    return { itemsTotal };
   };
 
   const handleCreateManualOrder = async (e: React.FormEvent) => {
@@ -190,70 +241,50 @@ export default function AdminOrdersPage() {
       return;
     }
 
-    const { finalTotal } = calculateManualTotal();
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const orderNumber = `PRF-1405-${Date.now().toString(36).toUpperCase()}-${randomPart}`;
+    if (!selectedSlotId) {
+      toast.error('لطفاً یک سانس تحویل انتخاب کنید.');
+      return;
+    }
 
-    const user = farmStore.getOrCreateUser(customerPhone, customerName);
-
-    const fullItems: OrderItem[] = orderItemsList.map((i, idx) => ({
-      id: `manual-item-${Date.now()}-${idx}`,
-      productId: i.product.id,
-      product: i.product,
-      quantity: i.quantity,
-      unitPrice: i.product.price,
-      totalPrice: i.product.price * i.quantity,
-    }));
-
-    const created = farmStore.createOrder({
-      orderNumber,
-      userId: user.id,
-      user,
-      addressId: `addr-manual-${Date.now()}`,
-      address: {
-        id: `addr-manual-${Date.now()}`,
-        userId: user.id,
-        recipientName: customerName,
-        phone: customerPhone,
-        province: 'فارس',
-        city: 'شیراز',
-        postalCode: '۷۱۹۸۷۶۵۴۳۲',
-        streetAddress,
-        unit: unit || null,
-        isShiraz: true,
+    setSavingOrder(true);
+    const result = await adminRequest<{ order: AdminOrder }>('/api/admin/manual-order', {
+      method: 'POST',
+      body: {
+        customer: { name: customerName.trim(), phone: customerPhone.trim() },
+        address: {
+          city: 'شیراز',
+          province: 'فارس',
+          streetAddress: streetAddress.trim(),
+          unit: unit.trim() || undefined,
+        },
+        items: orderItemsList.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+        slotId: selectedSlotId,
+        paymentMethod,
       },
-      deliverySlotId: `slot-${Date.now()}`,
-      deliverySlot: {
-        id: `slot-${Date.now()}`,
-        date: deliveryDate,
-        dayOfWeek: 'تحویل روزانه',
-        timeWindow: '۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)',
-        maxCapacity: 30,
-        currentBookings: 1,
-      },
-      totalAmount: finalTotal,
-      status: 'PROCESSING',
-      isBulkOrder: false,
-      items: fullItems,
     });
+    setSavingOrder(false);
 
-    // Send order confirmation SMS automatically
-    const smsContent = `پروفارم شیراز\nمشتری گرامی ${customerName}، سفارش شماره ${orderNumber} برای شما ثبت گردید و در بازه ۱۵ تا ۲۱ تحویل پیک شیراز خواهد شد.\nمبلغ: ${formatToman(finalTotal)}`;
-    console.log(`[Manual Order SMS] To: ${customerPhone} | Content:\n${smsContent}`);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
 
-    setSmsNotification(
-      `سفارش جدید ${orderNumber} با موفقیت ثبت شد و پیامک تایید و هماهنگی برای ${customerName} (${toPersianDigits(customerPhone)}) ارسال گردید.`
-    );
+    const created = result.data.order;
+    const msg = `سفارش ${created?.orderNumber ?? ''} ثبت شد. مبلغ نهایی: ${formatToman(created?.totalAmount ?? 0)}.`;
+    setSmsNotification(msg);
+    toast.success(msg);
     setTimeout(() => setSmsNotification(null), 6000);
 
-    // Reset and close
     setCustomerName('');
     setCustomerPhone('0917');
     setStreetAddress('');
     setUnit('');
     setOrderItemsList([]);
+    setSelectedSlotId('');
+    setPaymentMethod('cash');
     setIsManualOrderModalOpen(false);
-    fetchOrdersAndProducts();
+    reloadOrders();
+    void productsState.reload();
   };
 
   const handlePrintInvoice = () => {
@@ -264,7 +295,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const { itemsTotal, shipping, finalTotal } = calculateManualTotal();
+  const { itemsTotal } = calculateManualTotal();
 
   // Helper for multi-digit normalization (Persian & Arabic to English)
   const normalizeText = (text: string) => {
@@ -278,42 +309,8 @@ export default function AdminOrdersPage() {
     return res;
   };
 
-  // Filtered orders matching mobile, customer name, and order code
-  const filteredOrders = useMemo(() => {
-    const query = normalizeText(searchQuery);
-
-    return orders.filter((order) => {
-      // 1. Status filter
-      if (statusFilter !== 'ALL' && order.status !== statusFilter) {
-        return false;
-      }
-
-      if (!query) return true;
-
-      // 2. Search by order code / number
-      const orderNum = normalizeText(order.orderNumber || '');
-      const orderId = normalizeText(order.id || '');
-
-      // 3. Search by mobile phone (recipient phone or customer account phone)
-      const recipientPhone = normalizeText(order.address?.phone || '');
-      const userPhone = normalizeText(order.user?.phone || '');
-
-      // 4. Search by customer name (recipient name or customer account name)
-      const recipientName = (order.address?.recipientName || '').toLowerCase();
-      const userName = (order.user?.name || '').toLowerCase();
-      const street = (order.address?.streetAddress || '').toLowerCase();
-
-      return (
-        orderNum.includes(query) ||
-        orderId.includes(query) ||
-        recipientPhone.includes(query) ||
-        userPhone.includes(query) ||
-        recipientName.includes(query) ||
-        userName.includes(query) ||
-        street.includes(query)
-      );
-    });
-  }, [orders, searchQuery, statusFilter]);
+  // The server already applied the status and search filters (see ordersState above).
+  const filteredOrders = orders;
 
   return (
     <div className="space-y-6">
@@ -324,7 +321,7 @@ export default function AdminOrdersPage() {
             مدیریت سفارشات، چاپ فاکتور و ثبت سفارش دستی
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            امکان ثبت سفارش تلفنی برای مشتری با ارسال خودکار SMS و چاپ فاکتور رسمی
+            امکان ثبت سفارش تلفنی برای مشتری و چاپ فاکتور رسمی
           </p>
         </div>
 
@@ -336,6 +333,13 @@ export default function AdminOrdersPage() {
           <span>ثبت سفارش جدید دستی (تلفنی / حضوری)</span>
         </button>
       </div>
+
+      <AdminStatus
+        hasData={ordersState.data !== null}
+        loading={ordersState.loading}
+        error={ordersState.error}
+        onRetry={reloadOrders}
+      />
 
       {smsNotification && (
         <div className="p-4 rounded-2xl bg-emerald-100 border border-emerald-300 text-xs font-bold text-emerald-950 flex items-center gap-2.5 animate-in fade-in shadow-xs no-print">
@@ -382,7 +386,7 @@ export default function AdminOrdersPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              همه ({toPersianDigits(orders.length)})
+              همه ({toPersianDigits(totalOrderCount)})
             </button>
             <button
               type="button"
@@ -426,7 +430,7 @@ export default function AdminOrdersPage() {
             <div className="flex items-center gap-2">
               <span>نتیجه جستجو:</span>
               <strong className="text-farm-primary font-black">
-                {toPersianDigits(filteredOrders.length)} سفارش یافت شد
+                {toPersianDigits(orderCounts?.matching ?? filteredOrders.length)} سفارش یافت شد
               </strong>
               {searchQuery && (
                 <span className="text-gray-600">
@@ -452,7 +456,7 @@ export default function AdminOrdersPage() {
 
       {/* Mobile Orders Card View (Visible only on mobile screens < 768px, eliminates horizontal scrolling) */}
       <div className="md:hidden flex flex-col gap-3.5 no-print">
-        {filteredOrders.length === 0 ? (
+        {ordersState.data !== null && filteredOrders.length === 0 ? (
           <div className="bg-white rounded-2xl border border-farm-border p-8 text-center space-y-3">
             <Search className="w-8 h-8 text-gray-500 mx-auto" />
             <div className="text-sm font-bold text-gray-700">هیچ سفارشی یافت نشد</div>
@@ -534,16 +538,14 @@ export default function AdminOrdersPage() {
               <div className="flex items-center gap-2 pt-1 border-t border-farm-bg-warm">
                 <select
                   value={order.status}
+                  disabled={busyOrderId !== null || !(order.allowedNextStatuses?.length)}
+                  aria-label={`تغییر وضعیت سفارش ${order.orderNumber}`}
                   onChange={(e) =>
                     handleStatusChange(order.orderNumber, e.target.value as OrderStatus)
                   }
-                  className="flex-1 px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary focus:outline-none focus:border-farm-primary"
+                  className="flex-1 min-h-[44px] px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary focus:outline-none focus:border-farm-primary disabled:opacity-60"
                 >
-                  <option value="PENDING_PAYMENT">در انتظار پرداخت</option>
-                  <option value="PROCESSING">در حال آماده‌سازی</option>
-                  <option value="OUT_FOR_DELIVERY">تحویل به پیک شیراز</option>
-                  <option value="DELIVERED">تحویل داده شد</option>
-                  <option value="CANCELLED">لغو سفارش</option>
+                  {renderStatusOptions(order)}
                 </select>
 
                 <button
@@ -577,7 +579,7 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-farm-border">
-              {filteredOrders.length === 0 ? (
+              {ordersState.data !== null && filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 px-4 text-center space-y-3">
                     <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center mx-auto">
@@ -656,13 +658,11 @@ export default function AdminOrdersPage() {
                       onChange={(e) =>
                         handleStatusChange(order.orderNumber, e.target.value as OrderStatus)
                       }
-                      className="px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary focus:outline-none focus:border-farm-primary cursor-pointer whitespace-nowrap shadow-xs"
+                      className="min-h-[44px] px-3 py-2 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary focus:outline-none focus:border-farm-primary cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-60"
+                      disabled={busyOrderId !== null || !(order.allowedNextStatuses?.length)}
+                      aria-label={`تغییر وضعیت سفارش ${order.orderNumber}`}
                     >
-                      <option value="PENDING_PAYMENT">در انتظار پرداخت</option>
-                      <option value="PROCESSING">در حال آماده‌سازی در انبار</option>
-                      <option value="OUT_FOR_DELIVERY">تحویل به پیک شیراز</option>
-                      <option value="DELIVERED">تحویل داده شد به مشتری</option>
-                      <option value="CANCELLED">لغو سفارش</option>
+                      {renderStatusOptions(order)}
                     </select>
                   </td>
 
@@ -683,6 +683,8 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* 1. Modal: Create Manual Order by Admin (Native <dialog>) */}
+      <AdminPager pagination={ordersState.data?.pagination} onPage={setPage} disabled={ordersState.loading} />
+
       <Dialog
         open={isManualOrderModalOpen}
         onClose={() => setIsManualOrderModalOpen(false)}
@@ -742,13 +744,43 @@ export default function AdminOrdersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1">ساعت تحویل پیک شیراز:</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-600 font-bold"
-                  />
+                  <label htmlFor="manual-slot" className="block text-gray-700 font-semibold mb-1">
+                    سانس تحویل پیک شیراز:
+                  </label>
+                  <select
+                    id="manual-slot"
+                    required
+                    value={selectedSlotId}
+                    onChange={(e) => setSelectedSlotId(e.target.value)}
+                    disabled={slotsState.loading || slots.length === 0}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg font-bold disabled:opacity-60"
+                  >
+                    <option value="">{slotsState.loading ? 'در حال بارگذاری سانس‌ها...' : '-- انتخاب سانس --'}</option>
+                    {slots
+                      .filter((s) => !s.isClosed && !s.isFull)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.jalaliLabel} ({s.window})
+                        </option>
+                      ))}
+                  </select>
+                  {slotsState.error && <p className="text-rose-700 font-bold mt-1">{slotsState.error}</p>}
+                  <p className="text-[11px] text-gray-500 mt-1">مشتری بدون اشتراک فقط یکشنبه و چهارشنبه را می‌تواند انتخاب کند؛ برای اعضای پرو یا پلاس، ابتدا حساب کاربری آن‌ها با همان شماره ثبت شود.</p>
+                </div>
+                <div>
+                  <label htmlFor="manual-payment" className="block text-gray-700 font-semibold mb-1">
+                    روش پرداخت:
+                  </label>
+                  <select
+                    id="manual-payment"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'card-on-delivery' | 'paid-offline')}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg font-bold"
+                  >
+                    <option value="cash">پرداخت نقدی هنگام تحویل</option>
+                    <option value="card-on-delivery">کارت‌خوان هنگام تحویل</option>
+                    <option value="paid-offline">پرداخت شده (خارج از درگاه)</option>
+                  </select>
                 </div>
               </div>
 
@@ -945,20 +977,9 @@ export default function AdminOrdersPage() {
                         <span>مجموع ارزش اقلام:</span>
                         <span className="font-bold text-gray-900">{formatToman(itemsTotal)}</span>
                       </div>
-                      <div className="flex justify-between text-gray-700">
-                        <span>هزینه پیک پروفارم شیراز:</span>
-                        <span className="font-bold text-gray-900">
-                          {shipping === 0 ? (
-                            <span className="text-emerald-700 font-bold">رایگان (خرید بالای ۵۰۰ هزارتومان)</span>
-                          ) : (
-                            formatToman(shipping)
-                          )}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t border-emerald-200/80 flex justify-between font-black text-sm text-farm-primary">
-                        <span>مبلغ نهایی فاکتور:</span>
-                        <span className="text-base">{formatToman(finalTotal)}</span>
-                      </div>
+                      <p className="text-gray-600 leading-relaxed">
+                        هزینه پیک، تخفیف‌های اشتراک و مبلغ نهایی فاکتور پس از ثبت، توسط سرور محاسبه و ذخیره می‌شود.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -977,7 +998,7 @@ export default function AdminOrdersPage() {
                   className="px-6 py-2.5 rounded-xl bg-farm-primary text-white font-bold hover:bg-farm-primary-dark shadow-sm flex items-center gap-1.5 cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4 text-[#D4A373]" />
-                  <span>ثبت قطعی سفارش و ارسال پیامک به مشتری</span>
+                  <span>ثبت قطعی سفارش</span>
                 </button>
               </div>
             </form>

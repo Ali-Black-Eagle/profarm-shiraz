@@ -54,8 +54,17 @@ export async function GET(req: NextRequest) {
     const auth = requireAdmin(req);
     if (auth instanceof NextResponse) return auth;
 
+    const { searchParams } = new URL(req.url);
+
+    // ?segment=ALL|FREE|PLUS|PRO returns how many numbers a broadcast to that segment would reach (no sending).
+    const segmentParam = searchParams.get('segment');
+    if (segmentParam !== null) {
+      if (!(segmentParam in SEGMENTS)) return jsonError(400, 'بخش مخاطبان نامعتبر است.');
+      return jsonOk({ segment: segmentParam, recipientCount: recipientsFor(segmentParam as 'ALL' | SubscriptionTier).length });
+    }
+
     const broadcasts = farmStore.getSmsBroadcasts();
-    const { page, pageSize } = pageParams(new URL(req.url).searchParams, { pageSize: 20, maxPageSize: 100 });
+    const { page, pageSize } = pageParams(searchParams, { pageSize: 20, maxPageSize: 100 });
     const { items, pagination } = paginate(broadcasts, page, pageSize);
     return jsonOk({ broadcasts: items, pagination });
   } catch (error: unknown) {

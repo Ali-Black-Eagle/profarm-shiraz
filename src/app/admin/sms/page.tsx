@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { farmStore } from '@/lib/db-store';
+import React, { useMemo, useState, useEffect } from 'react';
+import { adminQuery, adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import {
   SmsBroadcast,
   SmsTargetSegment,
@@ -130,7 +130,8 @@ function AdminSmsPageContent() {
   const [activeTab, setActiveTab] = useState<'EVENTS' | 'GATEWAY' | 'BROADCAST' | 'EMAIL'>('EVENTS');
 
   // --- AUTOMATED EVENT TEMPLATES STATE ---
-  const [eventTemplates, setEventTemplates] = useState<SmsEventTemplate[]>([]);
+  const templatesState = useAdminFetch<{ templates: SmsEventTemplate[] }>('/api/admin/sms-templates');
+  const eventTemplates = useMemo(() => templatesState.data?.templates ?? [], [templatesState.data]);
   const [selectedEventId, setSelectedEventId] = useState<SmsEventType>('ORDER_DELIVERED');
   const [eventCategoryFilter, setEventCategoryFilter] = useState<'ALL' | 'ORDERS' | 'CLUB' | 'RETURNS'>('ALL');
   const [editingTemplateText, setEditingTemplateText] = useState('');
@@ -153,7 +154,8 @@ function AdminSmsPageContent() {
   const [gatewayTestLog, setGatewayTestLog] = useState<string | null>(null);
 
   // --- MANUAL BROADCAST STATE ---
-  const [broadcasts, setBroadcasts] = useState<SmsBroadcast[]>([]);
+  const broadcastsState = useAdminFetch<{ broadcasts: SmsBroadcast[] }>('/api/admin/sms-broadcast?pageSize=20');
+  const broadcasts = useMemo(() => broadcastsState.data?.broadcasts ?? [], [broadcastsState.data]);
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [targetSegment, setTargetSegment] = useState<SmsTargetSegment>('ALL');
@@ -193,27 +195,20 @@ function AdminSmsPageContent() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const loadData = () => {
-    try {
-      const tmpls = farmStore.getSmsEventTemplates() || [];
-      setEventTemplates(tmpls);
-      setBroadcasts(farmStore.getSmsBroadcasts() || []);
-      const gSettings = farmStore.getSmsSettings();
-      if (gSettings) {
-        setGatewaySettings({ ...gSettings });
-        if (gSettings.testPhone) setTestPhoneNumber(gSettings.testPhone);
-      }
-
-      // Initialize current selected event template
-      const current = tmpls.find((t) => t?.id === selectedEventId) || tmpls[0];
-      if (current) {
-        setSelectedEventId(current.id);
-        setEditingTemplateText(current.template || '');
-        setIsEventEnabled(current.isEnabled ?? true);
-      }
-    } catch (e) {
-      console.warn('[AdminSmsPage] Error loading local store templates:', e);
+  // Editor fields follow the selected template whenever the server copy changes
+  useEffect(() => {
+    const current = eventTemplates.find((t) => t?.id === selectedEventId) || eventTemplates[0];
+    if (current) {
+      setSelectedEventId(current.id);
+      setEditingTemplateText(current.template || '');
+      setIsEventEnabled(current.isEnabled ?? true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templatesState.data]);
+
+  const loadData = () => {
+    void templatesState.reload();
+    void broadcastsState.reload();
 
     // Fetch server-configured settings securely
     fetch('/api/admin/sms-settings')
@@ -278,17 +273,29 @@ function AdminSmsPageContent() {
     setIsEventEnabled(tmpl.isEnabled);
   };
 
-  // Toggle template enabled/disabled directly from list or form
-  const handleToggleEventStatus = (id: SmsEventType, currentStatus: boolean, e?: React.MouseEvent) => {
+  // Toggle a template on or off. The list changes at once and is rolled back if the server refuses.
+  const handleToggleEventStatus = async (id: SmsEventType, currentStatus: boolean, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const updated = farmStore.updateSmsEventTemplate(id, { isEnabled: !currentStatus });
-    if (updated) {
-      setEventTemplates([...farmStore.getSmsEventTemplates()]);
-      if (selectedEventId === id) {
-        setIsEventEnabled(!currentStatus);
-      }
-      showToast(`وضعیت ارسال پیامک رویداد «${updated.title}» به ${!currentStatus ? '«فعال»' : '«غیرفعال»'} تغییر یافت.`);
+    const next = !currentStatus;
+    templatesState.setData((prev) =>
+      prev ? { ...prev, templates: prev.templates.map((t) => (t.id === id ? { ...t, isEnabled: next } : t)) } : prev
+    );
+    if (selectedEventId === id) setIsEventEnabled(next);
+    const result = await adminRequest<{ templates: SmsEventTemplate[] }>('/api/admin/sms-templates', {
+      method: 'PUT',
+      body: { id, isEnabled: next },
+    });
+    if (!result.ok) {
+      templatesState.setData((prev) =>
+        prev ? { ...prev, templates: prev.templates.map((t) => (t.id === id ? { ...t, isEnabled: currentStatus } : t)) } : prev
+      );
+      if (selectedEventId === id) setIsEventEnabled(currentStatus);
+      toast.error(result.message);
+      return;
     }
+    templatesState.setData((prev) => (prev ? { ...prev, templates: result.data.templates } : prev));
+    const title = eventTemplates.find((t) => t.id === id)?.title ?? '';
+    showToast(`وضعیت ارسال پیامک رویداد «${title}» به ${next ? '«فعال»' : '«غیرفعال»'} تغییر یافت.`);
   };
 
   // Insert variable tag into template text
@@ -296,20 +303,23 @@ function AdminSmsPageContent() {
     setEditingTemplateText((prev) => prev + ' ' + variableKey);
   };
 
-  // Save changes to current template
-  const handleSaveEventTemplate = (e: React.FormEvent) => {
+  // Save changes to the current template (server first)
+  const handleSaveEventTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updated = farmStore.updateSmsEventTemplate(selectedEventId, {
-      template: editingTemplateText,
-      isEnabled: isEventEnabled,
+    const title = eventTemplates.find((t) => t.id === selectedEventId)?.title ?? '';
+    const result = await adminRequest<{ templates: SmsEventTemplate[] }>('/api/admin/sms-templates', {
+      method: 'PUT',
+      body: { id: selectedEventId, template: editingTemplateText, isEnabled: isEventEnabled },
     });
-    if (updated) {
-      setEventTemplates([...farmStore.getSmsEventTemplates()]);
-      showToast(`قالب پیامک رویداد «${updated.title}» با موفقیت ذخیره شد.`);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    templatesState.setData((prev) => (prev ? { ...prev, templates: result.data.templates } : prev));
+    showToast(`قالب پیامک رویداد «${title}» با موفقیت ذخیره شد.`);
   };
 
-  // Reset to default factory template
+  // Reset to the default factory template. The server returns the default text.
   const handleResetEventTemplate = async () => {
     const ok = await confirm({
       title: 'بازنشانی قالب پیامک',
@@ -318,16 +328,20 @@ function AdminSmsPageContent() {
       cancelLabel: 'انصراف',
       variant: 'warning',
     });
-    if (ok) {
-      const reset = farmStore.resetSmsEventTemplate(selectedEventId);
-      if (reset) {
-        setEventTemplates([...farmStore.getSmsEventTemplates()]);
-        setEditingTemplateText(reset.template);
-        setIsEventEnabled(reset.isEnabled);
-        showToast(`قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.`);
-        toast.success('قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.');
-      }
+    if (!ok) return;
+    const result = await adminRequest<{ template: SmsEventTemplate; templates: SmsEventTemplate[] }>(
+      '/api/admin/sms-templates',
+      { method: 'POST', body: { action: 'reset', id: selectedEventId } }
+    );
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    templatesState.setData((prev) => (prev ? { ...prev, templates: result.data.templates } : prev));
+    setEditingTemplateText(result.data.template.template);
+    setIsEventEnabled(result.data.template.isEnabled);
+    showToast(`قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.`);
+    toast.success('قالب پیامک به متن پیش‌فرض اولیه بازنشانی شد.');
   };
 
   // Test simulation send (explicitly labeled as local simulation)
@@ -352,7 +366,6 @@ function AdminSmsPageContent() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success && data.settings) {
         setGatewaySettings({ ...data.settings });
-        farmStore.updateSmsSettings(data.settings);
         showToast(`تنظیمات وب‌سرویس API سامانه ${getProviderName(data.settings.provider)} با موفقیت در سرور ذخیره شد.`);
         toast.success(`تنظیمات سامانه ${getProviderName(data.settings.provider)} با موفقیت ذخیره شد.`);
         return;
@@ -363,23 +376,12 @@ function AdminSmsPageContent() {
     }
   };
 
-  // Test send via configured SMS Gateway (explicitly labeled when simulated)
+  // No server-side connection test exists yet. The button says so instead of simulating a successful test.
   const handleTestGatewaySend = () => {
-    if (!testPhoneNumber.trim()) {
-      toast.error('لطفاً شماره موبایل تست را وارد کنید.');
-      return;
-    }
-    setIsTestingGateway(true);
-    setGatewayTestLog(null);
-
-    setTimeout(() => {
-      setIsTestingGateway(false);
-      const provName = getProviderName(gatewaySettings.provider);
-      setGatewayTestLog(
-        `[شبیه‌سازی محلی] وب‌سرویس ${provName} برای شماره ${testPhoneNumber} در محیط آزمایشی بررسی شد. تا زمان فعال‌سازی API کلید واقعی در سرور، پیامکی به شبکه مخابراتی ارسال نمی‌شود.`
-      );
-      showToast(`شبیه‌سازی تست اتصال وب‌سرویس ${provName} انجام شد (ارسال واقعی انجام نشد).`);
-    }, 400);
+    const message =
+      'تست واقعی اتصال از این صفحه هنوز پشتیبانی نمی‌شود. تنظیمات را ذخیره کنید؛ ارسال واقعی از بخش ارسال همگانی انجام می‌شود.';
+    setGatewayTestLog(message);
+    toast.error(message);
   };
 
   const getProviderName = (prov?: SmsProviderType | string) => {
@@ -424,72 +426,71 @@ function AdminSmsPageContent() {
   const broadcastCharCount = broadcastMessage?.length || 0;
   const broadcastSmsPages = broadcastCharCount === 0 ? 1 : broadcastCharCount <= 70 ? 1 : Math.ceil(broadcastCharCount / 67);
 
-  // Manual broadcast recipient estimate
-  const getBroadcastRecipientEstimate = () => {
-    try {
-      const allUsers = farmStore.getAllUsers() || [];
-      if (targetSegment === 'PRO_MEMBERS') {
-        return allUsers.filter((u) => u.isProMember || u.tier === 'PRO').length;
-      }
-      if (targetSegment === 'PLUS_MEMBERS') {
-        return allUsers.filter((u) => u.isPlusMember || u.tier === 'PLUS').length;
-      }
-      if (targetSegment === 'SHIRAZ_BUYERS') {
-        const shirazOrders = (farmStore.getOrders() || []).filter((o) => o.address?.isShiraz !== false);
-        const uniquePhones = new Set(shirazOrders.map((o) => o.address?.phone).filter(Boolean));
-        return uniquePhones.size;
-      }
-      if (targetSegment === 'CUSTOM') {
-        return (customNumbersInput || '').split(/[\n,]/).filter((n) => n.trim().length > 0).length;
-      }
-      return allUsers.length;
-    } catch {
-      return 0;
-    }
+  // Broadcast audience: the server counts the recipients of a segment (no sending). Only ALL, PRO and PLUS exist on the server.
+  const SEGMENT_TO_API: Partial<Record<SmsTargetSegment, 'ALL' | 'PRO' | 'PLUS'>> = {
+    ALL: 'ALL',
+    PRO_MEMBERS: 'PRO',
+    PLUS_MEMBERS: 'PLUS',
   };
+  const apiSegment = SEGMENT_TO_API[targetSegment] ?? null;
+  const previewState = useAdminFetch<{ recipientCount: number }>(
+    apiSegment ? `/api/admin/sms-broadcast?segment=${apiSegment}` : null
+  );
+  const recipientPreview = apiSegment ? previewState.data?.recipientCount ?? null : null;
 
   const handleSendManualBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSendingBroadcast) return;
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
       toast.error('لطفاً عنوان و متن پیامک را کامل کنید.');
       return;
     }
-
-    const recipientCount = getBroadcastRecipientEstimate();
-    if (recipientCount < 1) {
-      toast.error('مخاطبی برای این بخش یافت نشد؛ لطفاً بخش دیگری را انتخاب کنید.');
+    if (!apiSegment) {
+      toast.error('این بخش مخاطب هنوز از سرور پشتیبانی نمی‌شود. بخش همه کاربران، پرو یا پلاس را انتخاب کنید.');
+      return;
+    }
+    if (recipientPreview === null) {
+      toast.error('تعداد گیرندگان هنوز محاسبه نشده است. لحظه‌ای صبر کنید.');
+      return;
+    }
+    if (recipientPreview < 1) {
+      toast.error('مخاطبی با شماره معتبر و پذیرش پیامک برای این بخش یافت نشد.');
       return;
     }
     const ok = await confirm({
-      title: 'تایید ارسال کمپین پیامکی انبوه',
-      description: `آیا از ثبت و ارسال کمپین «${broadcastTitle}» برای حدود ${toPersianDigits(recipientCount)} مخاطب اطمینان دارید؟`,
-      confirmLabel: 'ارسال کمپین پیامکی',
+      title: 'تایید ارسال پیامک همگانی',
+      description: `آیا از ارسال «${broadcastTitle}» به ${toPersianDigits(recipientPreview)} شماره؟ این ارسال واقعی است و پس از تایید قابل بازگشت نیست.`,
+      confirmLabel: 'ارسال پیامک',
       cancelLabel: 'انصراف',
       variant: 'warning',
     });
     if (!ok) return;
 
     setIsSendingBroadcast(true);
-    setTimeout(() => {
-      const customNumbers = targetSegment === 'CUSTOM' ? customNumbersInput.trim() : undefined;
+    const result = await adminRequest<{
+      broadcast: SmsBroadcast;
+      recipientCount: number;
+      sentCount: number;
+      failedCount: number;
+      mode: 'MOCK' | 'LIVE';
+    }>('/api/admin/sms-broadcast', {
+      method: 'POST',
+      body: { segment: apiSegment, message: broadcastMessage.trim(), title: broadcastTitle.trim(), confirm: true },
+    });
+    setIsSendingBroadcast(false);
 
-      farmStore.createSmsBroadcast({
-        title: broadcastTitle,
-        message: broadcastMessage,
-        targetSegment,
-        recipientCount,
-        customNumbers,
-      });
-
-      setBroadcasts([...farmStore.getSmsBroadcasts()]);
-      setIsSendingBroadcast(false);
-      setBroadcastTitle('');
-      setBroadcastMessage('');
-      if (targetSegment === 'CUSTOM') setCustomNumbersInput('');
-      const msg = `کمپین پیامکی «${broadcastTitle}» با موفقیت برای ${toPersianDigits(recipientCount)} شماره در صف ارسال قرار گرفت.`;
-      showToast(msg);
-      toast.success(msg);
-    }, 500);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    const d = result.data;
+    setBroadcastTitle('');
+    setBroadcastMessage('');
+    void broadcastsState.reload();
+    const modeNote = d.mode === 'MOCK' ? ' (حالت آزمایشی: پیامکی به شبکه مخابراتی ارسال نشد)' : '';
+    const summary = `ارسال انجام شد: ${toPersianDigits(d.sentCount)} موفق و ${toPersianDigits(d.failedCount)} ناموفق از ${toPersianDigits(d.recipientCount)} گیرنده${modeNote}.`;
+    if (d.failedCount > 0 && d.sentCount === 0) toast.error(summary);
+    else toast.success(summary);
   };
 
   const handleSendAdminEmail = async (e: React.FormEvent) => {
@@ -1393,7 +1394,7 @@ function AdminSmsPageContent() {
                   </h3>
                 </div>
                 <span className="text-xs text-gray-600 font-medium">
-                  تخمین گیرندگان: <strong className="text-farm-primary font-bold">{toPersianDigits(getBroadcastRecipientEstimate())} شماره</strong>
+                  تخمین گیرندگان: <strong className="text-farm-primary font-bold">{recipientPreview === null ? '—' : toPersianDigits(recipientPreview)} شماره</strong>
                 </span>
               </div>
 
@@ -1529,11 +1530,11 @@ function AdminSmsPageContent() {
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    disabled={isSendingBroadcast || !broadcastMessage.trim()}
+                    disabled={isSendingBroadcast || !broadcastMessage.trim() || !apiSegment || recipientPreview === 0}
                     className="px-7 py-3 rounded-2xl bg-farm-primary text-white font-bold text-xs sm:text-sm hover:bg-farm-primary-dark shadow-md flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                   >
                     <Send className="w-4 h-4 text-[#D4A373]" />
-                    <span>{isSendingBroadcast ? 'در حال ارسال به وب‌سرویس...' : 'ارسال قطعی به صف پیامک'}</span>
+                    <span>{isSendingBroadcast ? 'در حال ارسال به وب‌سرویس...' : 'ارسال پیامک به گیرندگان'}</span>
                   </button>
                 </div>
               </form>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   CircleDollarSign,
@@ -26,9 +26,9 @@ import {
   ShoppingBag,
   Sparkles,
 } from 'lucide-react';
-import { farmStore } from '@/lib/db-store';
+import { adminQuery, AdminStatus, buildCsv, downloadCsv, useAdminFetch } from '@/components/admin/admin-client';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
-import { PERSIAN_MONTHS, formatToJalali } from '@/lib/jalali';
+import { PERSIAN_MONTHS, addDaysIso, formatToJalali, getTehranIsoDate, gregorianToJalali, jalaliToGregorian, parseIsoDate } from '@/lib/jalali';
 import { SITE_CONFIG } from '@/lib/site-config';
 import { Dialog } from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -63,41 +63,49 @@ export default function AdminFinancePage() {
   const [selectedWeekday, setSelectedWeekday] = useState<string>('ALL');
   const [selectedShift, setSelectedShift] = useState<string>('ALL');
 
-  const [records, setRecords] = useState<FinancialRecord[]>([]);
-  const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<'ALL' | SubscriptionTier>('ALL');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedInvoiceRecord, setSelectedInvoiceRecord] = useState<FinancialRecord | null>(null);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
-  // Compute active timeframe query string based on periodMode and sub-selectors
-  const activeTimeframe = useMemo(() => {
-    if (periodMode === 'DAILY') {
-      return 'TODAY';
-    }
+  const todayIso = getTehranIsoDate();
+
+  /**
+   * Maps the page's period controls to the server report:
+   * day -> one day (shifts), week -> Saturday to Friday (weekdays), year -> months, month -> one Jalali month.
+   * Selecting one weekday or one month asks the server for that exact period.
+   */
+  const financeQuery = useMemo((): { period: string; date: string } => {
+    if (periodMode === 'DAILY') return { period: 'day', date: todayIso };
     if (periodMode === 'WEEKLY') {
-      return selectedWeekday === 'ALL' ? 'WEEK' : selectedWeekday;
+      if (selectedWeekday === 'ALL') return { period: 'week', date: todayIso };
+      const targetIndex = WEEKDAYS_LIST.findIndex((w) => w.name === selectedWeekday);
+      // Saturday-first index of today (Sunday = 0 in JS, so shift by one)
+      const todayIndex = (new Date(`${todayIso}T12:00:00Z`).getUTCDay() + 1) % 7;
+      return { period: 'day', date: addDaysIso(todayIso, targetIndex - todayIndex) };
     }
-    // Monthly mode
-    return selectedMonth;
-  }, [periodMode, selectedMonth, selectedWeekday]);
+    if (selectedMonth === 'ALL') return { period: 'year', date: todayIso };
+    const parts = parseIsoDate(todayIso);
+    const jalaliYear = parts ? gregorianToJalali(parts.year, parts.month, parts.day)[0] : null;
+    const jalaliMonth = PERSIAN_MONTHS.indexOf(selectedMonth) + 1;
+    const first = jalaliYear ? jalaliToGregorian(jalaliYear, jalaliMonth, 1) : null;
+    const date = first
+      ? `${first.y}-${String(first.m).padStart(2, '0')}-${String(first.d).padStart(2, '0')}`
+      : todayIso;
+    return { period: 'month', date };
+  }, [periodMode, selectedWeekday, selectedMonth, todayIso]);
 
-  const loadData = () => {
-    const rawRecords = farmStore.getFinancialRecords(activeTimeframe);
-    setRecords(rawRecords);
-    const sum = farmStore.getFinancialSummary(activeTimeframe);
-    setSummary(sum);
+  type FinanceResponse = {
+    summary: FinancialSummary;
+    records: (FinancialRecord & { costEstimated?: boolean })[];
+    csvRows: (string | number)[][];
   };
+  const financeState = useAdminFetch<FinanceResponse>(adminQuery('/api/admin/finance', financeQuery));
+  const summary = financeState.data?.summary ?? null;
+  const records = useMemo(() => financeState.data?.records ?? [], [financeState.data]);
+  const csvRows = useMemo(() => financeState.data?.csvRows ?? [], [financeState.data]);
 
-  useEffect(() => {
-    loadData();
-  }, [activeTimeframe]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
+  const showToast = (msg: string) => toast.success(msg);
 
   // Filter records based on search and tier
   const filteredRecords = useMemo(() => {
@@ -113,44 +121,29 @@ export default function AdminFinancePage() {
     });
   }, [records, tierFilter, searchQuery]);
 
-  // Handle Export to Excel (CSV with UTF-8 BOM for Persian Windows Excel)
+  // CSV comes from the server (csvRows, first row = headers). Saved with a UTF-8 BOM so Excel shows Persian correctly.
   const handleExportExcel = () => {
-    if (records.length === 0) {
+    if (records.length === 0 || csvRows.length < 2) {
       showToast('در بازه زمانی انتخاب‌شده هیچ سفارش پرداخت‌شده‌ای برای صدور اکسل ثبت نشده است.');
       return;
     }
-    try {
-      const csvData = farmStore.exportFinancialCsv(activeTimeframe);
-      const timestamp = new Date().toLocaleDateString('fa-IR').replace(/\//g, '-');
-      const modeSlug =
-        periodMode === 'DAILY'
-          ? 'daily-today'
-          : periodMode === 'WEEKLY'
-          ? `weekly-${selectedWeekday}`
-          : `monthly-${selectedMonth}`;
-      const filename = `profarm-finance-${modeSlug}-${timestamp}.csv`;
+    const modeSlug =
+      periodMode === 'DAILY'
+        ? 'daily-today'
+        : periodMode === 'WEEKLY'
+        ? `weekly-${selectedWeekday}`
+        : `monthly-${selectedMonth}`;
+    const filename = `profarm-finance-${modeSlug}-${todayIso}.csv`;
+    const csv = buildCsv(csvRows[0].map(String), csvRows.slice(1));
 
-      if (typeof window !== 'undefined' && (window as any).AndroidBridge?.saveBase64File) {
-        const base64 = btoa(unescape(encodeURIComponent(csvData)));
-        (window as any).AndroidBridge.saveBase64File(base64, filename, 'text/csv;charset=utf-8');
-        showToast(`گزارش مالی دوره (${summary?.selectedPeriodLabel || 'انتخاب‌شده'}) در قالب اکسل ذخیره گردید.`);
-        return;
-      }
-
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      showToast(`گزارش مالی دوره (${summary?.selectedPeriodLabel || 'انتخاب‌شده'}) در قالب اکسل ذخیره گردید.`);
-    } catch {
-      toast.error('خطا در صدور فایل اکسل. لطفاً مجدداً تلاش کنید.');
+    if (typeof window !== 'undefined' && (window as any).AndroidBridge?.saveBase64File) {
+      const base64 = btoa(unescape(encodeURIComponent(csv)));
+      (window as any).AndroidBridge.saveBase64File(base64, filename, 'text/csv;charset=utf-8');
+      showToast(`گزارش مالی دوره (${summary?.selectedPeriodLabel || 'انتخاب‌شده'}) ذخیره شد.`);
+      return;
     }
+    downloadCsv(filename, csv);
+    showToast(`گزارش مالی دوره (${summary?.selectedPeriodLabel || 'انتخاب‌شده'}) در قالب اکسل ذخیره شد.`);
   };
 
   const handleOpenInvoice = (record: FinancialRecord) => {
@@ -168,8 +161,15 @@ export default function AdminFinancePage() {
 
   if (!summary) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 rounded-full border-3 border-farm-primary border-t-transparent animate-spin" />
+      <div className="min-h-[300px] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <AdminStatus
+            hasData={false}
+            loading={financeState.loading}
+            error={financeState.error}
+            onRetry={() => void financeState.reload()}
+          />
+        </div>
       </div>
     );
   }
@@ -198,13 +198,7 @@ export default function AdminFinancePage() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-farm-primary text-white text-xs sm:text-sm font-bold flex items-center gap-3 shadow-2xl border border-emerald-400/40 animate-in fade-in slide-in-from-bottom-4 no-print">
-          <CheckCircle2 className="w-5 h-5 text-[#D4A373] shrink-0" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      <AdminStatus hasData={summary !== null} loading={financeState.loading} error={financeState.error} onRetry={() => void financeState.reload()} />
 
       {/* Header Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-farm-border no-print">
@@ -528,8 +522,11 @@ export default function AdminFinancePage() {
                 {toPersianDigits(summary.profitMarginPercent ?? 0)}٪ مارجین
               </span>
             </div>
-            <div className="text-2xl font-black text-emerald-300 mt-2">
-              {formatToman(summary.grossProfit || 0)}
+            <div
+              className={`text-2xl font-black mt-2 ${(summary.grossProfit ?? 0) < 0 ? 'text-rose-300' : 'text-emerald-300'}`}
+              aria-label={(summary.grossProfit ?? 0) < 0 ? 'زیان ناخالص' : 'سود ناخالص'}
+            >
+              {(summary.grossProfit ?? 0) < 0 ? `زیان ${formatToman(Math.abs(summary.grossProfit ?? 0))}` : formatToman(summary.grossProfit ?? 0)}
             </div>
           </div>
 
@@ -1156,6 +1153,9 @@ export default function AdminFinancePage() {
 
                       <td className="py-3.5 px-4 font-black text-farm-primary text-sm">
                         {formatToman(rec.netPayableAmount)}
+                        {rec.costEstimated && (
+                          <span className="block text-[10px] font-bold text-amber-700">بهای تمام‌شده تخمینی</span>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 font-bold text-amber-700">

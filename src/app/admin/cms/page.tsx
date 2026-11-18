@@ -2,10 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import {
-  farmStore,
-  DEFAULT_SITE_CONTENT,
-} from '@/lib/db-store';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import { SiteContent } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import {
@@ -51,7 +48,9 @@ export default function AdminCmsPage() {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<TabKey>('hero');
   const [previewTab, setPreviewTab] = useState<'hero' | 'trust'>('hero');
-  const [content, setContent] = useState<SiteContent>({ ...DEFAULT_SITE_CONTENT });
+  // Draft of the site content. It starts empty and is filled from the server (the editor is hidden until then).
+  const [content, setContent] = useState<SiteContent>({} as SiteContent);
+  const siteContentState = useAdminFetch<{ content: SiteContent }>('/api/admin?type=siteContent');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const heroFileRef = useRef<HTMLInputElement | null>(null);
@@ -104,20 +103,10 @@ export default function AdminCmsPage() {
   const [editorMode, setEditorMode] = useState<'visual' | 'form'>('visual');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Copy the server's content into the editor draft whenever a fresh copy arrives
   useEffect(() => {
-    fetch('/api/admin?type=siteContent')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.content) {
-          setContent(data.content);
-        } else {
-          setContent({ ...farmStore.getSiteContent() });
-        }
-      })
-      .catch(() => {
-        setContent({ ...farmStore.getSiteContent() });
-      });
-  }, []);
+    if (siteContentState.data?.content) setContent({ ...siteContentState.data.content });
+  }, [siteContentState.data]);
 
   const handleContentChange = (field: keyof SiteContent, value: any) => {
     setContent((prev) => ({ ...prev, [field]: value }));
@@ -141,7 +130,7 @@ export default function AdminCmsPage() {
         setTimeout(() => setToastMessage(null), 6000);
         return;
       }
-      farmStore.updateSiteContent(content);
+      if (data.content) setContent({ ...data.content });
       setToastMessage(
         'تنظیمات محتوا و المان‌های سایت با موفقیت در سرور ذخیره و منتشر شد.'
       );
@@ -177,8 +166,7 @@ export default function AdminCmsPage() {
           setTimeout(() => setToastMessage(null), 5000);
           return;
         }
-        const resetContent = farmStore.resetSiteContent();
-        setContent({ ...resetContent });
+        if (data.content) setContent({ ...data.content });
         const okMsg = 'کلیه متون و بخش‌های سایت به حالت پیش‌فرض اولیه بازنشانی شدند.';
         setToastMessage(okMsg);
         toast.success(okMsg);
@@ -191,6 +179,19 @@ export default function AdminCmsPage() {
       }
     }
   };
+
+  if (!siteContentState.data?.content) {
+    return (
+      <div className="max-w-lg mx-auto">
+        <AdminStatus
+          hasData={false}
+          loading={siteContentState.loading}
+          error={siteContentState.error}
+          onRetry={() => void siteContentState.reload()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">

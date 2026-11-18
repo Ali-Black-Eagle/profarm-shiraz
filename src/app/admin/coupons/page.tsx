@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { farmStore } from '@/lib/db-store';
+import React, { useMemo, useState } from 'react';
 import { Coupon, CouponTargetType, CouponDiscountType, Product } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { Dialog } from '@/components/ui/Dialog';
-import { useToast, useConfirm } from '@/components/ui/ToastProvider';
+import { useToast } from '@/components/ui/ToastProvider';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import {
   TicketPercent,
   Plus,
@@ -33,14 +33,17 @@ import {
 
 export default function AdminCouponsPage() {
   const toast = useToast();
-  const confirm = useConfirm();
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const couponsState = useAdminFetch<{ coupons: Coupon[] }>('/api/admin/coupons');
+  const productsState = useAdminFetch<{ products: Product[] }>('/api/admin/products');
+  const coupons = useMemo(() => couponsState.data?.coupons ?? [], [couponsState.data]);
+  const products = useMemo(() => productsState.data?.products ?? [], [productsState.data]);
   const [activeTab, setActiveTab] = useState<'ALL' | CouponTargetType>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,25 +63,17 @@ export default function AdminCouponsPage() {
   const [formExpiresAt, setFormExpiresAt] = useState('1404-06-31');
   const [formIsActive, setFormIsActive] = useState(true);
 
-  const refreshData = () => {
-    setCoupons([...farmStore.getCoupons()]);
-    setProducts([...farmStore.getProducts()]);
-  };
+  const showToast = (msg: string) => toast.success(msg);
 
-  useEffect(() => {
-    refreshData();
-  }, []);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    showToast(`کد «${code}» در حافظه کپی شد.`);
-    setTimeout(() => setCopiedCode(null), 2500);
+  const handleCopyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      showToast(`کد «${code}» در کلیپ‌بورد کپی شد.`);
+      setTimeout(() => setCopiedCode(null), 2500);
+    } catch {
+      toast.error('کپی کد انجام نشد. کد را دستی کپی کنید.');
+    }
   };
 
   const generateRandomCode = () => {
@@ -102,6 +97,7 @@ export default function AdminCouponsPage() {
     setFormUsageLimit(50);
     setFormExpiresAt('1404-06-31');
     setFormIsActive(true);
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -119,93 +115,137 @@ export default function AdminCouponsPage() {
     setFormUsageLimit(coupon.usageLimit ?? '');
     setFormExpiresAt(coupon.expiresAt || '');
     setFormIsActive(coupon.isActive);
+    setFormError(null);
     setIsModalOpen(true);
   };
 
-  const handleToggleStatus = (id: string, e: React.MouseEvent) => {
+  const handleToggleStatus = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = farmStore.toggleCouponActive(id);
-    if (updated) {
-      refreshData();
-      showToast(
-        updated.isActive
-          ? `کد «${updated.code}» فعال شد.`
-          : `کد «${updated.code}» غیرفعال شد.`
+    if (busyId) return;
+    const current = coupons.find((c) => c.id === id);
+    if (!current) return;
+    const nextActive = !current.isActive;
+    setBusyId(id);
+    couponsState.setData((prev) =>
+      prev ? { ...prev, coupons: prev.coupons.map((c) => (c.id === id ? { ...c, isActive: nextActive } : c)) } : prev
+    );
+    const result = await adminRequest<{ coupon: Coupon }>('/api/admin/coupons', {
+      method: 'PATCH',
+      body: { id, action: 'toggle' },
+    });
+    setBusyId(null);
+    if (!result.ok) {
+      couponsState.setData((prev) =>
+        prev ? { ...prev, coupons: prev.coupons.map((c) => (c.id === id ? { ...c, isActive: current.isActive } : c)) } : prev
       );
+      toast.error(result.message);
+      return;
     }
+    const saved = result.data.coupon;
+    couponsState.setData((prev) =>
+      prev && saved ? { ...prev, coupons: prev.coupons.map((c) => (c.id === id ? { ...c, ...saved } : c)) } : prev
+    );
+    showToast(saved?.isActive ? `کد «${current.code}» فعال شد.` : `کد «${current.code}» غیرفعال شد.`);
   };
 
   const handleDeleteCoupon = async (id: string, code: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const ok = await confirm({
+    if (busyId) return;
+    const ok = await toast.confirm({
       title: 'حذف کد تخفیف',
       description: `آیا از حذف کامل کد تخفیف «${code}» اطمینان دارید؟`,
       confirmLabel: 'حذف کد تخفیف',
       cancelLabel: 'انصراف',
       variant: 'danger',
     });
-    if (ok) {
-      farmStore.deleteCoupon(id);
-      refreshData();
-      const msg = `کد تخفیف «${code}» با موفقیت حذف گردید.`;
-      showToast(msg);
-      toast.success(msg);
+    if (!ok) return;
+    setBusyId(id);
+    const result = await adminRequest(`/api/admin/coupons?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    setBusyId(null);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
     }
+    couponsState.setData((prev) => (prev ? { ...prev, coupons: prev.coupons.filter((c) => c.id !== id) } : prev));
+    toast.success(`کد تخفیف «${code}» با موفقیت حذف گردید.`);
   };
 
-  const handleSubmitForm = (e: React.FormEvent) => {
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setFormError(null);
 
-    if (!formCode.trim()) {
-      toast.error('لطفاً کد تخفیف را وارد کنید.');
+    const code = formCode.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,40}$/.test(code)) {
+      setFormError('کد تخفیف باید ۳ تا ۴۰ نویسه و فقط شامل حروف انگلیسی، عدد و خط تیره باشد.');
       return;
     }
     if (!formTitle.trim()) {
-      toast.error('لطفاً عنوان کد تخفیف را مشخص فرمایید.');
+      setFormError('لطفاً عنوان کد تخفیف را مشخص فرمایید.');
       return;
     }
-    if (formDiscountValue === '' || Number(formDiscountValue) <= 0) {
-      toast.error('مقدار تخفیف باید عددی بزرگتر از صفر باشد.');
+    const value = Number(formDiscountValue);
+    if (formDiscountValue === '' || !Number.isFinite(value) || value <= 0) {
+      setFormError('مقدار تخفیف باید عددی بزرگتر از صفر باشد.');
+      return;
+    }
+    if (formDiscountType === 'PERCENTAGE' && value > 100) {
+      setFormError('درصد تخفیف نمی‌تواند بیشتر از ۱۰۰ باشد.');
+      return;
+    }
+    if (formTargetType === 'SPECIFIC_PRODUCT' && !formTargetProductId) {
+      setFormError('برای کد تخفیف کالای مشخص، کالای مورد نظر را انتخاب کنید.');
       return;
     }
 
-    const targetProd = products.find((p) => p.id === formTargetProductId);
-
+    // Empty optional numbers are sent as null so that an edit can clear them.
+    const optionalNumber = (v: number | '') => (v === '' ? null : Number(v));
     const payload = {
-      code: formCode.trim().toUpperCase(),
+      code,
       title: formTitle.trim(),
-      description: formDescription.trim() || undefined,
+      description: formDescription.trim(),
       targetType: formTargetType,
-      targetProductId: formTargetType === 'SPECIFIC_PRODUCT' ? formTargetProductId : undefined,
-      targetProductName: formTargetType === 'SPECIFIC_PRODUCT' ? targetProd?.title : undefined,
+      targetProductId: formTargetType === 'SPECIFIC_PRODUCT' ? formTargetProductId : null,
       discountType: formDiscountType,
-      discountValue: Number(formDiscountValue),
-      minOrderAmount: formMinOrderAmount !== '' ? Number(formMinOrderAmount) : undefined,
-      maxDiscountAmount:
-        formDiscountType === 'PERCENTAGE' && formMaxDiscountAmount !== ''
-          ? Number(formMaxDiscountAmount)
-          : undefined,
-      usageLimit: formUsageLimit !== '' ? Number(formUsageLimit) : undefined,
+      discountValue: value,
+      minOrderAmount: optionalNumber(formMinOrderAmount),
+      maxDiscountAmount: formDiscountType === 'PERCENTAGE' ? optionalNumber(formMaxDiscountAmount) : null,
+      usageLimit: optionalNumber(formUsageLimit),
       expiresAt: formExpiresAt.trim() || null,
       isActive: formIsActive,
     };
 
-    if (editingCoupon) {
-      farmStore.updateCoupon(editingCoupon.id, payload);
-      showToast(`کد تخفیف «${payload.code}» با موفقیت به‌روزرسانی شد.`);
-    } else {
-      // Check duplicate code
-      const existing = farmStore.getCouponByCode(payload.code);
-      if (existing) {
-        toast.error('این کد تخفیف قبلاً تعریف شده است.');
-        return;
-      }
-      farmStore.createCoupon(payload);
-      showToast(`کد تخفیف جدید «${payload.code}» ایجاد شد.`);
-    }
+    setSaving(true);
+    const result = editingCoupon
+      ? await adminRequest<{ coupon: Coupon }>('/api/admin/coupons', {
+          method: 'PATCH',
+          body: { id: editingCoupon.id, ...payload },
+        })
+      : await adminRequest<{ coupon: Coupon }>('/api/admin/coupons', { method: 'POST', body: payload });
+    setSaving(false);
 
+    if (!result.ok) {
+      setFormError(result.message);
+      return;
+    }
+    const saved = result.data.coupon;
+    if (saved) {
+      couponsState.setData((prev) => {
+        if (!prev) return prev;
+        const exists = prev.coupons.some((c) => c.id === saved.id);
+        return {
+          ...prev,
+          coupons: exists ? prev.coupons.map((c) => (c.id === saved.id ? saved : c)) : [saved, ...prev.coupons],
+        };
+      });
+    }
     setIsModalOpen(false);
-    refreshData();
+    toast.success(
+      editingCoupon
+        ? `کد تخفیف «${code}» با موفقیت به‌روزرسانی شد.`
+        : `کد تخفیف جدید «${code}» ایجاد شد.`
+    );
+    void couponsState.reload();
   };
 
   // Filtered List
@@ -232,14 +272,6 @@ export default function AdminCouponsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-farm-primary text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-3">
-          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* Header & Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -387,7 +419,13 @@ export default function AdminCouponsPage() {
       </div>
 
       {/* Coupons Grid / Cards */}
-      {filteredCoupons.length === 0 ? (
+      <AdminStatus
+        hasData={couponsState.data !== null}
+        loading={couponsState.loading}
+        error={couponsState.error}
+        onRetry={() => void couponsState.reload()}
+      />
+      {couponsState.data !== null && filteredCoupons.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 border border-farm-border text-center space-y-4 shadow-farm">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto text-gray-500">
             <TicketPercent className="w-8 h-8" />
@@ -855,6 +893,11 @@ export default function AdminCouponsPage() {
               </div>
 
               {/* Action Buttons */}
+              {formError && (
+                <p role="alert" className="text-xs font-bold text-rose-700">
+                  {formError}
+                </p>
+              )}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="button"
@@ -865,9 +908,10 @@ export default function AdminCouponsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white font-bold shadow-md transition-all cursor-pointer"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-2xl bg-farm-primary hover:bg-farm-primary-dark text-white font-bold shadow-md transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {editingCoupon ? 'ذخیره تغییرات' : 'ایجاد کد تخفیف'}
+                  {saving ? 'در حال ذخیره...' : editingCoupon ? 'ذخیره تغییرات' : 'ایجاد کد تخفیف'}
                 </button>
               </div>
             </form>

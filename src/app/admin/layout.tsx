@@ -40,6 +40,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isInApp, setIsInApp] = useState(false);
+  // The role is read from the server on every visit (the persisted client store can be stale).
+  const [authState, setAuthState] = useState<'loading' | 'ok' | 'denied'>('loading');
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setAuthState(data?.user?.role === 'ADMIN' ? 'ok' : 'denied');
+      })
+      .catch(() => {
+        if (!cancelled) setAuthState('denied');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   // Check if running inside the Android ProfarmAdminApp
   useEffect(() => {
@@ -172,7 +189,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // 2. Loading state while checking authentication
-  if (!mounted) {
+  if (!mounted || authState === 'loading') {
     return (
       <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6">
         <div className="w-10 h-10 rounded-full border-3 border-farm-primary border-t-transparent animate-spin" />
@@ -181,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // 3. SECURITY ROLE GUARD: Block non-admin users immediately!
-  if (user?.role !== 'ADMIN') {
+  if (authState !== 'ok') {
     return (
       <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-farm-border shadow-2xl text-center space-y-6 animate-in fade-in zoom-in-95">

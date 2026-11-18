@@ -64,6 +64,15 @@ export async function POST(req: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const body = asObject(await req.json().catch(() => null));
+    if (body.action === 'reset') {
+      // Factory defaults, applied on the server only. The client updates its view from this answer.
+      const defaults = farmStore.resetPaymentSettings();
+      return NextResponse.json({
+        success: true,
+        message: 'تنظیمات به مقادیر پیش‌فرض کارخانه بازنشانی شد.',
+        settings: maskSettings(defaults),
+      });
+    }
     if (Object.keys(body).length === 0) {
       return NextResponse.json({ success: false, message: 'اطلاعات ارسالی نامعتبر است.' }, { status: 400 });
     }

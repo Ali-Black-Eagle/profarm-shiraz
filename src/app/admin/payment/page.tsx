@@ -23,7 +23,7 @@ import {
   ArrowRight,
   ShieldAlert,
 } from 'lucide-react';
-import { farmStore } from '@/lib/db-store';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import { PaymentSettings } from '@/types';
 import { toPersianDigits, formatToman } from '@/lib/formatters';
 import { useToast, useConfirm } from '@/components/ui/ToastProvider';
@@ -60,23 +60,11 @@ export default function AdminPaymentSettingsPage() {
     statusCode?: number;
   } | null>(null);
 
-  // Load settings on mount
+  // Settings come from the server (secrets arrive masked). The editor copy follows each fresh server copy.
+  const settingsState = useAdminFetch<{ settings: PaymentSettings }>('/api/admin/payment-settings');
   useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const res = await fetch('/api/admin/payment-settings');
-        const data = await res.json();
-        if (data.success && data.settings) {
-          setSettings(data.settings);
-        } else {
-          setSettings(farmStore.getPaymentSettings());
-        }
-      } catch (err) {
-        setSettings(farmStore.getPaymentSettings());
-      }
-    }
-    fetchSettings();
-  }, []);
+    if (settingsState.data?.settings) setSettings(settingsState.data.settings);
+  }, [settingsState.data]);
 
   const handleCopy = (text: string, fieldName: string) => {
     if (navigator.clipboard) {
@@ -100,7 +88,7 @@ export default function AdminPaymentSettingsPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        farmStore.updatePaymentSettings(settings);
+        if (data.settings) setSettings(data.settings);
         setNotification({
           type: 'success',
           message: data.message || 'تنظیمات درگاه با موفقیت در پایگاه داده و سرور ذخیره شد.',
@@ -131,9 +119,17 @@ export default function AdminPaymentSettingsPage() {
       variant: 'danger',
     });
     if (ok) {
-      const def = farmStore.resetPaymentSettings();
-      setSettings({ ...def });
-      const msg = 'تنظیمات به مقادیر پیش‌فرض کارخانه بازنشانی شد.';
+      // The view changes only after the server has reset the stored settings
+      const result = await adminRequest<{ settings: PaymentSettings; message?: string }>('/api/admin/payment-settings', {
+        method: 'POST',
+        body: { action: 'reset' },
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setSettings(result.data.settings);
+      const msg = result.data.message || 'تنظیمات به مقادیر پیش‌فرض کارخانه بازنشانی شد.';
       setNotification({ type: 'success', message: msg });
       toast.success(msg);
       setTimeout(() => setNotification(null), 4000);
@@ -221,10 +217,14 @@ export default function AdminPaymentSettingsPage() {
 
   if (!settings) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-farm-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-gray-500">در حال بارگذاری تنظیمات درگاه...</span>
+      <div className="min-h-[300px] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <AdminStatus
+            hasData={false}
+            loading={settingsState.loading}
+            error={settingsState.error}
+            onRetry={() => void settingsState.reload()}
+          />
         </div>
       </div>
     );

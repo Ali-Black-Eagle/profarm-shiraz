@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   TrendingUp,
@@ -28,102 +28,134 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { farmStore } from '@/lib/db-store';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { getOrderStatusMeta } from '@/lib/site-config';
-import { isCountableSaleOrder } from '@/lib/order-utils';
 import { Dialog } from '@/components/ui/Dialog';
-import { Order, FinancialSummary, Product, ReturnRequest } from '@/types';
+import { useToast } from '@/components/ui/ToastProvider';
+import { Order, FinancialSummary, Product } from '@/types';
 import { SalesChart } from '@/components/admin/SalesChart';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
+
+interface DashboardPayload {
+  ordersToday: number;
+  pendingOrders: number;
+  revenueToday: number;
+  revenueMonth: number;
+  ordersByStatus: Record<string, number>;
+  lowStockThreshold: number;
+  subscribers: { FREE: number; PLUS: number; PRO: number; total: number };
+  pending: { returns: number; reviews: number; bulkInquiries: number };
+}
 
 export default function AdminOverviewPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [salesData, setSalesData] = useState<{ day: string; amount: number; orderCount: number }[]>([]);
-  const [finSummary, setFinSummary] = useState<FinancialSummary | null>(null);
-  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toast = useToast();
+  const dashState = useAdminFetch<DashboardPayload>('/api/admin/dashboard');
+  const recentState = useAdminFetch<{ orders: Order[] }>('/api/admin/orders?pageSize=5');
+  const monthState = useAdminFetch<{ summary: FinancialSummary }>('/api/admin/finance?period=month');
+  const weekState = useAdminFetch<{ summary: FinancialSummary }>('/api/admin/finance?period=week');
+  const productsState = useAdminFetch<{ products: Product[] }>('/api/admin/products');
+
+  const dash = dashState.data;
+  const orders = useMemo(() => recentState.data?.orders ?? [], [recentState.data]);
+  const finSummary = monthState.data?.summary ?? null;
+  const salesData = useMemo(
+    () =>
+      (weekState.data?.summary.weeklyStats ?? []).map((d) => ({
+        day: d.dayName,
+        amount: d.netRevenue,
+        orderCount: d.ordersCount,
+      })),
+    [weekState.data]
+  );
+  const allProducts = useMemo(() => productsState.data?.products ?? [], [productsState.data]);
+  const lowStockProducts = useMemo(
+    () => allProducts.filter((p) => (p.stock ?? 0) <= (dash?.lowStockThreshold ?? 5)),
+    [allProducts, dash]
+  );
 
   // Custom restock state for dashboard
   const [restockAmounts, setRestockAmounts] = useState<Record<string, number>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedModalProductId, setSelectedModalProductId] = useState<string>('');
   const [modalAmount, setModalAmount] = useState<number>(10);
+  const [busy, setBusy] = useState(false);
 
-  const refreshData = () => {
-    setOrders(farmStore.getOrders());
-    setSalesData(farmStore.getWeeklySalesData());
-    setFinSummary(farmStore.getFinancialSummary());
-    setLowStockProducts(farmStore.getLowStockProducts(5));
-    const prods = farmStore.getProducts();
-    setAllProducts(prods);
-    if (prods.length > 0 && !selectedModalProductId) {
-      setSelectedModalProductId(prods[0].id);
+  const reloadAll = () => {
+    void dashState.reload();
+    void recentState.reload();
+    void monthState.reload();
+    void weekState.reload();
+    void productsState.reload();
+  };
+
+  const showToast = (msg: string) => toast.success(msg);
+
+  /** Adds stock on the server. The local list is updated only from the server's answer. */
+  const addStock = async (productId: string, amount: number): Promise<boolean> => {
+    if (busy) return false;
+    setBusy(true);
+    const result = await adminRequest<{ product: Product }>('/api/admin/products?action=restock', {
+      method: 'POST',
+      body: { id: productId, quantity: amount },
+    });
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return false;
     }
-    setReturnRequests(farmStore.getReturnRequests());
+    const updated = result.data.product;
+    productsState.setData((prev) =>
+      prev && updated ? { ...prev, products: prev.products.map((p) => (p.id === productId ? { ...p, ...updated } : p)) } : prev
+    );
+    void dashState.reload();
+    showToast(
+      `موجودی «${updated?.title ?? ''}» با موفقیت ${toPersianDigits(amount)} عدد افزایش یافت. (موجودی فعلی: ${toPersianDigits(updated?.stock ?? 0)} عدد)`
+    );
+    return true;
   };
 
-  useEffect(() => {
-    refreshData();
-  }, []);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const handleCustomRestock = (prodId: string, customAmount?: number) => {
+  const handleCustomRestock = async (prodId: string, customAmount?: number) => {
     const amount = customAmount !== undefined ? customAmount : (restockAmounts[prodId] ?? 10);
-    if (!amount || amount <= 0) {
-      showToast('لطفاً یک مقدار معتبر (بزرگتر از صفر) جهت افزایش موجودی وارد نمایید.');
+    if (!Number.isInteger(amount) || amount <= 0) {
+      toast.error('لطفاً یک مقدار صحیح و بزرگ‌تر از صفر جهت افزایش موجودی وارد نمایید.');
       return;
     }
-    const prod = farmStore.getProductBySlug(prodId);
-    if (prod) {
-      const newStock = (prod.stock || 0) + amount;
-      farmStore.updateProductStock(prodId, newStock);
-      refreshData();
-      showToast(`موجودی «${prod.title}» با موفقیت ${toPersianDigits(amount)} عدد افزایش یافت. (موجودی فعلی: ${toPersianDigits(newStock)} عدد)`);
-    }
+    await addStock(prodId, amount);
   };
 
-  const handleModalRestockSubmit = (e: React.FormEvent) => {
+  const handleModalRestockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedModalProductId) return;
     const amount = Number(modalAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showToast('لطفاً مقداری معتبر و بزرگتر از صفر برای افزایش موجودی وارد کنید.');
+    if (!Number.isInteger(amount) || amount <= 0) {
+      toast.error('لطفاً مقداری صحیح و بزرگ‌تر از صفر برای افزایش موجودی وارد کنید.');
       return;
     }
-    const prod = farmStore.getProductBySlug(selectedModalProductId);
-    if (prod) {
-      const newStock = (prod.stock || 0) + amount;
-      farmStore.updateProductStock(selectedModalProductId, newStock);
-      refreshData();
+    if (await addStock(selectedModalProductId, amount)) {
       setIsModalOpen(false);
-      showToast(`موجودی «${prod.title}» با موفقیت ${toPersianDigits(amount)} عدد افزایش یافت. (موجودی جدید: ${toPersianDigits(newStock)} عدد)`);
     }
   };
 
-  const paidOrders = orders.filter(isCountableSaleOrder);
-  const totalRevenue = finSummary?.netRevenue ?? paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
-  const outForDeliveryCount = orders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
-  const users = farmStore.getAllUsers();
-  const proUsersCount = users.filter((u) => u.tier === 'PRO' || u.isProMember).length;
-  const plusUsersCount = users.filter((u) => u.tier === 'PLUS').length;
-  const visits = farmStore.getSiteVisits();
-  const pendingReturns = returnRequests.filter((r) => r.status === 'PENDING').length;
+  const loadError = dashState.error || recentState.error || monthState.error || weekState.error || productsState.error;
+  const loadingAny = dashState.loading || recentState.loading || monthState.loading || weekState.loading || productsState.loading;
+  const paidOrderCount = finSummary?.totalOrdersCount ?? 0;
+  const totalRevenue = finSummary?.netRevenue ?? dash?.revenueMonth ?? 0;
+  const processingCount = dash?.ordersByStatus?.PROCESSING ?? 0;
+  const outForDeliveryCount = dash?.ordersByStatus?.OUT_FOR_DELIVERY ?? 0;
+  const totalUsers = dash?.subscribers.total ?? 0;
+  const proUsersCount = dash?.subscribers.PRO ?? 0;
+  const plusUsersCount = dash?.subscribers.PLUS ?? 0;
+  const pendingReturns = dash?.pending.returns ?? 0;
 
   return (
     <div className="space-y-8">
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed top-5 left-5 z-50 bg-farm-primary text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
-          <span>{toastMessage}</span>
-        </div>
+      {(loadError || loadingAny) && (
+        <AdminStatus
+          hasData={dash !== null && recentState.data !== null}
+          loading={loadingAny}
+          error={loadError}
+          onRetry={reloadAll}
+        />
       )}
 
       {/* Page Title */}
@@ -395,7 +427,7 @@ export default function AdminOverviewPage() {
             {formatToman(finSummary?.grossProfit ?? 0)}
           </div>
           <span className="text-xs text-amber-800 font-medium">
-            حاشیه سود واقعی: {toPersianDigits(finSummary?.profitMarginPercent ?? 0)}٪ از {toPersianDigits(paidOrders.length)} سفارش تاییدشده
+            حاشیه سود واقعی: {toPersianDigits(finSummary?.profitMarginPercent ?? 0)}٪ از {toPersianDigits(paidOrderCount)} سفارش تاییدشده
           </span>
         </div>
 
@@ -408,7 +440,7 @@ export default function AdminOverviewPage() {
             </div>
           </div>
           <div className="text-2xl font-black text-farm-primary">
-            {toPersianDigits(users.length)} حساب کاربری
+            {toPersianDigits(totalUsers)} حساب کاربری
           </div>
           <span className="text-xs text-purple-700 font-medium">
             {toPersianDigits(proUsersCount)} مشترک پرو | {toPersianDigits(plusUsersCount)} مشترک پلاس
@@ -427,7 +459,7 @@ export default function AdminOverviewPage() {
             {toPersianDigits(processingCount + outForDeliveryCount)} سفارش
           </div>
           <span className="text-xs text-blue-700 font-medium">
-            بازدید امروز: {toPersianDigits(visits.daily)} مراجعه‌کننده
+            سفارش‌های امروز: {toPersianDigits(dash?.ordersToday ?? 0)} سفارش ثبت‌شده
           </span>
         </div>
       </div>

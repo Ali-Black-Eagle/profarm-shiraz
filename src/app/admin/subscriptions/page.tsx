@@ -28,7 +28,7 @@ import {
   Layers,
   Edit3,
 } from 'lucide-react';
-import { farmStore } from '@/lib/db-store';
+import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
 import { SubscriptionSettings, SubscriptionStats } from '@/types';
 import { formatToman, toPersianDigits, getDeduplicatedPerks } from '@/lib/formatters';
 import SubscriptionLiveEditor from '@/components/modules/SubscriptionLiveEditor';
@@ -38,10 +38,12 @@ export default function AdminSubscriptionsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const [mounted, setMounted] = useState(false);
-  const [settings, setSettings] = useState<SubscriptionSettings>(() =>
-    farmStore.getSubscriptionSettings()
+  // Editor draft (filled from the server). The page shows its loading state until the first copy arrives.
+  const [settings, setSettings] = useState<SubscriptionSettings>({} as SubscriptionSettings);
+  const subState = useAdminFetch<{ settings: SubscriptionSettings; stats: SubscriptionStats | null }>(
+    '/api/subscriptions'
   );
-  const [stats, setStats] = useState<SubscriptionStats | null>(null);
+  const stats = subState.data?.stats ?? null;
   const [activeTab, setActiveTab] = useState<'live_editor' | 'pro' | 'plus' | 'free' | 'preview'>('live_editor');
   const [previewMode, setPreviewMode] = useState<'user' | 'admin'>('user');
 
@@ -54,34 +56,14 @@ export default function AdminSubscriptionsPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const refreshData = () => {
-    const currentSettings = farmStore.getSubscriptionSettings();
-    setSettings({ ...currentSettings });
-    setStats(farmStore.getSubscriptionStats());
-  };
-
+  // Settings and stats come from the server. The editor draft follows each fresh server copy.
   useEffect(() => {
     setMounted(true);
-    refreshData();
-
-    // Authoritative sync with server
-    farmStore.syncSubscriptionSettings().then((synced) => {
-      setSettings({ ...synced });
-      setStats(farmStore.getSubscriptionStats());
-    });
-
-    const handleUpdate = () => {
-      refreshData();
-    };
-
-    window.addEventListener('profarm_subscription_updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
-
-    return () => {
-      window.removeEventListener('profarm_subscription_updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
-    };
   }, []);
+
+  useEffect(() => {
+    if (subState.data?.settings) setSettings({ ...subState.data.settings });
+  }, [subState.data]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -115,40 +97,21 @@ export default function AdminSubscriptionsPage() {
       };
       setSettings(sanitizedSettings);
 
-      let serverSaved = false;
-      try {
-        const res = await fetch('/api/subscriptions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ settings: sanitizedSettings }),
-        });
-        if (res.ok) {
-          serverSaved = true;
-        } else {
-          // Fallback to /api/admin
-          const adminRes = await fetch('/api/admin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'updateSubscriptionSettings',
-              payload: { settings: sanitizedSettings },
-            }),
-          });
-          if (adminRes.ok) {
-            serverSaved = true;
-          }
-        }
-      } catch {
-        serverSaved = false;
-      }
+      setSettings(sanitizedSettings);
 
-      if (!serverSaved) {
-        showToast('خطا در ذخیره تنظیمات اشتراک در سرور. لطفاً اتصال خود را بررسی کرده و مجدداً تلاش کنید.');
+      const result = await adminRequest<{ settings?: SubscriptionSettings; stats?: SubscriptionStats }>(
+        '/api/subscriptions',
+        { method: 'POST', body: { settings: sanitizedSettings } }
+      );
+      if (!result.ok) {
+        showToast(`خطا در ذخیره تنظیمات اشتراک در سرور. ${result.message}`);
         return;
       }
-
-      farmStore.updateSubscriptionSettings(sanitizedSettings);
-      setStats(farmStore.getSubscriptionStats());
+      subState.setData((prev) =>
+        prev
+          ? { ...prev, settings: result.data.settings ?? sanitizedSettings, stats: result.data.stats ?? prev.stats }
+          : prev
+      );
       showToast('تنظیمات اشتراک‌ها با موفقیت در سرور ذخیره و در سراسر سایت اعمال شد.');
     } catch (err) {
       showToast('خطا در ذخیره‌سازی تنظیمات');
@@ -166,27 +129,18 @@ export default function AdminSubscriptionsPage() {
       variant: 'danger',
     });
     if (ok) {
-      const reset = farmStore.resetSubscriptionSettings();
-      try {
-        const res = await fetch('/api/admin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'updateSubscriptionSettings',
-            payload: { settings: reset },
-          }),
-        });
-        if (!res.ok) {
-          showToast('خطا در بازنشانی تنظیمات در سرور.');
-          toast.error('خطا در بازنشانی تنظیمات در سرور.');
-          return;
-        }
-      } catch {
-        showToast('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
-        toast.error('خطا در ارتباط با سرور؛ بازنشانی انجام نشد.');
+      // The view changes only after the server has reset the stored settings
+      const result = await adminRequest<{ settings: SubscriptionSettings }>('/api/admin', {
+        method: 'POST',
+        body: { action: 'resetSubscriptionSettings' },
+      });
+      if (!result.ok) {
+        showToast('خطا در بازنشانی تنظیمات در سرور.');
+        toast.error(result.message);
         return;
       }
-      refreshData();
+      subState.setData((prev) => (prev ? { ...prev, settings: result.data.settings } : prev));
+      void subState.reload();
       showToast('تنظیمات اشتراک با موفقیت به مقادیر اولیه بازگردانی شد.');
       toast.success('تنظیمات اشتراک با موفقیت به مقادیر اولیه بازگردانی شد.');
     }
@@ -255,10 +209,17 @@ export default function AdminSubscriptionsPage() {
     }
   };
 
-  if (!mounted) {
+  if (!subState.data?.settings) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-farm-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-[40vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <AdminStatus
+            hasData={false}
+            loading={subState.loading}
+            error={subState.error}
+            onRetry={() => void subState.reload()}
+          />
+        </div>
       </div>
     );
   }

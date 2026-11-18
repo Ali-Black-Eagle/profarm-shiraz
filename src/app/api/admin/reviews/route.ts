@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'ALL';
     const productSlug = searchParams.get('productSlug')?.trim() || '';
+    const q = (searchParams.get('q') || '').trim().toLowerCase();
 
     const all = farmStore.getAllReviews();
     const counts: Record<ReviewStatus, number> = { PENDING: 0, APPROVED: 0, REJECTED: 0 };
@@ -39,12 +40,34 @@ export async function GET(req: NextRequest) {
       list = list.filter((r) => r.status === status);
     }
     if (productSlug) list = list.filter((r) => r.productSlug === productSlug || r.productId === productSlug);
+    if (q) {
+      list = list.filter((r) =>
+        [r.userName, r.userPhone || '', r.comment, r.title || '', r.productTitle, r.orderId || ''].some((value) =>
+          value.toLowerCase().includes(q)
+        )
+      );
+    }
 
     const { page, pageSize } = pageParams(searchParams, { pageSize: 20, maxPageSize: 100 });
     const { items, pagination } = paginate(list, page, pageSize);
     return jsonOk({ reviews: items, pagination, counts });
   } catch (error: unknown) {
     return apiErrorResponse(error, 'admin/reviews GET', 'خطا در دریافت دیدگاه‌ها');
+  }
+}
+
+/** DELETE ?id= removes a review permanently. The customer's order is not affected. */
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
+
+    const id = (new URL(req.url).searchParams.get('id') || '').trim();
+    if (!id) return jsonError(400, 'شناسه دیدگاه الزامی است.');
+    if (!farmStore.deleteReview(id)) return jsonError(404, 'دیدگاه مورد نظر یافت نشد.');
+    return jsonOk({ message: 'دیدگاه به طور کامل حذف شد.' });
+  } catch (error: unknown) {
+    return apiErrorResponse(error, 'admin/reviews DELETE', 'خطا در حذف دیدگاه');
   }
 }
 

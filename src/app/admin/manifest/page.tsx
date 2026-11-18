@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { farmStore } from '@/lib/db-store';
-import { Order, DailyCapacityItem } from '@/types';
+import React, { useMemo, useState } from 'react';
+import { adminQuery, adminRequest, AdminStatus, buildCsv, downloadCsv, tehranIsoDate, useAdminFetch } from '@/components/admin/admin-client';
+import { Order, OrderStatus, DailyCapacityItem } from '@/types';
+
+/** Order as the admin API returns it (the stored order plus the statuses it may move to now). */
+type AdminOrder = Order & { allowedNextStatuses?: OrderStatus[] };
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { isDigitalOrder } from '@/lib/order-utils';
 import { getOrderStatusMeta } from '@/lib/site-config';
@@ -50,48 +53,40 @@ export function getShirazZoneForAddress(address: string): string {
 export default function DailyManifestPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [orders, setOrders] = useState<Order[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
-  const [capacities, setCapacities] = useState<DailyCapacityItem[]>([]);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
+  const capacitiesState = useAdminFetch<{ dailyCapacities: DailyCapacityItem[] }>('/api/admin?type=dailyCapacities');
+  const capacities = useMemo(() => capacitiesState.data?.dailyCapacities ?? [], [capacitiesState.data]);
+  // The date filter goes to the server (deliverySlot.isoDate). Without a date the first 100 orders are loaded.
+  const ordersState = useAdminFetch<{ orders: AdminOrder[] }>(
+    adminQuery('/api/admin/orders', { status: 'ALL', date: selectedDateFilter, pageSize: 100 })
+  );
   const [editingDateIso, setEditingDateIso] = useState<string | null>(null);
   const [editingCapacityInput, setEditingCapacityInput] = useState<number>(30);
   const [isCapacityOpen, setIsCapacityOpen] = useState<boolean>(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Capacity and closures are server state: read them from the admin API. The local store is only an offline fallback.
-  const refreshCapacities = async () => {
-    try {
-      const res = await fetch('/api/admin?type=dailyCapacities');
-      const data = await res.json();
-      if (res.ok && data.success && Array.isArray(data.dailyCapacities)) {
-        setCapacities(data.dailyCapacities);
-        return;
-      }
-    } catch {
-      // Fall back to the local copy below
-    }
-    setCapacities(farmStore.getDailyCapacities());
+  const refreshCapacities = () => {
+    void capacitiesState.reload();
   };
 
+  /** Capacity and closing actions go to the server; the list is refreshed from its answer. */
   const callAdminAction = async (action: string, payload: Record<string, unknown>) => {
-    const res = await fetch('/api/admin', {
+    const result = await adminRequest<{ dailyCapacities?: DailyCapacityItem[] }>('/api/admin', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, payload }),
+      body: { action, payload },
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.success) {
-      throw new Error(data.message || 'ثبت تغییر روی سرور انجام نشد.');
+    if (!result.ok) {
+      throw new Error(result.message || 'ثبت تغییر روی سرور انجام نشد.');
     }
-    return data;
+    return result.data;
   };
 
-  const filterManifestOrders = (all: Order[]): Order[] => {
+  const filterManifestOrders = (all: AdminOrder[]): AdminOrder[] => {
     // Only physical Shiraz orders in active/deliverable statuses belong in the driver manifest.
-    // Excludes digital/subscription orders via structured fields (never by matching title text).
+    // Digital and subscription orders are excluded by their structured fields.
     return all.filter(
       (o) =>
         !isDigitalOrder(o) &&
@@ -100,26 +95,7 @@ export default function DailyManifestPage() {
     );
   };
 
-  const loadManifestOrders = async () => {
-    try {
-      const res = await fetch('/api/admin?type=orders');
-      const data = await res.json();
-      if (res.ok && data.success && Array.isArray(data.orders)) {
-        setOrders(filterManifestOrders(data.orders));
-        refreshCapacities();
-        return;
-      }
-    } catch {
-      // Fall back to local store if API is unavailable
-    }
-    const all = farmStore.getOrders();
-    setOrders(filterManifestOrders(all));
-    refreshCapacities();
-  };
-
-  useEffect(() => {
-    loadManifestOrders();
-  }, []);
+  const orders = useMemo(() => filterManifestOrders(ordersState.data?.orders ?? []), [ordersState.data]);
 
   const handleMarkDelivered = async (order: Order) => {
     if (order.status === 'DELIVERED') return;
@@ -134,41 +110,28 @@ export default function DailyManifestPage() {
 
     setUpdatingOrderId(order.id);
     setStatusFeedback(null);
-    try {
-      const res = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateOrderStatus',
-          payload: {
-            orderId: order.id,
-            status: 'DELIVERED',
-          },
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        const msg = data.error || data.message || 'خطا در تغییر وضعیت سفارش در سرور.';
-        setStatusFeedback({ type: 'error', text: msg });
-        toast.error(msg);
-        return;
-      }
-
-      // Sync local cache & state
-      await farmStore.updateOrderStatus(order.id, 'DELIVERED');
-      setOrders((prev) =>
-        prev.map((o) => (o.id === order.id ? { ...o, status: 'DELIVERED' } : o))
+    const previousStatus = order.status;
+    // Optimistic update of the list; rolled back if the server refuses
+    ordersState.setData((prev) =>
+      prev ? { ...prev, orders: prev.orders.map((o) => (o.id === order.id ? { ...o, status: 'DELIVERED' } : o)) } : prev
+    );
+    const result = await adminRequest<{ order: AdminOrder }>('/api/admin/orders', {
+      method: 'PATCH',
+      body: { orderId: order.id, status: 'DELIVERED' },
+    });
+    setUpdatingOrderId(null);
+    if (!result.ok) {
+      ordersState.setData((prev) =>
+        prev ? { ...prev, orders: prev.orders.map((o) => (o.id === order.id ? { ...o, status: previousStatus } : o)) } : prev
       );
-      const okMsg = `سفارش ${order.orderNumber} با موفقیت به عنوان «تحویل داده شد» ثبت گردید.`;
-      setStatusFeedback({ type: 'success', text: okMsg });
-      toast.success(okMsg);
-    } catch {
-      const errMsg = 'خطا در ارتباط با سرور. وضعیت سفارش تغییر نکرد.';
-      setStatusFeedback({ type: 'error', text: errMsg });
-      toast.error(errMsg);
-    } finally {
-      setUpdatingOrderId(null);
+      setStatusFeedback({ type: 'error', text: result.message });
+      toast.error(result.message);
+      return;
     }
+    const okMsg = `سفارش ${order.orderNumber} با موفقیت به عنوان «تحویل داده شد» ثبت گردید.`;
+    setStatusFeedback({ type: 'success', text: okMsg });
+    toast.success(okMsg);
+    void ordersState.reload();
   };
 
   const handleToggleCloseDay = async (dateIso: string) => {
@@ -236,40 +199,33 @@ export default function DailyManifestPage() {
       'گیرنده',
       'شماره تماس',
       'نشانی کامل شیراز',
-      'بازه زمانی تحویل',
+      'تاریخ تحویل',
+      'بازه زمانی',
       'اقلام و بسته‌ها',
       'مبلغ (تومان)',
       'وضعیت',
     ];
     const rows = filteredOrders.map((o) => [
       o.orderNumber,
-      o.address?.recipientName,
-      o.address?.phone,
-      `"${o.address?.streetAddress} - ${o.address?.unit || ''}"`,
-      o.deliverySlot ? `"${o.deliverySlot.date} (۱۵:۰۰ الی ۲۱:۰۰)"` : '۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)',
-      `"${o.items.map((i) => `${i.product.title} (${i.quantity} عدد)`).join(' | ')}"`,
+      o.address?.recipientName ?? '',
+      o.address?.phone ?? '',
+      `${o.address?.streetAddress ?? ''} - ${o.address?.unit || ''}`,
+      o.deliverySlot?.isoDate ?? o.deliverySlot?.date ?? '',
+      o.deliverySlot?.window ?? o.deliverySlot?.timeWindow ?? '',
+      (o.items ?? []).map((i) => `${i.product?.title ?? ''} (${i.quantity} عدد)`).join(' | '),
       o.totalAmount,
       getOrderStatusMeta(o.status).label,
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-
-    const filename = `peyk_shiraz_manifest_${Date.now()}.csv`;
+    const dateTag = selectedDateFilter ?? tehranIsoDate();
+    const csv = buildCsv(headers, rows);
+    const filename = `peyk_shiraz_manifest_${dateTag}.csv`;
     if (typeof window !== 'undefined' && (window as any).AndroidBridge?.saveBase64File) {
-      const base64 = btoa(unescape(encodeURIComponent(csvContent)));
+      const base64 = btoa(unescape(encodeURIComponent(csv)));
       (window as any).AndroidBridge.saveBase64File(base64, filename, 'text/csv;charset=utf-8');
       return;
     }
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(filename, csv);
   };
 
   return (
@@ -311,6 +267,16 @@ export default function DailyManifestPage() {
       </div>
 
       {/* Status Feedback Banner */}
+      <AdminStatus
+        hasData={ordersState.data !== null}
+        loading={ordersState.loading || capacitiesState.loading}
+        error={ordersState.error || capacitiesState.error}
+        onRetry={() => {
+          void ordersState.reload();
+          void capacitiesState.reload();
+        }}
+      />
+
       {statusFeedback && (
         <div
           role={statusFeedback.type === 'error' ? 'alert' : 'status'}

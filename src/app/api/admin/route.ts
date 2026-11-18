@@ -168,6 +168,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, user: updated ? sanitizeUser(updated) : null });
     }
 
+    if (action === 'resetSubscriptionSettings') {
+      // Factory defaults, applied on the server. The client updates its view only from this answer.
+      const settings = farmStore.resetSubscriptionSettings();
+      return NextResponse.json({ success: true, settings, message: 'تنظیمات اشتراک به مقادیر اولیه بازگشت.' });
+    }
+
     if (action === 'updateSubscriptionSettings') {
       const { settings: newSettings } = payload || {};
       if (newSettings && typeof newSettings === 'object') {
