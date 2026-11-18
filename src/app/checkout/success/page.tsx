@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { farmStore } from '@/lib/db-store';
 import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/hooks/useAuth';
 import { Order } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { getOrderStatusMeta } from '@/lib/site-config';
@@ -34,16 +34,23 @@ function CheckoutSuccessContent() {
   const gateway = searchParams.get('gateway') || 'zarinpal';
 
   const { clearCart } = useCart();
+  const { refreshProfile } = useAuth();
   const hasClearedCartRef = useRef(false);
+  const hasRefreshedProfileRef = useRef(false);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [errorReason, setErrorReason] = useState<'MISSING' | 'UNAUTH' | 'NOT_FOUND' | 'NETWORK' | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function verifyOrderFromServer() {
+      setLoading(true);
+      setErrorReason(null);
       if (!orderNumber) {
         setErrorReason('MISSING');
         setLoading(false);
@@ -79,15 +86,12 @@ function CheckoutSuccessContent() {
         }
 
         setOrder(serverOrder);
-        try {
-          farmStore.syncOrderFromApi(serverOrder);
-        } catch {
-          // ignore local cache sync failures
-        }
 
-        // Clear cart ONLY when the server verifies the matching order is genuinely paid/confirmed
+        // Clear cart ONLY when the server confirms payment (cash on delivery is final at creation)
         const isConfirmedPaid =
-          PAID_STATUSES.has(serverOrder.status) || serverOrder.payment?.status === 'SUCCESS';
+          PAID_STATUSES.has(serverOrder.status) ||
+          serverOrder.payment?.status === 'SUCCESS' ||
+          serverOrder.paymentMethod === 'cod';
 
         if (isConfirmedPaid && !hasClearedCartRef.current) {
           hasClearedCartRef.current = true;
@@ -99,6 +103,12 @@ function CheckoutSuccessContent() {
           } catch {
             // ignore storage errors
           }
+        }
+
+        // A confirmed payment can change the session (subscription tier, egg quota): reload it so the UI matches the server.
+        if (isConfirmedPaid && !hasRefreshedProfileRef.current) {
+          hasRefreshedProfileRef.current = true;
+          await refreshProfile();
         }
       } catch {
         if (!cancelled) {
@@ -115,7 +125,24 @@ function CheckoutSuccessContent() {
     return () => {
       cancelled = true;
     };
-  }, [orderNumber, clearCart]);
+  }, [orderNumber, clearCart, refreshProfile, attempt]);
+
+  const handlePayAgain = async () => {
+    if (!order) return;
+    setRetryError(null);
+    setRetrying(true);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(order.orderNumber)}/retry-payment`, { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success || !data.paymentUrl) {
+        throw new Error(data?.message || 'خطا در ایجاد درخواست پرداخت مجدد');
+      }
+      window.location.href = data.paymentUrl;
+    } catch (err: unknown) {
+      setRetryError(err instanceof Error ? err.message : 'خطا در ایجاد درخواست پرداخت مجدد');
+      setRetrying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -158,7 +185,9 @@ function CheckoutSuccessContent() {
             {errorReason === 'UNAUTH' ? (
               <Link
                 href={`/login?redirect=${encodeURIComponent(
-                  `/checkout/success?orderNumber=${encodeURIComponent(orderNumber)}`
+                  `/checkout/success?orderNumber=${encodeURIComponent(orderNumber)}${
+                    refIdParam ? `&refId=${encodeURIComponent(refIdParam)}` : ''
+                  }&gateway=${encodeURIComponent(gateway)}`
                 )}`}
                 className="w-full sm:w-auto px-6 py-3.5 bg-farm-primary text-white font-bold text-sm rounded-2xl hover:bg-farm-primary-dark transition-all"
               >
@@ -174,6 +203,16 @@ function CheckoutSuccessContent() {
               </Link>
             )}
 
+            {errorReason === 'NETWORK' && (
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="w-full sm:w-auto min-h-11 px-6 py-3.5 bg-farm-primary text-white font-bold text-sm rounded-2xl hover:bg-farm-primary-dark transition-all cursor-pointer"
+              >
+                تلاش دوباره
+              </button>
+            )}
+
             <Link
               href="/checkout"
               className="w-full sm:w-auto px-6 py-3.5 bg-farm-bg border border-farm-border text-gray-800 font-bold text-sm rounded-2xl hover:bg-[#EAE5D9] transition-all"
@@ -186,7 +225,8 @@ function CheckoutSuccessContent() {
     );
   }
 
-  const isPaidConfirmed = PAID_STATUSES.has(order.status) || order.payment?.status === 'SUCCESS';
+  const isPaidConfirmed =
+    PAID_STATUSES.has(order.status) || order.payment?.status === 'SUCCESS' || order.paymentMethod === 'cod';
   const statusMeta = getOrderStatusMeta(order.status);
   const gatewayName =
     gateway === 'snapppay' || order.payment?.gateway === 'SNAPPPAY'
@@ -378,6 +418,29 @@ function CheckoutSuccessContent() {
           </div>
         </div>
       </div>
+
+      {/* Payment still open: the customer may pay again while the order is inside its deadline */}
+      {!isPaidConfirmed && order.status === 'PENDING_PAYMENT' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-3 no-print">
+          <p className="text-sm font-bold text-amber-900">پرداخت این سفارش هنوز انجام نشده است.</p>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            تا پایان مهلت پرداخت، می‌توانید دوباره به درگاه بروید. پس از پایان مهلت، کالاهای این سفارش آزاد می‌شوند.
+          </p>
+          <button
+            type="button"
+            onClick={handlePayAgain}
+            disabled={retrying}
+            className="min-h-11 px-5 py-2.5 bg-farm-primary text-white text-sm font-bold rounded-xl hover:bg-farm-primary-dark disabled:opacity-60 cursor-pointer"
+          >
+            {retrying ? 'در حال اتصال به درگاه...' : 'پرداخت مجدد'}
+          </button>
+          {retryError && (
+            <p role="alert" className="text-xs text-rose-700 font-bold">
+              {retryError}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 no-print">

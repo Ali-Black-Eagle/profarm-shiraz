@@ -2,143 +2,63 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, UserRole, SubscriptionTier, Address } from '@/types';
+import type { User } from '@/types';
 
+/**
+ * Session state for the browser. The HttpOnly session cookie is the source of truth: refreshProfile asks the
+ * server (GET /api/auth/me) and clears the user on 401. Only non-sensitive display fields are persisted.
+ * Addresses, orders and subscription data are never kept here; the pages load them from the API.
+ */
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
+  /** true once the first /api/auth/me answer has arrived, so pages do not flash the logged-out state. */
+  profileLoaded: boolean;
   login: (user: User) => void;
   logout: () => void;
-  togglePro: () => void;
-  setTier: (tier: SubscriptionTier) => void;
-  updateUser: (updates: Partial<User>) => void;
-  addAddress: (address: Omit<Address, 'id' | 'userId'>) => void;
-  updateAddress: (id: string, updates: Partial<Address>) => void;
-  deleteAddress: (id: string) => void;
-  setDefaultAddress: (id: string) => void;
   refreshProfile: () => Promise<void>;
 }
 
 export const useAuth = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isAuthenticated: false,
+      profileLoaded: false,
 
       login: (user: User) => {
-        set({ user, isAuthenticated: true });
+        set({ user, isAuthenticated: true, profileLoaded: true });
       },
 
       logout: () => {
         try {
           fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        } catch {}
-        set({ user: null, isAuthenticated: false });
-      },
-
-      togglePro: () => {
-        const current = get().user;
-        if (!current) return;
-        const newProStatus = !current.isProMember;
-        set({
-          user: {
-            ...current,
-            isProMember: newProStatus,
-            tier: newProStatus ? 'PRO' : 'FREE',
-            proExpiresAt: newProStatus ? '۱۴۰۵/۱۲/۲۹' : null,
-          },
-        });
-      },
-
-
-      setTier: (tier: SubscriptionTier) => {
-        const current = get().user;
-        if (!current) return;
-        const hasAccess = tier === 'PRO' || tier === 'PLUS';
-        set({
-          user: {
-            ...current,
-            tier,
-            isProMember: hasAccess,
-            proExpiresAt: hasAccess ? '۱۴۰۵/۱۲/۲۹' : null,
-          },
-        });
-      },
-
-      updateUser: (updates: Partial<User>) => {
-        const current = get().user;
-        if (!current) return;
-        set({ user: { ...current, ...updates } });
-      },
-
-      addAddress: (addr: Omit<Address, 'id' | 'userId'>) => {
-        const current = get().user;
-        if (!current) return;
-        const newAddr: Address = {
-          ...addr,
-          id: `addr-${Date.now()}`,
-          userId: current.id,
-          createdAt: new Date().toLocaleDateString('fa-IR'),
-          isDefault: (current.addresses || []).length === 0 ? true : !!addr.isDefault,
-        };
-        let updatedAddresses = [...(current.addresses || [])];
-        if (newAddr.isDefault) {
-          updatedAddresses = updatedAddresses.map((a) => ({ ...a, isDefault: false }));
+        } catch {
+          // ignore
         }
-        updatedAddresses.push(newAddr);
-        set({ user: { ...current, addresses: updatedAddresses } });
-      },
-
-      updateAddress: (id: string, updates: Partial<Address>) => {
-        const current = get().user;
-        if (!current || !current.addresses) return;
-        let updated = current.addresses.map((a) => (a.id === id ? { ...a, ...updates } : a));
-        if (updates.isDefault) {
-          updated = updated.map((a) => (a.id === id ? a : { ...a, isDefault: false }));
-        }
-        set({ user: { ...current, addresses: updated } });
-      },
-
-      deleteAddress: (id: string) => {
-        const current = get().user;
-        if (!current || !current.addresses) return;
-        const updated = current.addresses.filter((a) => a.id !== id);
-        if (updated.length > 0 && !updated.some((a) => a.isDefault)) {
-          updated[0].isDefault = true;
-        }
-        set({ user: { ...current, addresses: updated } });
-      },
-
-      setDefaultAddress: (id: string) => {
-        const current = get().user;
-        if (!current || !current.addresses) return;
-        const updated = current.addresses.map((a) => ({
-          ...a,
-          isDefault: a.id === id,
-        }));
-        set({ user: { ...current, addresses: updated } });
+        set({ user: null, isAuthenticated: false, profileLoaded: true });
       },
 
       refreshProfile: async () => {
         try {
-          const res = await fetch('/api/auth/me');
+          const res = await fetch('/api/auth/me', { cache: 'no-store' });
+          if (res.status === 401) {
+            set({ user: null, isAuthenticated: false, profileLoaded: true });
+            return;
+          }
           if (!res.ok) return;
           const data = await res.json();
-          if (data.authenticated && data.user) {
-            set((state) => ({
-              isAuthenticated: true,
-              user: state.user ? { ...state.user, ...data.user } : data.user,
-            }));
+          if (data?.authenticated && data.user) {
+            set({ user: data.user as User, isAuthenticated: true, profileLoaded: true });
           }
         } catch {
-          // ignore network errors
+          // Network error: keep what we have.
         }
       },
     }),
     {
-      name: 'profarm_auth_storage',
-      // L-4 Security Remediation: Only persist minimal public claims to localStorage.
-      // Excludes sensitive PII (nationalId, birthDate, and home addresses)
+      name: 'profarm_auth_v2',
+      // Minimal public claims only: no addresses and no national ID or birth date.
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user
@@ -150,6 +70,7 @@ export const useAuth = create<AuthStore>()(
               role: state.user.role,
               tier: state.user.tier,
               isProMember: state.user.isProMember,
+              isPhoneVerified: state.user.isPhoneVerified,
               avatarUrl: state.user.avatarUrl,
             }
           : null,

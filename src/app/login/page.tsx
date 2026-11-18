@@ -54,7 +54,7 @@ function getSafeRedirectUrl(target: string | null): string {
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, refreshProfile } = useAuth();
 
   // URL Parameters
   const redirectParam = searchParams.get('redirect');
@@ -106,6 +106,28 @@ function LoginFormContent() {
       setAuthMode('LOGIN');
     }
   }, [modeParam]);
+
+  // Already signed in (the server confirms the cookie): go to the requested page or the account
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await refreshProfile();
+      if (cancelled) return;
+      const current = useAuth.getState();
+      if (!current.isAuthenticated || !current.user) return;
+      const target =
+        redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+          ? getSafeRedirectUrl(redirectParam)
+          : current.user.role === 'ADMIN'
+          ? '/admin'
+          : '/account';
+      router.replace(target);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Countdown timer logic
   useEffect(() => {
@@ -460,7 +482,7 @@ function LoginFormContent() {
                 setOtpStep('PHONE');
               }
             }}
-            className={`relative z-10 py-2.5 px-3 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer ${
+            className={`relative z-10 min-h-11 py-2.5 px-3 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer ${
               authMode === 'LOGIN'
                 ? 'text-white font-black'
                 : 'text-stone-600 hover:text-stone-900 font-bold'
@@ -484,7 +506,7 @@ function LoginFormContent() {
                 setOtpStep('PHONE');
               }
             }}
-            className={`relative z-10 py-2.5 px-3 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer ${
+            className={`relative z-10 min-h-11 py-2.5 px-3 rounded-xl transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer ${
               authMode === 'REGISTER'
                 ? 'text-white font-black'
                 : 'text-stone-600 hover:text-stone-900 font-bold'
@@ -508,7 +530,7 @@ function LoginFormContent() {
               setErrorMessage(null);
               setOtpStep('PHONE');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`min-h-11 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeMethod === 'OTP'
                 ? 'bg-emerald-50 text-emerald-800 font-black border border-emerald-200'
                 : 'text-gray-500 hover:text-gray-800'
@@ -524,7 +546,7 @@ function LoginFormContent() {
               setActiveMethod('PASSWORD');
               setErrorMessage(null);
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`min-h-11 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeMethod === 'PASSWORD'
                 ? 'bg-amber-50 text-amber-900 font-black border border-amber-200'
                 : 'text-gray-500 hover:text-gray-800'
@@ -562,14 +584,14 @@ function LoginFormContent() {
                 {/* Full name input for registration mode */}
                 {authMode === 'REGISTER' && (
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="login-name-1" className="block text-gray-700 font-bold mb-1.5">
                       نام و نام خانوادگی:
                     </label>
                     <div className="relative">
                       <input
                         type="text"
                         required
-                        placeholder="مانند: علی رضایی"
+                        id="login-name-1" placeholder="مانند: علی رضایی"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         className="w-full pr-10 pl-4 py-3 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 font-medium text-sm transition-colors"
@@ -581,14 +603,14 @@ function LoginFormContent() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">شماره تلفن همراه:</label>
+                    <label htmlFor="login-phone" className="text-gray-700 font-bold">شماره تلفن همراه:</label>
                     <span className="text-xs text-gray-600">کد ۵ رقمی ارسال می‌شود</span>
                   </div>
                   <div className="relative">
                     <input
                       type="tel"
                       required
-                      inputMode="tel"
+                      id="login-phone" inputMode="tel"
                       autoComplete="tel"
                       placeholder="۰۹۱۷۱۲۳۴۵۶۷"
                       value={phone}
@@ -706,14 +728,14 @@ function LoginFormContent() {
             {/* Full Name for Registration */}
             {authMode === 'REGISTER' && (
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">
+                <label htmlFor="login-name-2" className="block text-gray-700 font-bold mb-1.5">
                   نام و نام خانوادگی:
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="مانند: علی رضایی"
+                    id="login-name-2" placeholder="مانند: علی رضایی"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full pr-10 pl-4 py-3 rounded-2xl border border-farm-border bg-[#FDFDFD] focus:bg-white focus:outline-none focus:border-farm-primary focus:ring-4 focus:ring-farm-primary/10 font-medium text-sm transition-colors"
@@ -726,12 +748,12 @@ function LoginFormContent() {
             {/* Email for Registration with Password */}
             {authMode === 'REGISTER' && (
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">
+                <label htmlFor="login-email" className="block text-gray-700 font-bold mb-1.5">
                   پست الکترونیک (ایمیل):
                 </label>
                 <div className="relative">
                   <input
-                    type="email"
+                    id="login-email" type="email"
                     required
                     autoComplete="email"
                     placeholder="name@example.com"
@@ -751,12 +773,12 @@ function LoginFormContent() {
             {/* Identifier input for LOGIN */}
             {authMode === 'LOGIN' && (
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">
+                <label htmlFor="login-identifier" className="block text-gray-700 font-bold mb-1.5">
                   ایمیل یا شماره تلفن همراه:
                 </label>
                 <div className="relative">
                   <input
-                    type="text"
+id="login-identifier"                     type="text"
                     required
                     autoComplete="username"
                     placeholder="example@gmail.com یا ۰۹۱۷xxxxxxx"
@@ -772,7 +794,7 @@ function LoginFormContent() {
             {/* Password input */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-gray-700 font-bold">
+                <label htmlFor="login-password" className="block text-gray-700 font-bold">
                   {authMode === 'LOGIN' ? 'کلمه عبور:' : 'کلمه عبور انتخابی:'}
                 </label>
                 {authMode === 'LOGIN' && (
@@ -792,9 +814,10 @@ function LoginFormContent() {
 
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  id="login-password" type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete={authMode === 'LOGIN' ? 'current-password' : 'new-password'}
+                  minLength={authMode === 'REGISTER' ? 8 : undefined}
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

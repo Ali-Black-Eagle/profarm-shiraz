@@ -2,69 +2,83 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, SubscriptionTier, SubscriptionSettings } from '@/types';
-import { farmStore } from '@/lib/db-store';
-import { calculateCartDiscounts as baseCalculateCartDiscounts, CartDiscounts } from '@/lib/formatters';
+import type { CartItem, Product } from '@/types';
 
-export type { CartDiscounts };
-
-export function calculateCartDiscounts(
-  items: CartItem[],
-  tier: SubscriptionTier = 'FREE',
-  customSettings?: SubscriptionSettings,
-  usedEggQuotaThisMonth: number = 0
-): CartDiscounts {
-  const settings = customSettings || farmStore.getSubscriptionSettings();
-  return baseCalculateCartDiscounts(items, tier, settings, usedEggQuotaThisMonth);
+/**
+ * Cart state. Only product ids and quantities are persisted in the browser. Names, prices and stock come from
+ * GET /api/products (refreshCatalog), and every amount shown in the cart or at checkout comes from POST /api/orders/quote.
+ * The catalog kept here is display data only and is never used to price an order.
+ */
+export interface CartLine {
+  productId: string;
+  quantity: number;
 }
 
+const LEGACY_STORAGE_KEY = 'profarm_cart_storage';
+
 interface CartStore {
+  /** Persisted: what the customer chose. */
+  lines: CartLine[];
+  /** Memory: public product data by product id, from GET /api/products. */
+  catalog: Record<string, Product>;
+  /** Memory: lines joined with the catalog (lines whose product is not known yet are left out). */
   items: CartItem[];
-  isBulkOrder: boolean;
-  bulkNotes: string;
+  catalogLoaded: boolean;
+  /** Memory: coupon code the customer applied (the server validates it on every quote). */
   appliedCouponCode: string | null;
+  /** Memory: set when a refresh removed or clamped something, shown on the cart page. */
+  notice: string | null;
   addItem: (product: Product, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  setBulkOrder: (isBulk: boolean) => void;
-  setBulkNotes: (notes: string) => void;
   setAppliedCouponCode: (code: string | null) => void;
+  clearNotice: () => void;
+  refreshCatalog: () => Promise<void>;
+  /** Sum of list prices (before any discount). The payable total is the quote, not this. */
   getTotalPrice: () => number;
   getTotalItemsCount: () => number;
-  isEligibleForBulkCheckout: () => boolean;
-  getDiscounts: (tier?: SubscriptionTier) => CartDiscounts;
 }
 
-const BULK_MIN_TOTAL_PRICE = 5000000; // 5,000,000 Tomans
-const BULK_MIN_ITEM_COUNT = 10; // 10 packages
+function deriveItems(lines: CartLine[], catalog: Record<string, Product>): CartItem[] {
+  const out: CartItem[] = [];
+  for (const line of lines) {
+    const product = catalog[line.productId];
+    if (product) out.push({ product, quantity: line.quantity });
+  }
+  return out;
+}
+
+function clampToStock(quantity: number, product: Product | undefined): number {
+  if (!product || !Number.isFinite(product.stock)) return quantity;
+  return Math.min(quantity, Math.max(0, product.stock));
+}
 
 export const useCart = create<CartStore>()(
   persist(
     (set, get) => ({
+      lines: [],
+      catalog: {},
       items: [],
-      isBulkOrder: false,
-      bulkNotes: '',
+      catalogLoaded: false,
       appliedCouponCode: null,
+      notice: null,
 
       addItem: (product: Product, quantity = 1) => {
-        const currentItems = get().items;
-        const existingIndex = currentItems.findIndex((i) => i.product.id === product.id);
-
-        if (existingIndex > -1) {
-          const updated = [...currentItems];
-          const newQty = Math.min(product.stock, updated[existingIndex].quantity + quantity);
-          updated[existingIndex] = { ...updated[existingIndex], quantity: newQty };
-          set({ items: updated });
-        } else {
-          set({
-            items: [...currentItems, { product, quantity: Math.min(product.stock, quantity) }],
-          });
-        }
+        const catalog = { ...get().catalog, [product.id]: product };
+        const existing = get().lines.find((l) => l.productId === product.id);
+        const wanted = (existing?.quantity ?? 0) + Math.max(1, Math.floor(quantity));
+        const newQty = clampToStock(wanted, product);
+        if (newQty <= 0) return;
+        const lines = existing
+          ? get().lines.map((l) => (l.productId === product.id ? { ...l, quantity: newQty } : l))
+          : [...get().lines, { productId: product.id, quantity: newQty }];
+        set({ lines, catalog, items: deriveItems(lines, catalog) });
       },
 
       removeItem: (productId: string) => {
-        set({ items: get().items.filter((i) => i.product.id !== productId) });
+        const lines = get().lines.filter((l) => l.productId !== productId);
+        set({ lines, items: deriveItems(lines, get().catalog) });
       },
 
       updateQuantity: (productId: string, quantity: number) => {
@@ -72,34 +86,66 @@ export const useCart = create<CartStore>()(
           get().removeItem(productId);
           return;
         }
-
-        const updated = get().items.map((item) => {
-          if (item.product.id === productId) {
-            return {
-              ...item,
-              quantity: Math.min(item.product.stock, quantity),
-            };
-          }
-          return item;
-        });
-
-        set({ items: updated });
+        const next = clampToStock(Math.floor(quantity), get().catalog[productId]);
+        if (next <= 0) {
+          get().removeItem(productId);
+          return;
+        }
+        const lines = get().lines.map((l) => (l.productId === productId ? { ...l, quantity: next } : l));
+        set({ lines, items: deriveItems(lines, get().catalog) });
       },
 
       clearCart: () => {
-        set({ items: [], isBulkOrder: false, bulkNotes: '', appliedCouponCode: null });
-      },
-
-      setBulkOrder: (isBulk: boolean) => {
-        set({ isBulkOrder: isBulk });
-      },
-
-      setBulkNotes: (notes: string) => {
-        set({ bulkNotes: notes });
+        set({ lines: [], items: [], appliedCouponCode: null, notice: null });
       },
 
       setAppliedCouponCode: (code: string | null) => {
         set({ appliedCouponCode: code });
+      },
+
+      clearNotice: () => set({ notice: null }),
+
+      refreshCatalog: async () => {
+        try {
+          const res = await fetch('/api/products', { cache: 'no-store' });
+          if (!res.ok) return;
+          const data = (await res.json()) as { success?: boolean; products?: Product[] };
+          if (!data.success || !Array.isArray(data.products)) return;
+
+          const catalog: Record<string, Product> = {};
+          for (const p of data.products) catalog[p.id] = p;
+
+          const removed: string[] = [];
+          const clamped: string[] = [];
+          const lines: CartLine[] = [];
+          for (const line of get().lines) {
+            const product = catalog[line.productId];
+            if (!product) {
+              removed.push(line.productId);
+              continue;
+            }
+            const next = clampToStock(line.quantity, product);
+            if (next <= 0) {
+              removed.push(product.title);
+              continue;
+            }
+            if (next < line.quantity) clamped.push(product.title);
+            lines.push({ productId: line.productId, quantity: next });
+          }
+
+          const parts: string[] = [];
+          if (removed.length) parts.push('برخی کالاها ناموجود یا خارج از فروش بودند و از سبد حذف شدند.');
+          if (clamped.length) parts.push('تعداد برخی کالاها به میزان موجودی انبار کاهش یافت.');
+          set({
+            catalog,
+            lines,
+            items: deriveItems(lines, catalog),
+            catalogLoaded: true,
+            notice: parts.length ? parts.join(' ') : get().notice,
+          });
+        } catch {
+          // Network errors keep the last known catalog; the quote still prices the cart on the server.
+        }
       },
 
       getTotalPrice: () => {
@@ -107,22 +153,19 @@ export const useCart = create<CartStore>()(
       },
 
       getTotalItemsCount: () => {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
-
-      isEligibleForBulkCheckout: () => {
-        const totalCount = get().getTotalItemsCount();
-        const totalPrice = get().getTotalPrice();
-        return totalCount >= BULK_MIN_ITEM_COUNT || totalPrice >= BULK_MIN_TOTAL_PRICE;
-      },
-
-      getDiscounts: (tier = 'FREE') => {
-        return calculateCartDiscounts(get().items, tier);
+        return get().lines.reduce((sum, line) => sum + line.quantity, 0);
       },
     }),
     {
-      name: 'profarm_cart_storage',
+      name: 'profarm_cart_v2',
+      partialize: (state) => ({ lines: state.lines }),
+      onRehydrateStorage: () => () => {
+        try {
+          window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch {
+          // storage unavailable
+        }
+      },
     }
   )
 );
-

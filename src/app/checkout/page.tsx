@@ -1,82 +1,120 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCart, calculateCartDiscounts } from '@/hooks/useCart';
+import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuote, QuoteRequest } from '@/hooks/useQuote';
 import { DeliverySlotPicker } from '@/components/modules/DeliverySlotPicker';
 import { ShirazGuardAlert } from '@/components/modules/ShirazGuardAlert';
-import { generateDeliverySlots, SlotOption } from '@/lib/jalali';
+import { CouponInputBox } from '@/components/modules/CouponInputBox';
+import { SlotOption, formatIsoDateToJalali, SLOT_TIME_LABEL } from '@/lib/jalali';
 import {
   formatToman,
   toPersianDigits,
   toEnglishDigits,
   isValidIranPhone,
   normalizePhoneNumber,
-  isShirazCity,
-  isFarsProvince,
 } from '@/lib/formatters';
 import { SITE_CONFIG } from '@/lib/site-config';
 import { Button } from '@/components/ui/Button';
+import type { Address } from '@/types';
 import {
   MapPin,
-  Calendar,
   CreditCard,
   CheckCircle2,
   ShieldCheck,
   AlertTriangle,
-  ArrowRight,
-  Package,
   Tag,
   Crown,
   Zap,
   TicketPercent,
   Wallet,
-  Sparkles,
   Check,
-  X,
   AlertCircle,
+  Banknote,
+  ShoppingBag,
 } from 'lucide-react';
-import { CouponInputBox } from '@/components/modules/CouponInputBox';
-import { CouponValidationResult } from '@/types';
-import { farmStore } from '@/lib/db-store';
 
 const CHECKOUT_DRAFT_KEY = 'profarm_checkout_draft';
+type PaymentMethod = 'zarinpal' | 'snapppay' | 'cod';
+const METHOD_ORDER: PaymentMethod[] = ['zarinpal', 'snapppay', 'cod'];
 
 const IRAN_PROVINCES = [
-  'فارس',
-  'تهران',
-  'اصفهان',
-  'بوشهر',
-  'خوزستان',
-  'کرمان',
-  'هرمزگان',
-  'یزد',
-  'کهگیلویه و بویراحمد',
-  'خراسان رضوی',
-  'آذربایجان شرقی',
-  'آذربایجان غربی',
-  'البرز',
-  'گیلان',
-  'مازندران',
-  'قم',
-  'قزوین',
-  'مرکزی',
-  'همدان',
-  'لرستان',
-  'کرمانشاه',
-  'کردستان',
-  'گلستان',
-  'سمنان',
-  'زنجان',
-  'اردبیل',
-  'چهارمحال و بختیاری',
-  'سیستان و بلوچستان',
-  'خراسان جنوبی',
-  'خراسان شمالی',
-  'ایلام',
+  'فارس', 'تهران', 'اصفهان', 'بوشهر', 'خوزستان', 'کرمان', 'هرمزگان', 'یزد', 'کهگیلویه و بویراحمد',
+  'خراسان رضوی', 'آذربایجان شرقی', 'آذربایجان غربی', 'البرز', 'گیلان', 'مازندران', 'قم', 'قزوین',
+  'مرکزی', 'همدان', 'لرستان', 'کرمانشاه', 'کردستان', 'گلستان', 'سمنان', 'زنجان', 'اردبیل',
+  'چهارمحال و بختیاری', 'سیستان و بلوچستان', 'خراسان جنوبی', 'خراسان شمالی', 'ایلام',
 ] as const;
+
+/** Persian messages for every error code the payment callback can redirect with. */
+const VERIFY_ERROR_MESSAGES: Record<string, string> = {
+  payment_cancelled_or_failed:
+    'پرداخت لغو شد یا با خطا مواجه گردید. کالاهای این سفارش آزاد شدند و سبد خرید شما حفظ است؛ می‌توانید دوباره تلاش کنید.',
+  invalid_payment_authority: 'شناسه تایید پرداخت نامعتبر است. سفارش تایید نشد.',
+  invalid_authority: 'شناسه تایید پرداخت نامعتبر است. سفارش تایید نشد.',
+  invalid_payment_token: 'توکن پرداخت نامعتبر است. سفارش تایید نشد.',
+  missing_order_number: 'شماره سفارش در بازگشت از درگاه یافت نشد. اگر وجهی کسر شده، از بخش سفارش‌ها پیگیری فرمایید.',
+  order_not_found: 'سفارش مورد نظر یافت نشد.',
+  order_expired:
+    'مهلت پرداخت این سفارش به پایان رسیده و سفارش لغو شده است. وجهی کسر نشده است؛ لطفاً سفارش را دوباره ثبت فرمایید.',
+  order_not_payable: 'این سفارش دیگر قابل پرداخت نیست.',
+  paid_after_cancel:
+    'پرداخت شما دریافت شد اما سفارش پیش‌تر لغو شده بود. کارشناسان ما برای بازگرداندن وجه با شما تماس می‌گیرند.',
+  snapppay_verification_failed:
+    'تایید پرداخت اقساطی اسنپ‌پی با خطا مواجه شد. در صورت کسر وجه، مبلغ بازگردانده خواهد شد.',
+  payment_verification_failed:
+    'تایید پرداخت با خطا مواجه شد. در صورت کسر وجه از حساب، مبلغ ظرف ۷۲ ساعت بازگردانده می‌شود.',
+};
+
+interface ApiSlot {
+  id: string;
+  isoDate: string;
+  window: string;
+  jalaliLabel: string;
+  maxCapacity: number;
+  bookedCount: number;
+  remainingCapacity: number;
+  isClosed: boolean;
+  isFull: boolean;
+  isAllowedForTier: boolean;
+  isAvailable: boolean;
+}
+
+interface PaymentOptions {
+  gateways: {
+    zarinpal: { enabled: boolean };
+    snapppay: { enabled: boolean; minAmount: number };
+    cod: { enabled: boolean };
+  };
+  mockGateway: boolean;
+  guideMessage?: string;
+}
+
+interface PlanSummary {
+  monthlyPrice: number;
+  eggDiscountPercent: number;
+  eggQuota: number;
+  deliveryDaysPerWeek: number;
+  isFull: boolean;
+}
+
+function toSlotOption(s: ApiSlot): SlotOption {
+  return {
+    id: s.id,
+    dateStr: s.jalaliLabel,
+    jalali: formatIsoDateToJalali(s.isoDate),
+    timeWindow: SLOT_TIME_LABEL,
+    timeWindowId: s.window,
+    maxCapacity: s.maxCapacity,
+    currentBookings: s.bookedCount,
+    remainingCapacity: s.remainingCapacity,
+    isAvailable: s.isAvailable && !s.isClosed,
+    isAllowedForTier: s.isAllowedForTier,
+    tierRestrictionNote: s.isAllowedForTier ? undefined : 'این روز ویژه اعضای طرح پرو است',
+  };
+}
 
 function CheckoutContent() {
   const router = useRouter();
@@ -85,135 +123,36 @@ function CheckoutContent() {
   const isSubscription = subscriptionPlanParam === 'PRO' || subscriptionPlanParam === 'PLUS';
   const subscriptionPlan: 'PRO' | 'PLUS' = subscriptionPlanParam === 'PLUS' ? 'PLUS' : 'PRO';
 
-  const { items, getTotalItemsCount, isBulkOrder, setBulkOrder, clearCart } = useCart();
-  const { user, isAuthenticated, login, updateUser } = useAuth();
+  const { lines, appliedCouponCode, clearCart, refreshCatalog, getTotalItemsCount } = useCart();
+  const { user, isAuthenticated, refreshProfile } = useAuth();
 
   const [mounted, setMounted] = useState(false);
-  const [subSettings, setSubSettings] = useState(() => farmStore.getSubscriptionSettings());
-  const [paymentSettings, setPaymentSettings] = useState(() => farmStore.getClientPaymentSettings());
-  const [stats, setStats] = useState(() => farmStore.getSubscriptionStats());
+  const [plans, setPlans] = useState<Record<string, PlanSummary> | null>(null);
+  const [paymentOpts, setPaymentOpts] = useState<PaymentOptions | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    setSubSettings(farmStore.getSubscriptionSettings());
-    setPaymentSettings(farmStore.getClientPaymentSettings());
-    setStats(farmStore.getSubscriptionStats());
-
-    farmStore.syncSubscriptionSettings().then((synced) => {
-      setSubSettings({ ...synced });
-      setStats(farmStore.getSubscriptionStats());
-    });
-
-    const handleSubUpdate = () => {
-      setSubSettings(farmStore.getSubscriptionSettings());
-      setStats(farmStore.getSubscriptionStats());
-    };
-
-    window.addEventListener('profarm_subscription_updated', handleSubUpdate);
-    return () => window.removeEventListener('profarm_subscription_updated', handleSubUpdate);
-  }, []);
-
-  const isPlanFull =
-    isSubscription && (subscriptionPlan === 'PRO' ? stats.isProFull : stats.isPlusFull);
-
-  const totalCount = getTotalItemsCount();
-  const userTier = user?.tier || (user?.isProMember ? 'PRO' : 'FREE');
-  const discounts = calculateCartDiscounts(items, userTier);
-  // PRO-only flag for UI copy. PLUS members get the same delivery days as FREE (Sunday and Wednesday).
-  const isPro = userTier === 'PRO';
-  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
-  const couponDiscount = couponResult?.discountAmount || 0;
-
-  // Subscription Pricing
-  const subPrice =
-    subscriptionPlan === 'PLUS'
-      ? subSettings.plusMonthlyPrice || 149000
-      : subSettings.proMonthlyPrice || 329000;
-
-  const totalPrice = isSubscription ? subPrice : discounts.itemsSubtotal;
-
-  // Form State - dynamically populated from authenticated user or non-sensitive guest draft
-  const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
-  const [recipientName, setRecipientName] = useState(user?.name || defaultAddr?.recipientName || '');
-  const [phone, setPhone] = useState(user?.phone || defaultAddr?.phone || '');
-  const [province, setProvince] = useState(defaultAddr?.province || 'فارس');
-  const [city, setCity] = useState(defaultAddr?.city || 'شیراز');
-  const [streetAddress, setStreetAddress] = useState(defaultAddr?.streetAddress || '');
-  const [unit, setUnit] = useState(defaultAddr?.unit || '');
-  const [postalCode, setPostalCode] = useState(defaultAddr?.postalCode || '');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  // Restore non-sensitive guest draft from sessionStorage (never stores OTP or secrets)
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        if (draft.recipientName) setRecipientName((prev) => prev || String(draft.recipientName));
-        if (draft.phone) setPhone((prev) => prev || String(draft.phone));
-        if (draft.province) setProvince(String(draft.province));
-        if (draft.city) setCity(String(draft.city));
-        if (draft.streetAddress) setStreetAddress((prev) => prev || String(draft.streetAddress));
-        if (draft.unit) setUnit((prev) => prev || String(draft.unit));
-        if (draft.postalCode) setPostalCode((prev) => prev || String(draft.postalCode));
-      }
-    } catch {
-      // ignore invalid storage
-    }
-  }, []);
-
-  // Persist non-sensitive checkout fields so guests don't lose input across login redirect
-  const saveCheckoutDraft = () => {
-    try {
-      sessionStorage.setItem(
-        CHECKOUT_DRAFT_KEY,
-        JSON.stringify({
-          recipientName,
-          phone,
-          province,
-          city,
-          streetAddress,
-          unit,
-          postalCode,
-        })
-      );
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  useEffect(() => {
-    if (!mounted) return;
-    saveCheckoutDraft();
-  }, [mounted, recipientName, phone, province, city, streetAddress, unit, postalCode]);
-
-  // Delivery Slot Selection (ONLY for physical product orders, never for subscriptions)
+  // Delivery
   const [slots, setSlots] = useState<SlotOption[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<SlotOption | null>(null);
+  const [slotsTier, setSlotsTier] = useState<'FREE' | 'PLUS' | 'PRO'>('FREE');
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [slotId, setSlotId] = useState<string | null>(null);
 
-  // Payment Gateway Selection (ZarinPal vs SnappPay BNPL)
-  const [paymentMethod, setPaymentMethod] = useState<'zarinpal' | 'snapppay'>('zarinpal');
+  // Address form
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [recipientName, setRecipientName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [province, setProvince] = useState('فارس');
+  const [city, setCity] = useState('شیراز');
+  const [streetAddress, setStreetAddress] = useState('');
+  const [unit, setUnit] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const draftRestoredRef = React.useRef(false);
 
-  // Sync with user profile if it loads after mount
-  useEffect(() => {
-    if (user) {
-      const addr = user.addresses?.find((a) => a.isDefault) || user.addresses?.[0];
-      setRecipientName((prev) => prev || user.name || addr?.recipientName || '');
-      setPhone((prev) => prev || user.phone || addr?.phone || '');
-      if (addr) {
-        setStreetAddress((prev) => prev || addr.streetAddress || '');
-        setUnit((prev) => prev || addr.unit || '');
-        setPostalCode((prev) => prev || addr.postalCode || '');
-        if (addr.city) setCity(addr.city);
-        if (addr.province) setProvince(addr.province);
-      }
-    }
-  }, [user]);
+  // Payment
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('zarinpal');
 
-  // Phone OTP Verification State for Checkout
-  const [isPhoneVerified, setIsPhoneVerified] = useState<boolean>(() => {
-    return Boolean(user?.isPhoneVerified && user?.phone);
-  });
+  // Phone verification (inline OTP)
   const [otpStep, setOtpStep] = useState<'IDLE' | 'SENT'>('IDLE');
   const [otpCode, setOtpCode] = useState('');
   const [otpTimer, setOtpTimer] = useState(120);
@@ -222,29 +161,176 @@ function CheckoutContent() {
   const [otpSuccessMsg, setOtpSuccessMsg] = useState<string | null>(null);
   const [otpErrorMsg, setOtpErrorMsg] = useState<string | null>(null);
 
-  // Sync phone verification status with user
-  useEffect(() => {
-    if (
-      user?.isPhoneVerified &&
-      user?.phone &&
-      phone &&
-      normalizePhoneNumber(phone) === normalizePhoneNumber(user.phone)
-    ) {
-      setIsPhoneVerified(true);
-    } else {
-      setIsPhoneVerified(false);
-    }
-  }, [user, phone]);
+  // Submission
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Countdown timer for checkout OTP
+  const isPhoneVerified = Boolean(
+    user?.isPhoneVerified && user?.phone && phone && normalizePhoneNumber(phone) === normalizePhoneNumber(user.phone)
+  );
+
+  // ---------- Mount: draft, plans, payment options ----------
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (otpStep === 'SENT' && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => (prev <= 1 ? 0 : prev - 1));
-      }, 1000);
+    setMounted(true);
+    try {
+      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as Record<string, unknown>;
+        const s = (k: string) => (typeof draft[k] === 'string' ? (draft[k] as string) : '');
+        if (s('recipientName')) setRecipientName(s('recipientName'));
+        if (s('phone')) setPhone(s('phone'));
+        if (s('province')) setProvince(s('province'));
+        if (s('city')) setCity(s('city'));
+        if (s('streetAddress')) setStreetAddress(s('streetAddress'));
+        if (s('unit')) setUnit(s('unit'));
+        if (s('postalCode')) setPostalCode(s('postalCode'));
+        draftRestoredRef.current = true;
+      }
+    } catch {
+      // unreadable draft: start empty
     }
-    return () => clearInterval(interval);
+
+    fetch('/api/subscriptions', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.plans) setPlans(data.plans);
+      })
+      .catch(() => {});
+
+    fetch('/api/payment-options', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.gateways) setPaymentOpts(data as PaymentOptions);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Non-sensitive draft only (no OTP, no secrets), so a login redirect does not lose the form.
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      sessionStorage.setItem(
+        CHECKOUT_DRAFT_KEY,
+        JSON.stringify({ recipientName, phone, province, city, streetAddress, unit, postalCode })
+      );
+    } catch {
+      // storage unavailable
+    }
+  }, [mounted, recipientName, phone, province, city, streetAddress, unit, postalCode]);
+
+  // ---------- Saved addresses (account address book) ----------
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) {
+      setSavedAddresses([]);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/account/addresses', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.addresses) return;
+        const list: Address[] = data.addresses;
+        setSavedAddresses(list);
+        const def = list.find((a) => a.isDefault) || list[0];
+        if (def && !draftRestoredRef.current) {
+          applyAddress(def);
+        }
+        if (user && !draftRestoredRef.current) {
+          setRecipientName((prev) => prev || user.name || '');
+          setPhone((prev) => prev || user.phone || '');
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, isAuthenticated, user?.id]);
+
+  function applyAddress(a: Address) {
+    setSelectedAddressId(a.id);
+    setRecipientName(a.recipientName || '');
+    setPhone(a.phone || '');
+    setProvince(a.province || 'فارس');
+    setCity(a.city || 'شیراز');
+    setStreetAddress(a.streetAddress || '');
+    setUnit(a.unit || '');
+    setPostalCode(a.postalCode || '');
+    setFieldErrors({});
+  }
+
+  // ---------- Delivery slots from the server (tier aware, capacity aware) ----------
+  useEffect(() => {
+    if (!mounted || isSubscription) return;
+    let cancelled = false;
+    setSlotsError(null);
+    fetch('/api/delivery-slots?days=14', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (!data?.success) throw new Error(data?.message || 'خطا در دریافت سانس‌های تحویل');
+        setSlotsTier(data.tier || 'FREE');
+        setSlots((data.slots as ApiSlot[]).map(toSlotOption));
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setSlotsError(err.message || 'خطا در دریافت سانس‌های تحویل');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, isSubscription, user?.id]);
+
+  // Keep a valid slot selected: the first one the customer may book when the current choice is gone.
+  useEffect(() => {
+    if (isSubscription) return;
+    const current = slots.find((s) => s.id === slotId);
+    if (current && current.isAvailable && current.isAllowedForTier) return;
+    const first = slots.find((s) => s.isAvailable && s.isAllowedForTier);
+    setSlotId(first?.id ?? null);
+  }, [slots, slotId, isSubscription]);
+
+  // ---------- Quote: the only source of amounts on this page ----------
+  const quoteRequest: QuoteRequest | null = useMemo(() => {
+    if (!mounted) return null;
+    if (isSubscription) return { isSubscription: true, subscriptionPlan };
+    if (lines.length === 0) return null;
+    const trimmedCity = city.trim();
+    return {
+      items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+      couponCode: appliedCouponCode,
+      slotId,
+      city: trimmedCity ? trimmedCity : undefined,
+      province: province || undefined,
+    };
+  }, [mounted, isSubscription, subscriptionPlan, lines, appliedCouponCode, slotId, city, province]);
+
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest);
+
+  const plan = plans && (isSubscription ? plans[subscriptionPlan] : undefined);
+  const totalCount = getTotalItemsCount();
+  const amountDue = quote?.total ?? 0;
+
+  // Which payment methods may be offered for this amount.
+  const methodAvailable = (m: PaymentMethod): boolean => {
+    if (!paymentOpts) return m === 'zarinpal';
+    if (m === 'zarinpal') return paymentOpts.gateways.zarinpal.enabled;
+    if (m === 'snapppay') {
+      return paymentOpts.gateways.snapppay.enabled && amountDue >= paymentOpts.gateways.snapppay.minAmount;
+    }
+    return paymentOpts.gateways.cod.enabled && !isSubscription;
+  };
+  const effectiveMethod: PaymentMethod | null = methodAvailable(paymentMethod)
+    ? paymentMethod
+    : METHOD_ORDER.find((m) => methodAvailable(m)) ?? null;
+
+  const isCityShiraz = quote ? quote.isShiraz : true;
+  const isBulk = quote?.isBulk ?? false;
+
+  // ---------- Phone OTP ----------
+  useEffect(() => {
+    if (otpStep !== 'SENT' || otpTimer <= 0) return;
+    const t = setInterval(() => setOtpTimer((prev) => (prev <= 1 ? 0 : prev - 1)), 1000);
+    return () => clearInterval(t);
   }, [otpStep, otpTimer]);
 
   const handleSendCheckoutOtp = async () => {
@@ -256,26 +342,19 @@ function CheckoutContent() {
     }
     setIsSendingOtp(true);
     try {
-      const normalizedPhone = normalizePhoneNumber(phone);
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'send',
-          phone: normalizedPhone,
-          fallbackEmail: user?.email || undefined,
-        }),
+        body: JSON.stringify({ action: 'send-checkout-phone', phone: normalizePhoneNumber(phone) }),
       });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || 'خطا در ارسال کد تایید');
-      }
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) throw new Error(data?.message || 'خطا در ارسال کد تایید');
       setOtpStep('SENT');
       setOtpTimer(120);
       setOtpCode('');
       setOtpSuccessMsg('کد تایید ۵ رقمی ارسال شد. لطفاً آن را وارد فرمایید.');
-    } catch (err: any) {
-      setOtpErrorMsg(err.message || 'خطا در برقراری ارتباط با سامانه پیامکی');
+    } catch (err: unknown) {
+      setOtpErrorMsg(err instanceof Error ? err.message : 'خطا در برقراری ارتباط با سامانه پیامکی');
     } finally {
       setIsSendingOtp(false);
     }
@@ -291,48 +370,41 @@ function CheckoutContent() {
     }
     setIsVerifyingOtp(true);
     try {
-      const normalizedPhone = normalizePhoneNumber(phone);
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'verify-checkout-phone',
-          phone: normalizedPhone,
+          phone: normalizePhoneNumber(phone),
           code: cleanCode,
         }),
       });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || 'کد تایید نادرست یا منقضی شده است.');
-      }
-      setIsPhoneVerified(true);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) throw new Error(data?.message || 'کد تایید نادرست یا منقضی شده است.');
       setOtpStep('IDLE');
       setOtpSuccessMsg('شماره تلفن همراه با موفقیت تایید و برای حساب کاربری شما ثبت گردید.');
-      if (data.user) {
-        updateUser(data.user);
-        login(data.user);
-      }
-    } catch (err: any) {
-      setOtpErrorMsg(err.message || 'کد تایید نامعتبر است');
+      await refreshProfile();
+    } catch (err: unknown) {
+      setOtpErrorMsg(err instanceof Error ? err.message : 'کد تایید نامعتبر است');
     } finally {
       setIsVerifyingOtp(false);
     }
   };
 
-  const renderPhoneVerificationField = (labelTitle: string) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="block text-gray-700 font-semibold text-xs">
+  const renderPhoneField = (labelTitle: string) => (
+    <div className="space-y-2 sm:col-span-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <label htmlFor="checkout-phone" className="block text-gray-700 font-semibold text-xs">
           {labelTitle}
         </label>
         {isPhoneVerified ? (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            شماره تایید شده است ✓
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+            شماره تایید شده است
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
             نیاز به تایید با کد پیامکی
           </span>
         )}
@@ -349,29 +421,12 @@ function CheckoutContent() {
           aria-describedby={fieldErrors.phone ? 'checkout-phone-error' : undefined}
           placeholder="۰۹۱۷۱۲۳۴۵۶۷"
           value={phone}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (!isPhoneVerified && isValidIranPhone(phone)) {
-                handleSendCheckoutOtp();
-              }
-            }
-          }}
           onChange={(e) => {
-            const val = e.target.value;
-            setPhone(val);
+            setPhone(e.target.value);
             setFieldErrors((prev) => ({ ...prev, phone: '' }));
-            if (
-              user?.isPhoneVerified &&
-              user?.phone &&
-              normalizePhoneNumber(val) === normalizePhoneNumber(user.phone)
-            ) {
-              setIsPhoneVerified(true);
-            } else {
-              setIsPhoneVerified(false);
-            }
+            setOtpStep('IDLE');
           }}
-          className={`w-full px-3.5 py-2.5 rounded-xl border ${
+          className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border ${
             fieldErrors.phone
               ? 'border-rose-400 bg-rose-50/30'
               : isPhoneVerified
@@ -380,24 +435,21 @@ function CheckoutContent() {
           } focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono font-bold text-base sm:text-sm transition-all`}
           dir="ltr"
         />
-
         {!isPhoneVerified && (
           <button
             type="button"
             onClick={handleSendCheckoutOtp}
-            disabled={isSendingOtp || !isValidIranPhone(phone)}
-            className="shrink-0 min-h-[44px] px-3.5 py-2.5 bg-farm-primary hover:bg-farm-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            disabled={isSendingOtp || !isValidIranPhone(phone) || !isAuthenticated}
+            className="shrink-0 min-h-11 px-3.5 py-2.5 bg-farm-primary hover:bg-farm-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
           >
-            {isSendingOtp ? (
-              <span>در حال ارسال...</span>
-            ) : otpStep === 'SENT' ? (
-              <span>ارسال مجدد</span>
-            ) : (
-              <span>دریافت کد تایید</span>
-            )}
+            {isSendingOtp ? 'در حال ارسال...' : otpStep === 'SENT' ? 'ارسال مجدد' : 'دریافت کد تایید'}
           </button>
         )}
       </div>
+
+      {!isAuthenticated && (
+        <p className="text-xs text-gray-600">برای تایید شماره همراه ابتدا وارد حساب کاربری شوید.</p>
+      )}
 
       {fieldErrors.phone && (
         <p id="checkout-phone-error" className="text-xs text-rose-700 font-bold">
@@ -405,10 +457,9 @@ function CheckoutContent() {
         </p>
       )}
 
-      {/* Inline Verification Box */}
       {!isPhoneVerified && otpStep === 'SENT' && (
-        <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-3 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center justify-between text-xs">
+        <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-3">
+          <div className="flex items-center justify-between text-xs gap-2">
             <label htmlFor="checkout-otp-input" className="font-bold text-amber-950">
               کد تایید ۵ رقمی پیامک‌شده:
             </label>
@@ -416,7 +467,6 @@ function CheckoutContent() {
               {otpTimer > 0 ? `اعتبار: ${toPersianDigits(otpTimer)} ثانیه` : 'کد منقضی شده؛ ارسال مجدد را بزنید'}
             </span>
           </div>
-
           <div className="flex gap-2">
             <input
               id="checkout-otp-input"
@@ -429,227 +479,139 @@ function CheckoutContent() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handleVerifyCheckoutOtp();
+                  void handleVerifyCheckoutOtp();
                 }
               }}
-              onChange={(e) =>
-                setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 5))
-              }
-              className="w-32 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-farm-primary focus:outline-none focus:border-farm-primary"
+              onChange={(e) => setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 5))}
+              className="w-32 min-h-11 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-farm-primary focus:outline-none focus:border-farm-primary"
               dir="ltr"
             />
             <button
               type="button"
-              onClick={handleVerifyCheckoutOtp}
+              onClick={() => void handleVerifyCheckoutOtp()}
               disabled={isVerifyingOtp || toEnglishDigits(otpCode).replace(/\D/g, '').length !== 5}
-              className="flex-1 min-h-[44px] px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              className="flex-1 min-h-11 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
             >
               {isVerifyingOtp ? 'در حال بررسی...' : 'تایید و ثبت شماره در حساب'}
             </button>
           </div>
-
           {otpErrorMsg && (
-            <p className="text-xs text-rose-700 font-bold flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <p role="alert" className="text-xs text-rose-700 font-bold flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               <span>{otpErrorMsg}</span>
-            </p>
-          )}
-
-          {otpSuccessMsg && (
-            <p className="text-xs text-emerald-800 font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span>{otpSuccessMsg}</span>
             </p>
           )}
         </div>
       )}
+      {otpStep === 'IDLE' && otpSuccessMsg && (
+        <p role="status" className="text-xs text-emerald-800 font-bold flex items-center gap-1">
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>{otpSuccessMsg}</span>
+        </p>
+      )}
     </div>
   );
 
-  // Submission state
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
+  // ---------- Error from the payment callback ----------
   useEffect(() => {
     const err = searchParams.get('error');
-    if (err) {
-      if (err === 'payment_cancelled_or_failed') {
-        setErrorMessage('پرداخت توسط شما لغو شد یا با خطا در درگاه بانکی مواجه گردید.');
-      } else if (err === 'invalid_payment_authority' || err === 'invalid_authority') {
-        setErrorMessage('شناسه تایید پرداخت نامعتبر است. سفارش تایید نشد.');
-      } else if (err === 'order_not_found') {
-        setErrorMessage('سفارش مورد نظر یافت نشد.');
-      } else if (err === 'order_expired') {
-        setErrorMessage('مهلت پرداخت این سفارش به پایان رسیده و سفارش لغو شده است. لطفاً سفارش را دوباره ثبت فرمایید. وجهی کسر نشده است.');
-      } else if (err === 'order_not_payable') {
-        setErrorMessage('این سفارش دیگر قابل پرداخت نیست.');
-      } else if (err === 'snapppay_verification_failed') {
-        setErrorMessage('تایید پرداخت اقساطی اسنپ‌پی با خطا مواجه شد. در صورت کسر وجه، مبلغ بازگردانده خواهد شد.');
-      } else if (err === 'payment_verification_failed') {
-        setErrorMessage('تایید پرداخت با خطا مواجه شد. در صورت کسر وجه از حساب، مبلغ ظرف ۷۲ ساعت بازگردانده می‌شود.');
-      } else {
-        setErrorMessage('خطایی در فرآیند پرداخت رخ داده است. لطفاً مجدداً تلاش فرمایید.');
-      }
-    }
+    if (err) setErrorMessage(VERIFY_ERROR_MESSAGES[err] || 'خطایی در فرآیند پرداخت رخ داده است. لطفاً مجدداً تلاش فرمایید.');
   }, [searchParams]);
 
-  // Generate delivery slots only if this is NOT a subscription checkout
-  useEffect(() => {
-    if (isSubscription) return;
-
-    const capacities = farmStore.getDailyCapacities();
-    const map: Record<string, { maxCapacity?: number; currentBookings?: number; isClosedManually?: boolean }> = {};
-    capacities.forEach((c) => {
-      map[c.dateIso] = {
-        maxCapacity: c.maxCapacity,
-        currentBookings: c.bookedCount,
-        isClosedManually: c.isClosedManually,
-      };
-    });
-
-    const generated = generateDeliverySlots(userTier, 12, map);
-    setSlots(generated);
-    const firstAvailable = generated.find((s) => s.isAvailable);
-    if (firstAvailable) {
-      setSelectedSlot(firstAvailable);
-    } else {
-      setSelectedSlot(null);
-    }
-  }, [userTier, isSubscription]);
-
-  // Same rule as the server (pricing.quoteCart): city Shiraz AND province Fars (an empty city or province is accepted).
-  const isCityShiraz = (city.trim() === '' || isShirazCity(city)) && isFarsProvince(province);
-  const meetsBulkCriteria = totalCount >= 10 || totalPrice >= 5000000;
-  const isBlockedByShirazRule = !isSubscription && !isCityShiraz && !(isBulkOrder && meetsBulkCriteria);
-
-  // The server charges no courier fee outside Shiraz (bulk orders only; the freight is quoted separately).
-  // The summary shows the same number, so the displayed total is the charged total.
-  const shippingCharged = isSubscription || !isCityShiraz ? 0 : discounts.finalShipping;
-  const finalAmount = isSubscription
-    ? Math.max(0, subPrice - couponDiscount)
-    : Math.max(0, discounts.itemsSubtotal - discounts.eggDiscount - discounts.otherDiscount + shippingCharged - couponDiscount);
-
-  const totalSavings = isSubscription
-    ? couponDiscount
-    : discounts.eggDiscount + discounts.otherDiscount + (isCityShiraz ? discounts.shippingDiscount : 0) + couponDiscount;
-
+  // ---------- Submit ----------
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setFieldErrors({});
 
-    const redirectTarget = isSubscription
-      ? `/checkout?subscriptionPlan=${subscriptionPlan}`
-      : '/checkout';
-
-    if (!user || !isAuthenticated) {
-      saveCheckoutDraft();
+    const redirectTarget = isSubscription ? `/checkout?subscriptionPlan=${subscriptionPlan}` : '/checkout';
+    if (!isAuthenticated || !user) {
       setErrorMessage('جهت تکمیل سفارش و اتصال به درگاه، لطفاً ابتدا وارد حساب کاربری شوید. اطلاعات فرم شما محفوظ می‌ماند.');
       router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
       return;
     }
 
-    if (isSubscription && isPlanFull) {
-      setErrorMessage(
-        `ظرفیت اشتراک ${subscriptionPlan === 'PRO' ? 'طلایی پرو' : 'اقتصادی پلاس'} در این دوره تکمیل شده است و امکان فعال‌سازی جدید وجود ندارد.`
-      );
-      return;
-    }
-
-    if (!isSubscription && items.length === 0) {
+    if (!isSubscription && lines.length === 0) {
       setErrorMessage('سبد خرید شما خالی است.');
       return;
     }
 
-    const nextFieldErrors: Record<string, string> = {};
-    if (!recipientName.trim()) {
-      nextFieldErrors.recipientName = 'لطفاً نام و نام‌خانوادگی تحویل‌گیرنده را وارد نمایید.';
+    const errs: Record<string, string> = {};
+    if (!recipientName.trim()) errs.recipientName = 'لطفاً نام و نام‌خانوادگی تحویل‌گیرنده را وارد نمایید.';
+    if (!isValidIranPhone(phone)) errs.phone = 'شماره موبایل معتبر ۱۱ رقمی وارد نمایید (مانند ۰۹۱۷۱۲۳۴۵۶۷).';
+    else if (!isPhoneVerified) errs.phone = 'تایید شماره همراه با کد پیامکی الزامی است.';
+    if (!isSubscription) {
+      if (!city.trim()) errs.city = 'لطفاً شهر مقصد را وارد نمایید.';
+      if (!streetAddress.trim()) errs.streetAddress = 'لطفاً نشانی دقیق خیابان و کوچه را وارد نمایید.';
+      if (!/^\d{10}$/.test(toEnglishDigits(postalCode).replace(/\s/g, ''))) {
+        errs.postalCode = 'کد پستی باید ۱۰ رقم باشد.';
+      }
+      if (!slotId) errs.slot = 'لطفاً یک بازه زمانی معتبر برای تحویل انتخاب کنید.';
     }
-    if (!isValidIranPhone(phone)) {
-      nextFieldErrors.phone = 'شماره موبایل معتبر ۱۱ رقمی وارد نمایید (مانند ۰۹۱۷۱۲۳۴۵۶۷).';
-    } else if (!isPhoneVerified) {
-      nextFieldErrors.phone = 'تایید شماره همراه با کد پیامکی الزامی است.';
-    }
-    if (!isSubscription && !streetAddress.trim()) {
-      nextFieldErrors.streetAddress = 'لطفاً نشانی دقیق خیابان و کوچه را وارد نمایید.';
-    }
-    if (!isSubscription && !city.trim()) {
-      nextFieldErrors.city = 'لطفاً شهر مقصد را وارد نمایید.';
-    }
-
-    if (Object.keys(nextFieldErrors).length > 0) {
-      setFieldErrors(nextFieldErrors);
-      setErrorMessage(Object.values(nextFieldErrors)[0]);
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setErrorMessage(Object.values(errs)[0]);
       return;
     }
 
-    if (!isSubscription && isBlockedByShirazRule) {
-      setErrorMessage(`سفارشات خارج از شیراز تنها به صورت خرید عمده (${SITE_CONFIG.policies.bulkThresholdLabel}) قابل ثبت است.`);
+    if (!quote) {
+      setErrorMessage('مبلغ سفارش هنوز محاسبه نشده است. لحظه‌ای صبر کنید.');
       return;
     }
-
-    if (!isSubscription && !selectedSlot) {
-      setErrorMessage('لطفاً یک بازه زمانی معتبر برای تحویل سفارش انتخاب کنید.');
+    if (!quote.ok) {
+      setErrorMessage(quote.errors[0] || 'سفارش قابل ثبت نیست.');
+      return;
+    }
+    if (!effectiveMethod) {
+      setErrorMessage('در حال حاضر هیچ درگاه پرداختی برای این سفارش فعال نیست.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // 1. Send order payload to API
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipientName,
-          phone,
+          recipientName: recipientName.trim(),
+          phone: normalizePhoneNumber(phone),
           province: province || 'فارس',
-          city: city || 'شیراز',
-          streetAddress: isSubscription ? 'فعال‌سازی سرویس اشتراک آنلاین پروفارم' : streetAddress,
-          unit: isSubscription ? '' : unit,
-          postalCode: isSubscription ? '' : postalCode,
-          isShiraz: isCityShiraz,
-          deliverySlot: isSubscription ? null : selectedSlot,
-          isBulkOrder: isSubscription ? false : isBulkOrder,
+          city: isSubscription ? 'شیراز' : city.trim(),
+          streetAddress: isSubscription ? 'فعال‌سازی سرویس اشتراک آنلاین پروفارم' : streetAddress.trim(),
+          unit: isSubscription ? '' : unit.trim(),
+          postalCode: isSubscription ? '' : toEnglishDigits(postalCode),
+          deliverySlot: isSubscription ? null : slotId,
           isSubscription,
           subscriptionPlan: isSubscription ? subscriptionPlan : undefined,
-          items: isSubscription
-            ? []
-            : items.map((i) => ({
-                productId: i.product.id,
-                quantity: i.quantity,
-                unitPrice: i.product.price,
-              })),
-          totalAmount: finalAmount,
-          appliedCouponCode: couponResult?.coupon?.code || null,
-          paymentMethod,
+          items: isSubscription ? [] : lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+          appliedCouponCode: isSubscription ? null : appliedCouponCode,
+          paymentMethod: effectiveMethod,
         }),
       });
+      const data = await res.json().catch(() => null);
 
-      const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.message || 'خطا در ثبت سفارش');
+      if (res.status === 401) {
+        router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+        return;
+      }
+      if (!res.ok || !data?.success) {
+        if (data?.errorCode === 'INSUFFICIENT_STOCK') void refreshCatalog();
+        const first = Array.isArray(data?.errors) ? data.errors[0] : undefined;
+        throw new Error(data?.message || first || 'خطا در ثبت سفارش');
       }
 
-      if (data.order) {
-        try {
-          farmStore.syncOrderFromApi(data.order);
-        } catch (e) {
-          console.warn('Failed to sync order locally', e);
-        }
+      if (data.gateway === 'cod') {
+        clearCart();
+        router.push(`/checkout/success?orderNumber=${encodeURIComponent(data.order.orderNumber)}&gateway=cod`);
+        return;
       }
-
-      // 2. Redirect to genuine bank payment gateway (Shaparak / ZarinPal or SnappPay)
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
-      } else {
-        throw new Error(
-          'آدرس درگاه پرداخت از سرور دریافت نشد. لطفاً از پیکربندی صحیح درگاه بانکی در سرور اطمینان حاصل فرمایید.'
-        );
+        return;
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'خطا در اتصال به درگاه پرداخت');
+      throw new Error('آدرس درگاه پرداخت از سرور دریافت نشد. لطفاً دوباره تلاش فرمایید.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'خطا در اتصال به درگاه پرداخت');
       setIsLoading(false);
     }
   };
@@ -662,62 +624,65 @@ function CheckoutContent() {
     );
   }
 
+  if (!isSubscription && lines.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-20 h-20 rounded-full bg-farm-bg-warm border border-farm-border flex items-center justify-center mx-auto text-farm-primary">
+          <ShoppingBag className="w-9 h-9 text-gray-500" aria-hidden="true" />
+        </div>
+        <h1 className="text-2xl font-black text-farm-primary">سبد خرید شما خالی است</h1>
+        <p className="text-sm text-gray-600">برای تسویه‌حساب ابتدا کالایی به سبد خرید اضافه کنید.</p>
+        <Link href="/products" className="inline-flex px-6 py-3.5 rounded-2xl bg-farm-primary text-white text-sm font-bold">
+          مشاهده محصولات
+        </Link>
+      </div>
+    );
+  }
+
+  const shippingCharged = quote?.shipping ?? 0;
+  const itemsSubtotal = quote?.subtotal ?? 0;
+  const couponDiscount = quote?.couponDiscount ?? 0;
+  const shippingDiscount = quote?.shippingDiscount ?? 0;
+  const totalSavings = (quote?.tierDiscount ?? 0) + shippingDiscount + couponDiscount;
+  const isSubmitDisabled =
+    isLoading ||
+    quoteLoading ||
+    !quote ||
+    !quote.ok ||
+    !effectiveMethod ||
+    (!isSubscription && !slotId);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Page Header */}
       <div className="pb-4 border-b border-farm-border">
-        <div className="flex items-center gap-2 mb-1">
-          {isSubscription ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#D4AF37]/15 text-[#996515] border border-[#D4AF37]/30">
-              <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>اشتراک ویژه باشگاه مشتریان پروفارم</span>
-            </div>
-          ) : null}
-        </div>
+        {isSubscription && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-2 rounded-full text-xs font-bold bg-[#D4AF37]/15 text-[#996515] border border-[#D4AF37]/30">
+            <Crown className="w-3.5 h-3.5 text-[#D4AF37]" aria-hidden="true" />
+            <span>اشتراک ویژه باشگاه مشتریان پروفارم</span>
+          </div>
+        )}
         <h1 className="text-2xl sm:text-3xl font-black text-farm-primary">
           {isSubscription
-            ? `تسویه‌حساب و فعال‌سازی ${
-                subscriptionPlan === 'PLUS' ? 'اشتراک نقره‌ای پلاس' : 'اشتراک طلایی پرو'
-              }`
+            ? `تسویه‌حساب و فعال‌سازی ${subscriptionPlan === 'PLUS' ? 'اشتراک نقره‌ای پلاس' : 'اشتراک طلایی پرو'}`
             : 'تسویه‌حساب و زمان‌بندی تحویل سفارش'}
         </h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-1">
           {isSubscription
-            ? subscriptionPlan === 'PLUS'
-              ? 'عضویت ۳۰ روزه با امکان تحویل ۶ روز در هفته و ۵٪ تخفیف تخم‌مرغ محلی (ارسال با تعرفه عادی پیک بدون تخفیف)'
-              : 'عضویت ۳۰ روزه با امکان تحویل ۶ روز در هفته، ۲۰٪ تخفیف هزینه ارسال پیک، ۱۰٪ تخفیف تخم‌مرغ و ۵٪ سایر محصولات'
+            ? 'عضویت ۳۰ روزه؛ مبلغ و شرایط از تنظیمات رسمی باشگاه محاسبه می‌شود.'
             : 'مشخصات نشانی شیراز و انتخاب زمان مناسب برای تحویل با پیک پروفارم'}
         </p>
       </div>
 
-      {isSubscription && isPlanFull && (
-        <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-5 sm:p-6 flex items-start gap-4 shadow-md text-rose-900 animate-in fade-in">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-black">ظرفیت پذیرش این اشتراک تکمیل شده است</h3>
-            <p className="text-xs text-rose-800 leading-relaxed">
-              ظرفیت اعضای مجاز برای این اشتراک در این دوره به حداکثر رسیده است و امکان پرداخت و ثبت‌نام جدید وجود ندارد. لطفاً پلن دیگری را انتخاب کنید یا با پشتیبانی تماس بگیرید.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {(!isAuthenticated || !user) && (
+      {!isAuthenticated && (
         <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-bold text-amber-900">
-                حساب کاربری فعال یافت نشد
-              </p>
+              <p className="text-sm font-bold text-amber-900">حساب کاربری فعال یافت نشد</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                {isSubscription
-                  ? 'برای فعال‌سازی اشتراک بر روی حساب کاربری شما، لطفاً ابتدا وارد شوید.'
-                  : 'برای نهایی‌سازی سفارش، صدور فاکتور رسمی و پیگیری پیک اختصاصی شیراز، لطفاً ابتدا وارد حساب خود شوید.'}
+                برای نهایی‌سازی سفارش و پیگیری تحویل، لطفاً ابتدا وارد حساب خود شوید. اطلاعات فرم شما ذخیره می‌ماند.
               </p>
             </div>
           </div>
@@ -725,94 +690,91 @@ function CheckoutContent() {
             href={`/login?redirect=${encodeURIComponent(
               isSubscription ? `/checkout?subscriptionPlan=${subscriptionPlan}` : '/checkout'
             )}`}
-            className="w-full sm:w-auto text-center px-5 py-2.5 bg-farm-primary text-white text-xs font-bold rounded-xl hover:bg-farm-primary-dark transition-colors shadow-sm"
+            className="w-full sm:w-auto text-center min-h-11 inline-flex items-center justify-center px-5 py-2.5 bg-farm-primary text-white text-xs font-bold rounded-xl hover:bg-farm-primary-dark transition-colors shadow-sm"
           >
-            ورود سریع با پیامک / رمز
+            ورود به حساب کاربری
           </Link>
         </div>
       )}
 
-      <form onSubmit={handleSubmitOrder}>
+      <form onSubmit={handleSubmitOrder} noValidate>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Steps Column */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Step 1: Address or Subscription Account Details */}
             {isSubscription ? (
               <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
                 <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
                   <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
-                    <Crown className="w-5 h-5 text-[#D4AF37]" />
+                    <Crown className="w-5 h-5 text-[#D4AF37]" aria-hidden="true" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-farm-primary">
-                      ۱. مشخصات دارنده اشتراک و فعال‌سازی
-                    </h3>
+                    <h2 className="text-base font-bold text-farm-primary">۱. مشخصات دارنده اشتراک و فعال‌سازی</h2>
                     <p className="text-xs text-gray-500">
-                      این اشتراک روی شماره موبایل و حساب کاربری زیر فعال شده و نیازی به انتخاب بازه ارسال ندارد
+                      اشتراک روی حساب کاربری و شماره موبایل زیر فعال می‌شود و نیازی به انتخاب بازه ارسال نیست.
                     </p>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">
+                    <label htmlFor="sub-recipient" className="block text-gray-700 font-semibold mb-1.5">
                       نام و نام‌خانوادگی مشترک:
                     </label>
                     <input
+                      id="sub-recipient"
                       type="text"
+                      autoComplete="name"
                       required
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
-                      placeholder="نام خود را وارد کنید"
+                      className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-base sm:text-sm"
                     />
+                    {fieldErrors.recipientName && (
+                      <p className="text-xs text-rose-700 font-bold mt-1">{fieldErrors.recipientName}</p>
+                    )}
                   </div>
-
-                  {renderPhoneVerificationField('شماره تلفن همراه (پیامک تایید اشتراک):')}
-
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">استان:</label>
-                    <input
-                      type="text"
-                      value={province}
-                      onChange={(e) => setProvince(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-1.5">شهر:</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
-                    />
-                  </div>
+                  {renderPhoneField('شماره تلفن همراه (پیامک تایید اشتراک):')}
                 </div>
-
                 <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    سرویس آنلاین: بلافاصله پس از پرداخت بانکی، وضعیت اشتراک حساب شما فعال شده و در سفارشات بعدی بازه‌های ارسال ۶ روزه برای شما نمایش داده خواهد شد.
-                  </span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+                  <span>پس از پرداخت بانکی، اشتراک حساب شما فعال می‌شود و تحویل روزهای منتخب در سفارش‌های بعدی اعمال می‌گردد.</span>
                 </div>
               </div>
             ) : (
               <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5">
                 <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
                   <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
-                    <MapPin className="w-5 h-5" />
+                    <MapPin className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-farm-primary">
-                      ۱. آدرس تحویل و موقعیت جغرافیایی
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      خرده‌فروشی مختص شیراز بوده و سایر شهرها مستلزم حدنصاب عمده می‌باشند
-                    </p>
+                    <h2 className="text-base font-bold text-farm-primary">۱. آدرس تحویل</h2>
+                    <p className="text-xs text-gray-500">خرده‌فروشی مختص شیراز است؛ سایر شهرها فقط با سفارش عمده ممکن است.</p>
                   </div>
                 </div>
+
+                {savedAddresses.length > 0 && (
+                  <div>
+                    <label htmlFor="saved-address" className="block text-gray-700 font-semibold text-xs mb-1.5">
+                      انتخاب از نشانی‌های ذخیره‌شده:
+                    </label>
+                    <select
+                      id="saved-address"
+                      value={selectedAddressId}
+                      onChange={(e) => {
+                        const next = savedAddresses.find((a) => a.id === e.target.value);
+                        if (next) applyAddress(next);
+                        else setSelectedAddressId('');
+                      }}
+                      className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
+                    >
+                      <option value="">نشانی جدید</option>
+                      {savedAddresses.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.city}، {a.streetAddress}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
@@ -831,7 +793,7 @@ function CheckoutContent() {
                         setRecipientName(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, recipientName: '' }));
                       }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                      className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
                         fieldErrors.recipientName ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
                       } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
@@ -842,7 +804,7 @@ function CheckoutContent() {
                     )}
                   </div>
 
-                  {renderPhoneVerificationField('شماره تلفن همراه (پیامک وضعیت و هماهنگی تحویل):')}
+                  {renderPhoneField('شماره تلفن همراه (پیامک وضعیت و هماهنگی تحویل):')}
 
                   <div>
                     <label htmlFor="checkout-province" className="block text-gray-700 font-semibold mb-1.5">
@@ -855,13 +817,10 @@ function CheckoutContent() {
                       onChange={(e) => {
                         const nextProv = e.target.value;
                         setProvince(nextProv);
-                        if (nextProv === 'فارس' && !city.trim()) {
-                          setCity('شیراز');
-                        } else if (nextProv !== 'فارس' && city.trim() === 'شیراز') {
-                          setCity('');
-                        }
+                        if (nextProv === 'فارس' && !city.trim()) setCity('شیراز');
+                        else if (nextProv !== 'فارس' && city.trim() === 'شیراز') setCity('');
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
+                      className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
                     >
                       {IRAN_PROVINCES.map((p) => (
                         <option key={p} value={p}>
@@ -873,7 +832,7 @@ function CheckoutContent() {
 
                   <div>
                     <label htmlFor="checkout-city" className="block text-gray-700 font-semibold mb-1.5">
-                      شهر مقصد {isBulkOrder ? '(سراسر کشور)' : '(پیک اختصاصی شیراز)'}:
+                      شهر مقصد:
                     </label>
                     <input
                       id="checkout-city"
@@ -881,18 +840,21 @@ function CheckoutContent() {
                       autoComplete="address-level2"
                       required
                       aria-invalid={Boolean(fieldErrors.city)}
+                      aria-describedby={fieldErrors.city ? 'checkout-city-error' : undefined}
                       value={city}
                       onChange={(e) => {
                         setCity(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, city: '' }));
                       }}
                       placeholder={province === 'فارس' ? 'شیراز' : 'نام شهر مقصد (سفارش عمده)'}
-                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                      className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
                         fieldErrors.city ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
                       } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
                     {fieldErrors.city && (
-                      <p className="text-xs text-rose-700 font-bold mt-1">{fieldErrors.city}</p>
+                      <p id="checkout-city-error" className="text-xs text-rose-700 font-bold mt-1">
+                        {fieldErrors.city}
+                      </p>
                     )}
                   </div>
 
@@ -913,7 +875,7 @@ function CheckoutContent() {
                         setFieldErrors((prev) => ({ ...prev, streetAddress: '' }));
                       }}
                       placeholder="مثال: بلوار ارم، کوچه ۶، پلاک ۱۲"
-                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                      className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
                         fieldErrors.streetAddress ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
                       } focus:bg-white focus:outline-none focus:border-farm-primary`}
                     />
@@ -933,7 +895,7 @@ function CheckoutContent() {
                       type="text"
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
+                      className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary"
                     />
                   </div>
 
@@ -947,332 +909,181 @@ function CheckoutContent() {
                       inputMode="numeric"
                       autoComplete="postal-code"
                       maxLength={10}
+                      required
+                      aria-invalid={Boolean(fieldErrors.postalCode)}
+                      aria-describedby={fieldErrors.postalCode ? 'checkout-postal-error' : undefined}
                       value={postalCode}
-                      onChange={(e) => setPostalCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 10))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg text-base sm:text-sm focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono"
+                      onChange={(e) => {
+                        setPostalCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 10));
+                        setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
+                      }}
+                      className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
+                        fieldErrors.postalCode ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
+                      } focus:bg-white focus:outline-none focus:border-farm-primary text-left font-mono`}
                       dir="ltr"
                     />
+                    {fieldErrors.postalCode && (
+                      <p id="checkout-postal-error" className="text-xs text-rose-700 font-bold mt-1">
+                        {fieldErrors.postalCode}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Shiraz Rule Geographic Enforcement Alert */}
                 <ShirazGuardAlert
                   city={city}
-                  isBulkOrder={isBulkOrder}
+                  isBulkOrder={isBulk}
                   totalItemsCount={totalCount}
-                  totalPrice={totalPrice}
-                  onEnableBulkMode={() => setBulkOrder(true)}
+                  totalPrice={itemsSubtotal}
                 />
               </div>
             )}
 
-            {/* Step 2: Delivery Slot Picker ONLY for product orders, NOT for subscriptions */}
-            {!isSubscription ? (
-              <DeliverySlotPicker
-                slots={slots}
-                selectedSlotId={selectedSlot?.id || null}
-                onSelectSlot={(slot) => setSelectedSlot(slot)}
-                isProMember={isPro}
-              />
-            ) : (
+            {/* Delivery slots (product orders only) */}
+            {!isSubscription && (
+              <div className="space-y-3">
+                {slotsError && (
+                  <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                    {slotsError}
+                  </div>
+                )}
+                {!slotsError && slots.length === 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-farm-border text-xs text-gray-600">
+                    در حال دریافت سانس‌های تحویل...
+                  </div>
+                )}
+                {slots.length > 0 && (
+                  <DeliverySlotPicker
+                    slots={slots}
+                    selectedSlotId={slotId}
+                    onSelectSlot={(slot) => {
+                      setSlotId(slot.id);
+                      setFieldErrors((prev) => ({ ...prev, slot: '' }));
+                    }}
+                    isProMember={slotsTier === 'PRO'}
+                  />
+                )}
+                {fieldErrors.slot && <p className="text-xs text-rose-700 font-bold">{fieldErrors.slot}</p>}
+              </div>
+            )}
+
+            {/* Subscription benefits (numbers from the subscription settings) */}
+            {isSubscription && plan && (
               <div className="bg-gradient-to-br from-farm-primary/5 via-farm-primary/10 to-transparent rounded-3xl p-6 border border-farm-primary/20 shadow-farm space-y-4">
                 <div className="flex items-center gap-3 pb-3 border-b border-farm-border">
                   <div className="w-10 h-10 rounded-2xl bg-farm-primary text-white flex items-center justify-center shadow-sm">
                     {subscriptionPlan === 'PLUS' ? (
-                      <Zap className="w-5 h-5 text-emerald-400" />
+                      <Zap className="w-5 h-5 text-emerald-400" aria-hidden="true" />
                     ) : (
-                      <Sparkles className="w-5 h-5 text-[#D4AF37]" />
+                      <Crown className="w-5 h-5 text-[#D4AF37]" aria-hidden="true" />
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-farm-primary">
-                      {subscriptionPlan === 'PLUS'
-                        ? 'مزایای اشتراک اقتصادی پلاس (Plus)'
-                        : 'مزایای کامل اشتراک طلایی پرو (Pro)'}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      این سفارش نیازی به زمان تحویل ندارد؛ پس از پرداخت، مزایای زیر بلافاصله روی حساب کاربری شما اعمال خواهد شد:
-                    </p>
-                  </div>
+                  <h2 className="text-base font-bold text-farm-primary">
+                    مزایای {subscriptionPlan === 'PLUS' ? 'اشتراک پلاس' : 'اشتراک پرو'}
+                  </h2>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  {/* Feature 1: 6 Days Delivery */}
-                  <div className="flex items-start gap-2 bg-white/90 p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-gray-900 block">ارسال ۶ روز در هفته:</span>
-                      <span className="text-gray-600 text-xs">
-                        امکان انتخاب روزهای تحویل از شنبه تا پنج‌شنبه در خریدهای آینده شهر شیراز
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Feature 2: Egg Discount */}
-                  <div className="flex items-start gap-2 bg-white/90 p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-gray-900 block">تخفیف تخم‌مرغ محلی:</span>
-                      <span className="text-gray-600 text-xs">
-                        {subscriptionPlan === 'PLUS'
-                          ? '۵٪ تخفیف خودکار تخم‌مرغ تا سقف ۲۰۰ عدد در ماه'
-                          : '۱۰٪ تخفیف طلایی تخم‌مرغ تا سقف ۶۰۰ عدد در ماه'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Feature 3: Courier Delivery Discount (PRO: 20%, PLUS: NONE) */}
-                  {subscriptionPlan === 'PRO' ? (
-                    <div className="flex items-start gap-2 bg-amber-50/60 p-3 rounded-2xl border border-amber-200 shadow-xs">
-                      <Check className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-amber-950 block">تخفیف هزینه پیک:</span>
-                        <span className="text-amber-800 text-xs">
-                          ۲۰٪ تخفیف دائمی و نامحدود روی هزینه پیک اختصاصی پروفارم در شیراز
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 bg-gray-50/80 p-3 rounded-2xl border border-gray-200">
-                      <X className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-gray-500 block">تخفیف ارسال با پیک:</span>
-                        <span className="text-gray-500 text-xs">
-                          ندارد (محاسبه با تعرفه عادی پیک؛ ۲۰٪ تخفیف پیک مختص مشترکین پرو است)
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Feature 4: Other items discount (PRO: 5%, PLUS: NONE) */}
-                  {subscriptionPlan === 'PRO' ? (
-                    <div className="flex items-start gap-2 bg-amber-50/60 p-3 rounded-2xl border border-amber-200 shadow-xs">
-                      <Check className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-amber-950 block">تخفیف سایر کالاها:</span>
-                        <span className="text-amber-800 text-xs">
-                          ۵٪ تخفیف نامحدود روی عسل، عرقیات، لبنیات، خشکبار و سبزیجات
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 bg-gray-50/80 p-3 rounded-2xl border border-gray-200">
-                      <X className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-gray-500 block">تخفیف سایر محصولات:</span>
-                        <span className="text-gray-500 text-xs">
-                          ندارد (محاسبه با قیمت عادی؛ ۵٪ تخفیف روی سایر کالاها مختص پرو است)
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Feature 5: Support and supply */}
-                  <div className="flex items-start gap-2 bg-white/90 p-3 rounded-2xl border border-emerald-100 shadow-xs sm:col-span-2">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-gray-900 block">
-                        {subscriptionPlan === 'PRO'
-                          ? 'اولویت VIP در تامین نوبرانه‌ها و ارسال سریع:'
-                          : 'پشتیبانی اختصاصی و تامین روزانه مزارع:'}
-                      </span>
-                      <span className="text-gray-600 text-xs">
-                        {subscriptionPlan === 'PRO'
-                          ? 'رزرو زودهنگام محصولات فصلی کمیاب (عسل وحشی، پنیر کوزه‌ای) و بسته‌بندی نفیس'
-                          : 'تامین اقلام تازه با تضمین اصالت و سلامت ارگانیک'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <li className="flex items-start gap-2 bg-white/90 p-3 rounded-2xl border border-emerald-100">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>تحویل {toPersianDigits(plan.deliveryDaysPerWeek)} روز در هفته</span>
+                  </li>
+                  <li className="flex items-start gap-2 bg-white/90 p-3 rounded-2xl border border-emerald-100">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>
+                      {toPersianDigits(plan.eggDiscountPercent)}٪ تخفیف تخم‌مرغ تا {toPersianDigits(plan.eggQuota)} عدد در ماه
+                    </span>
+                  </li>
+                </ul>
               </div>
             )}
 
-            {/* Step 3: Payment Method Selection (ZarinPal vs SnappPay BNPL) */}
+            {/* Payment method */}
             <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b border-farm-bg-warm">
                 <div className="w-10 h-10 rounded-2xl bg-farm-primary/10 flex items-center justify-center text-farm-primary">
-                  <CreditCard className="w-5 h-5" />
+                  <CreditCard className="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-farm-primary">
-                    {isSubscription ? '۲. انتخاب شیوه پرداخت اشتراک' : 'مرحله ۳: انتخاب شیوه پرداخت'}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    پرداخت مستقیم با کارت بانکی یا خرید اقساطی ۴ ماهه اسنپ‌پی بدون کارمزد
-                  </p>
+                  <h2 className="text-base font-bold text-farm-primary">
+                    {isSubscription ? '۲. شیوه پرداخت اشتراک' : '۲. شیوه پرداخت'}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">گزینه‌های نمایش‌داده‌شده از تنظیمات فعلی فروشگاه می‌آیند.</p>
                 </div>
               </div>
 
-              <div
-                role="radiogroup"
-                aria-label="انتخاب درگاه پرداخت"
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1"
-              >
-                {/* Option 1: ZarinPal */}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={paymentMethod === 'zarinpal'}
-                  onClick={() => setPaymentMethod('zarinpal')}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right ${
-                    paymentMethod === 'zarinpal'
-                      ? 'border-farm-primary bg-emerald-50/40 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between w-full">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-9 h-9 rounded-xl bg-farm-primary text-[#FDE68A] flex items-center justify-center shrink-0"
-                        aria-hidden="true"
-                      >
-                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
-                          <path
-                            d="M5 7h14l-9.5 10H19"
-                            stroke="currentColor"
-                            strokeWidth="2.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm text-gray-900">درگاه پرداخت زرین‌پال</div>
-                        <span className="text-xs text-gray-600">پرداخت امن شاپرک با کلیه کارت‌ها</span>
-                      </div>
-                    </div>
-                    <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        paymentMethod === 'zarinpal'
-                          ? 'border-farm-primary bg-farm-primary text-white'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {paymentMethod === 'zarinpal' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between w-full">
-                    <span>مبلغ پرداخت نقدی:</span>
-                    <span className="font-bold text-farm-primary">{formatToman(finalAmount)}</span>
-                  </div>
-                </button>
-
-                {/* Option 2: SnappPay BNPL (if enabled) */}
-                {paymentSettings.snapppay.enabled && (
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={paymentMethod === 'snapppay'}
-                    onClick={() => setPaymentMethod('snapppay')}
-                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right ${
-                      paymentMethod === 'snapppay'
-                        ? 'border-[#047857] bg-emerald-50/50 shadow-sm ring-2 ring-[#00D170]/30'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between w-full">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-9 h-9 rounded-xl bg-[#00D170] text-[#052E16] flex items-center justify-center shadow-xs shrink-0"
-                          aria-hidden="true"
-                        >
-                          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
-                            <path
-                              d="M16.5 8.5C16.5 6.8 14.5 6 12 6s-4.5.9-4.5 2.7c0 3.6 9 1.8 9 5.6 0 1.8-2 2.7-4.5 2.7s-4.5-.9-4.5-2.7"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-sm text-gray-900">خرید اقساطی اسنپ‌پی</span>
-                            <span className="text-xs bg-[#00D170] text-[#052E16] font-extrabold px-2 py-0.5 rounded-md">
-                              بدون کارمزد
-                            </span>
-                          </div>
-                          <span className="text-xs text-emerald-800 font-medium">پرداخت در ۴ قسط بدون ضامن</span>
-                        </div>
-                      </div>
-                      <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          paymentMethod === 'snapppay'
-                            ? 'border-[#047857] bg-[#047857] text-white'
-                            : 'border-gray-300'
-                        }`}
-                      >
-                        {paymentMethod === 'snapppay' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between w-full">
-                      <span>قسط اول (امروز):</span>
-                      <span className="font-black text-emerald-900">
-                        {formatToman(Math.ceil(finalAmount / 4))}
-                      </span>
-                    </div>
-                  </button>
+              <div role="radiogroup" aria-label="انتخاب شیوه پرداخت" className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {methodAvailable('zarinpal') && (
+                  <PaymentOption
+                    selected={effectiveMethod === 'zarinpal'}
+                    onSelect={() => setPaymentMethod('zarinpal')}
+                    title="درگاه پرداخت زرین‌پال"
+                    subtitle="پرداخت امن شاپرک با کلیه کارت‌ها"
+                    icon={<CreditCard className="w-4 h-4" aria-hidden="true" />}
+                    amountLabel="مبلغ پرداخت نقدی"
+                    amount={formatToman(amountDue)}
+                  />
+                )}
+                {paymentOpts?.gateways.snapppay.enabled && (
+                  <PaymentOption
+                    selected={effectiveMethod === 'snapppay'}
+                    disabled={!methodAvailable('snapppay')}
+                    onSelect={() => setPaymentMethod('snapppay')}
+                    title="خرید اقساطی اسنپ‌پی"
+                    subtitle={
+                      methodAvailable('snapppay')
+                        ? 'پرداخت در ۴ قسط بدون ضامن'
+                        : `حداقل مبلغ خرید اقساطی ${formatToman(paymentOpts.gateways.snapppay.minAmount)} است`
+                    }
+                    icon={<Wallet className="w-4 h-4" aria-hidden="true" />}
+                    amountLabel="قسط اول (امروز)"
+                    amount={formatToman(Math.ceil(amountDue / 4))}
+                  />
+                )}
+                {methodAvailable('cod') && (
+                  <PaymentOption
+                    selected={effectiveMethod === 'cod'}
+                    onSelect={() => setPaymentMethod('cod')}
+                    title="پرداخت در محل"
+                    subtitle="پرداخت نقدی یا کارتخوان هنگام تحویل"
+                    icon={<Banknote className="w-4 h-4" aria-hidden="true" />}
+                    amountLabel="مبلغ قابل پرداخت هنگام تحویل"
+                    amount={formatToman(amountDue)}
+                  />
                 )}
               </div>
 
-              {/* Trust Guide Banner */}
-              <div className="p-3 rounded-2xl bg-[#F8F7F4] border border-farm-border text-xs text-gray-700 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span className="font-medium">
-                  {paymentSettings.general.guideMessage ||
-                    'پرداخت امن از طریق درگاه رسمی شاپرک با کلیه کارت‌های عضو شتاب'}
-                </span>
-              </div>
-
-              {paymentMethod === 'snapppay' && paymentSettings.snapppay.enabled && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-900 space-y-1.5 animate-in fade-in">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <Wallet className="w-4 h-4 text-[#00D170]" />
-                    <span>برنامه ۴ قسطه اسنپ‌پی (بدون چک و بدون سود):</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs text-center">
-                    <div className="bg-white p-2 rounded-xl border border-emerald-200">
-                      <span className="block text-gray-500 text-xs">قسط ۱ (امروز)</span>
-                      <strong className="text-emerald-800">{formatToman(Math.ceil(finalAmount / 4))}</strong>
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-xs">قسط ۲ (۱ ماه بعد)</span>
-                      <strong>{formatToman(Math.ceil(finalAmount / 4))}</strong>
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-xs">قسط ۳ (۲ ماه بعد)</span>
-                      <strong>{formatToman(Math.ceil(finalAmount / 4))}</strong>
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                      <span className="block text-gray-500 text-xs">قسط ۴ (۳ ماه بعد)</span>
-                      <strong>{formatToman(finalAmount - Math.ceil(finalAmount / 4) * 3)}</strong>
-                    </div>
-                  </div>
+              {paymentOpts?.guideMessage && (
+                <div className="p-3 rounded-2xl bg-[#F8F7F4] border border-farm-border text-xs text-gray-700 flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
+                  <span className="font-medium">{paymentOpts.guideMessage}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Column: Checkout Summary & Payment Action */}
+          {/* Summary column */}
           <div className="lg:col-span-4 space-y-5">
-            {/* Coupon Input Box */}
-            <CouponInputBox
-              cartItems={items}
-              itemsSubtotal={totalPrice}
-              shippingFee={shippingCharged}
-              onCouponChange={(res) => setCouponResult(res)}
-              showSuggestions={false}
-            />
+            {!isSubscription && <CouponInputBox slotId={slotId} city={city.trim() || undefined} province={province} appliedDiscount={quote?.couponDiscount} />}
 
-            <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5 sticky top-28">
+            <div className="bg-white rounded-3xl p-6 border border-farm-border shadow-farm space-y-5 lg:sticky lg:top-28">
               <div className="flex items-center gap-2.5 pb-3 border-b border-farm-bg-warm">
-                <CreditCard className="w-5 h-5 text-farm-primary" />
-                <h3 className="text-base font-bold text-farm-primary">
-                  {isSubscription ? 'پیش‌فاکتور عضویت اشتراک' : 'پیش‌فاکتور نهایی'}
-                </h3>
+                <CreditCard className="w-5 h-5 text-farm-primary" aria-hidden="true" />
+                <h2 className="text-base font-bold text-farm-primary">{isSubscription ? 'پیش‌فاکتور اشتراک' : 'پیش‌فاکتور نهایی'}</h2>
               </div>
+
+              {quoteError && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                  {quoteError}
+                </div>
+              )}
+
+              {quote && quote.errors.length > 0 && (
+                <ul role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1.5 list-disc pr-4">
+                  {quote.errors.map((msg) => (
+                    <li key={msg}>{msg}</li>
+                  ))}
+                </ul>
+              )}
 
               <div className="space-y-3 text-xs text-gray-600">
                 {isSubscription ? (
@@ -1283,106 +1094,58 @@ function CheckoutContent() {
                         {subscriptionPlan === 'PLUS' ? 'اشتراک نقره‌ای پلاس' : 'اشتراک طلایی پرو'}
                       </span>
                     </div>
-
                     <div className="flex items-center justify-between">
                       <span>مدت اعتبار:</span>
                       <span className="font-bold text-farm-primary">۳۰ روز کامل</span>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>تحویل در سفارشات آتی:</span>
-                      <span className="font-bold text-emerald-700">۶ روز در هفته (شنبه تا ۵شنبه)</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>تخفیف تخم‌مرغ محلی:</span>
-                      <span className="font-bold text-emerald-700">
-                        {subscriptionPlan === 'PLUS' ? '۵٪ تخفیف (تا ۲۰۰ عدد)' : '۱۰٪ تخفیف (تا ۶۰۰ عدد)'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>تخفیف ارسال با پیک:</span>
-                      {subscriptionPlan === 'PRO' ? (
-                        <span className="font-bold text-amber-700">۲۰٪ تخفیف دائمی</span>
-                      ) : (
-                        <span className="font-medium text-gray-600 text-xs">ندارد (تعرفه عادی پیک)</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>تخفیف سایر کالاها:</span>
-                      {subscriptionPlan === 'PRO' ? (
-                        <span className="font-bold text-amber-700">۵٪ تخفیف نامحدود</span>
-                      ) : (
-                        <span className="font-medium text-gray-600 text-xs">ندارد (مختص اشتراک پرو)</span>
-                      )}
-                    </div>
-
                     <div className="flex items-center justify-between">
                       <span>هزینه اشتراک ماهانه:</span>
-                      <span className="font-bold text-farm-primary">{formatToman(subPrice)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>هزینه تحویل این فاکتور:</span>
-                      <span className="font-bold text-emerald-700">رایگان (فعال‌سازی آنلاین)</span>
+                      <span className="font-bold text-farm-primary">{formatToman(quote?.subtotal ?? plan?.monthlyPrice ?? 0)}</span>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span>تعداد پکیج‌ها:</span>
-                      <span className="font-bold text-farm-primary">
-                        {toPersianDigits(totalCount)} بسته
-                      </span>
+                      <span>تعداد بسته‌ها:</span>
+                      <span className="font-bold text-farm-primary">{toPersianDigits(totalCount)} بسته</span>
                     </div>
-
                     <div className="flex items-center justify-between">
                       <span>ارزش اقلام:</span>
-                      <span className="font-bold text-farm-primary">{formatToman(discounts.itemsSubtotal)}</span>
+                      <span className="font-bold text-farm-primary">{formatToman(itemsSubtotal)}</span>
                     </div>
-
-                    {discounts.eggDiscount > 0 && (
+                    {quote && quote.eggDiscount > 0 && (
                       <div className="flex items-center justify-between text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
                         <span className="flex items-center gap-1">
-                          <Tag className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>تخفیف تخم‌مرغ ({userTier === 'PRO' ? '۱۰٪ پرو' : '۵٪ پلاس'}):</span>
+                          <Tag className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                          <span>تخفیف تخم‌مرغ:</span>
                         </span>
-                        <span className="font-bold">- {formatToman(discounts.eggDiscount)}</span>
+                        <span className="font-bold">- {formatToman(quote.eggDiscount)}</span>
                       </div>
                     )}
-
-                    {discounts.otherDiscount > 0 && (
+                    {quote && quote.otherDiscount > 0 && (
                       <div className="flex items-center justify-between text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
                         <span className="flex items-center gap-1">
-                          <Tag className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>تخفیف ۵٪ سایر کالاها (پرو):</span>
+                          <Tag className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                          <span>تخفیف سایر کالاها (پرو):</span>
                         </span>
-                        <span className="font-bold">- {formatToman(discounts.otherDiscount)}</span>
+                        <span className="font-bold">- {formatToman(quote.otherDiscount)}</span>
                       </div>
                     )}
-
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <span>{isCityShiraz ? 'هزینه ارسال با پیک پروفارم:' : 'پس‌کرایه خارج از شیراز (جداگانه):'}</span>
-                        {isCityShiraz && discounts.shippingDiscount > 0 && (
-                          <span className="text-xs text-amber-600 font-bold">(۲۰٪ تخفیف پرو)</span>
-                        )}
+                        <span>{isCityShiraz ? 'هزینه ارسال با پیک پروفارم:' : 'ارسال خارج از شیراز (عمده):'}</span>
+                        {shippingDiscount > 0 && <span className="text-xs text-amber-700 font-bold">(۲۰٪ تخفیف پرو)</span>}
                       </span>
-                      <span className="font-bold text-farm-primary">
-                        {formatToman(shippingCharged)}
-                      </span>
+                      <span className="font-bold text-farm-primary">{formatToman(shippingCharged)}</span>
                     </div>
                   </>
                 )}
 
-                {/* Coupon Discount */}
                 {couponDiscount > 0 && (
                   <div className="flex items-center justify-between text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
                     <span className="flex items-center gap-1">
-                      <TicketPercent className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>کد تخفیف ({couponResult?.coupon?.code}):</span>
+                      <TicketPercent className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                      <span>کد تخفیف ({quote?.couponCode}):</span>
                     </span>
                     <span className="font-bold">- {formatToman(couponDiscount)}</span>
                   </div>
@@ -1395,11 +1158,11 @@ function CheckoutContent() {
                   </div>
                 )}
 
-                {!isSubscription && selectedSlot && (
+                {!isSubscription && slotId && slots.find((s) => s.id === slotId) && (
                   <div className="p-3 rounded-2xl bg-farm-bg border border-farm-border space-y-1">
                     <span className="block font-bold text-farm-primary">زمان تحویل انتخابی:</span>
                     <div className="text-xs text-gray-700">
-                      {selectedSlot.dateStr} | {selectedSlot.timeWindow}
+                      {slots.find((s) => s.id === slotId)?.dateStr} | {SLOT_TIME_LABEL}
                     </div>
                   </div>
                 )}
@@ -1407,57 +1170,94 @@ function CheckoutContent() {
 
               <div className="pt-3 border-t border-farm-bg-warm flex items-baseline justify-between">
                 <span className="text-sm font-bold text-gray-800">مبلغ پرداخت:</span>
-                <span className="text-xl font-black text-farm-primary">
-                  {formatToman(finalAmount)}
+                <span className="text-xl font-black text-farm-primary" aria-live="polite">
+                  {quote ? formatToman(amountDue) : quoteLoading ? '...' : '—'}
                 </span>
               </div>
 
               {errorMessage && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-800 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              {/* Payment Submit Button */}
               <Button
                 type="submit"
-                variant={isBlockedByShirazRule || isPlanFull ? 'outline' : 'primary'}
+                variant="primary"
                 size="lg"
-                disabled={isBlockedByShirazRule || isPlanFull || isLoading || (!isSubscription && items.length === 0)}
+                disabled={isSubmitDisabled}
                 isLoading={isLoading}
-                className={`w-full ${
-                  paymentMethod === 'snapppay'
-                    ? '!bg-[#00D170] hover:!bg-[#00B963] !text-[#052E16] font-black'
-                    : ''
-                }`}
+                className="w-full min-h-11"
               >
-                {isBlockedByShirazRule
-                  ? 'پرداخت غیرفعال (آدرس خارج از شیراز)'
-                  : isPlanFull
-                  ? 'تکمیل ظرفیت (امکان پرداخت وجود ندارد)'
+                {!quote || !quote.ok
+                  ? 'ثبت سفارش ممکن نیست'
+                  : effectiveMethod === 'cod'
+                  ? 'ثبت سفارش با پرداخت در محل'
+                  : effectiveMethod === 'snapppay'
+                  ? `پرداخت قسط اول اسنپ‌پی (${formatToman(Math.ceil(amountDue / 4))})`
                   : isSubscription
-                  ? paymentMethod === 'snapppay'
-                    ? `پرداخت قسط اول (${formatToman(Math.ceil(finalAmount / 4))})`
-                    : `پرداخت و فعال‌سازی اشتراک (${formatToman(finalAmount)})`
-                  : paymentMethod === 'snapppay'
-                  ? `پرداخت قسط اول اسنپ‌پی (${formatToman(Math.ceil(finalAmount / 4))})`
+                  ? `پرداخت و فعال‌سازی اشتراک (${formatToman(amountDue)})`
                   : 'پرداخت امن با درگاه زرین‌پال'}
               </Button>
 
               <div className="flex items-center justify-center gap-2 text-xs text-gray-600 pt-1 text-center">
-                <ShieldCheck className="w-4 h-4 text-farm-primary shrink-0" />
-                <span>
-                  {isSubscription
-                    ? SITE_CONFIG.policies.subscriptionRefundLabel
-                    : SITE_CONFIG.policies.freshReturnLabel}
-                </span>
+                <ShieldCheck className="w-4 h-4 text-farm-primary shrink-0" aria-hidden="true" />
+                <span>{isSubscription ? SITE_CONFIG.policies.subscriptionRefundLabel : SITE_CONFIG.policies.freshReturnLabel}</span>
               </div>
             </div>
           </div>
         </div>
       </form>
     </div>
+  );
+}
+
+function PaymentOption(props: {
+  selected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  amountLabel: string;
+  amount: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={props.selected}
+      disabled={props.disabled}
+      onClick={props.onSelect}
+      className={`min-h-11 p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 text-right disabled:opacity-50 disabled:cursor-not-allowed ${
+        props.selected ? 'border-farm-primary bg-emerald-50/40 shadow-sm' : 'border-gray-200 hover:border-gray-300 bg-white'
+      }`}
+    >
+      <div className="flex items-start justify-between w-full gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-farm-primary/10 text-farm-primary flex items-center justify-center shrink-0">
+            {props.icon}
+          </div>
+          <div>
+            <div className="font-bold text-sm text-gray-900">{props.title}</div>
+            <span className="text-xs text-gray-600">{props.subtitle}</span>
+          </div>
+        </div>
+        <div
+          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+            props.selected ? 'border-farm-primary bg-farm-primary text-white' : 'border-gray-300'
+          }`}
+          aria-hidden="true"
+        >
+          {props.selected && <CheckCircle2 className="w-3.5 h-3.5" />}
+        </div>
+      </div>
+      <div className="text-xs text-gray-700 bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between w-full gap-2">
+        <span>{props.amountLabel}:</span>
+        <span className="font-bold text-farm-primary">{props.amount}</span>
+      </div>
+    </button>
   );
 }
 

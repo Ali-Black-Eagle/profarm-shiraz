@@ -6,6 +6,7 @@ import { Header } from '@/components/modules/Header';
 import { Footer } from '@/components/modules/Footer';
 import { ScrollToTop } from '@/components/modules/ScrollToTop';
 import { CartFloatingPopup } from '@/components/modules/CartFloatingPopup';
+import { StorefrontSync } from '@/components/modules/StorefrontSync';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { safeJsonLdStringify } from '@/lib/formatters';
 import { farmStore } from '@/lib/db-store';
@@ -247,6 +248,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(organizationSchema) }}
         />
         <ToastProvider>
+          <StorefrontSync />
           <ScrollToTop />
           <Header
             siteContent={{
