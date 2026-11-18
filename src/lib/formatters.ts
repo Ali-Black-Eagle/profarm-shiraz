@@ -143,7 +143,7 @@ const FALLBACK_SUBSCRIPTION_MATH = {
   proEggMaxQuota: 600,
   proEggDiscountPercent: 25,
   proOtherDiscountPercent: 10,
-  proShippingDiscountPercent: 100,
+  proShippingDiscountPercent: 20,
 } as SubscriptionSettings;
 
 /** Eggs per pack for a product: explicit eggPackSize first, then a packSize heuristic (20 or 30). */
@@ -192,7 +192,7 @@ export function calculateCartDiscounts(
     eggQuota = eff.proEggMaxQuota ?? 600;
     eggPct = eff.proEggDiscountPercent ?? 25;
     otherPct = eff.proOtherDiscountPercent ?? 10;
-    shipPct = eff.proShippingDiscountPercent ?? 100;
+    shipPct = eff.proShippingDiscountPercent ?? 20;
   } else if (tier === 'PLUS') {
     eggQuota = eff.plusEggMaxQuota ?? 200;
     eggPct = eff.plusEggDiscountPercent ?? 15;
