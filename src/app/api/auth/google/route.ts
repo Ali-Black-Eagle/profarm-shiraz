@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { setSessionCookie } from '@/lib/session';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getEffectiveTier } from '@/lib/subscription';
 
 interface VerifiedGooglePayload {
   email: string;
@@ -122,8 +123,8 @@ export async function POST(req: NextRequest) {
       phone: safeUser.phone || '',
       name: safeUser.name || 'کاربر گوگل',
       role: 'USER', // Strictly USER
-      tier: safeUser.tier,
-      isProMember: safeUser.isProMember,
+      tier: getEffectiveTier(safeUser),
+      isProMember: getEffectiveTier(safeUser) !== 'FREE',
     });
 
     return res;

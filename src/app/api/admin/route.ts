@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
-import { isValidOrderStatusTransition } from '@/lib/order-utils';
+import { canTransition } from '@/lib/order-utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,11 +54,7 @@ export async function POST(req: NextRequest) {
       if (!existingOrder) {
         return NextResponse.json({ success: false, message: 'سفارش مورد نظر یافت نشد.' }, { status: 404 });
       }
-      const transition = isValidOrderStatusTransition(
-        existingOrder.status,
-        status,
-        existingOrder.payment?.gateway
-      );
+      const transition = canTransition(existingOrder, status);
       if (!transition.allowed) {
         return NextResponse.json(
           { success: false, message: transition.reason || 'تغییر وضعیت سفارش مجاز نیست.' },

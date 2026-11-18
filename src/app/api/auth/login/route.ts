@@ -4,6 +4,7 @@ import { sendOtp, verifyOtp, checkDistributedRateLimit } from '@/lib/sms';
 import { setSessionCookie } from '@/lib/session';
 import { getSecureClientIp, isValidIranPhone, normalizePhoneNumber } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getEffectiveTier } from '@/lib/subscription';
 
 interface FailureRecord {
   attempts: number;
@@ -219,8 +220,8 @@ export async function POST(req: NextRequest) {
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,
-        tier: user.tier,
-        isProMember: user.isProMember,
+        tier: getEffectiveTier(user),
+        isProMember: getEffectiveTier(user) !== 'FREE',
       });
 
       return res;
@@ -289,8 +290,8 @@ export async function POST(req: NextRequest) {
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,
-        tier: user.tier,
-        isProMember: user.isProMember,
+        tier: getEffectiveTier(user),
+        isProMember: getEffectiveTier(user) !== 'FREE',
       });
 
       return res;

@@ -256,6 +256,8 @@ export interface Product {
   price: number; // تومان
   costPrice?: number; // قیمت خرید از مزرعه / تمام شده (تومان)
   packSize?: string | null; // مانند "بسته ۳۰ عددی" یا "شیشه ۵۰۰ گرمی"
+  /** Number of eggs per pack (explicit; preferred over guessing from packSize / title). */
+  eggPackSize?: number | null;
   weightKg?: number | null;
   dimensions?: string | null;
   stock: number;
@@ -325,15 +327,38 @@ export interface Address {
   createdAt?: string;
 }
 
+/**
+ * Delivery slot. Stored orders keep the canonical fields (id, isoDate, window, jalaliLabel, dayOfWeekIndex)
+ * plus the legacy display fields (date, dayOfWeek, timeWindow) that older screens still read.
+ * id format: `${isoDate}_${window}`, e.g. `2026-11-22_15-21` (dates are Asia/Tehran civil dates).
+ */
 export interface DeliverySlot {
   id: string;
-  date: string; // تاریخ شمسی مانند "۱۴۰۵/۰۶/۱۸"
-  isoDate?: string;
+  date: string; // تاریخ شمسی کوتاه مانند "۱۴۰۵/۰۸/۲۹"
+  isoDate?: string; // YYYY-MM-DD (Asia/Tehran civil date)
+  window?: string; // e.g. "15-21"
+  jalaliLabel?: string; // e.g. "یکشنبه ۲۹ آبان ۱۴۰۵"
+  dayOfWeekIndex?: number; // 0 = Sunday ... 6 = Saturday
   dayOfWeek: string; // "شنبه", "یکشنبه", "چهارشنبه", ...
-  timeWindow: string; // "۰۹:۰۰ الی ۱۳:۰۰"
+  timeWindow: string; // "۱۵:۰۰ الی ۲۱:۰۰"
   maxCapacity: number;
   currentBookings: number;
   isAvailable?: boolean;
+}
+
+/** A bookable slot as offered to a user (Phase 3 API and checkout). */
+export interface AvailableDeliverySlot {
+  id: string;
+  isoDate: string;
+  window: string;
+  jalaliLabel: string;
+  dayOfWeekIndex: number;
+  maxCapacity: number;
+  bookedCount: number;
+  remainingCapacity: number;
+  isClosed: boolean;
+  isAllowedForTier: boolean;
+  isAvailable: boolean;
 }
 
 export interface OrderItem {
@@ -342,8 +367,16 @@ export interface OrderItem {
   productId: string;
   product: Product;
   quantity: number;
+  /** Server price per unit at the time of sale (تومان). */
   unitPrice: number;
+  /** Gross line total (unitPrice * quantity), before tier discounts. */
   totalPrice: number;
+  /** Tier discount applied to this line (تومان). */
+  discountAmount?: number;
+  /** Number of eggs on this line that actually received the subscription egg discount. */
+  eggDiscountedCount?: number;
+  /** Cost price snapshot at sale time (for finance). */
+  costPriceAtSale?: number;
 }
 
 export interface Payment {
@@ -378,6 +411,23 @@ export interface Order {
   payment?: Payment | null;
   settlementStatus?: 'SETTLED' | 'PENDING' | 'REFUNDED';
   settlementRef?: string;
+
+  // Pricing snapshot (computed by the server quote at creation time)
+  subtotal?: number; // sum of gross line totals
+  tierDiscountAmount?: number; // egg + other-goods subscription discounts
+  /** Shipping actually charged. 0 for outside-Shiraz bulk orders: freight is quoted separately. */
+  shippingFee?: number;
+  couponCode?: string | null;
+  couponDiscountAmount?: number;
+  /** true once this order has been counted in the coupon usageCount (paid, or COD at creation). */
+  couponCounted?: boolean;
+  /** true once cancelOrderSideEffects has restored stock, slot and coupon for this order. */
+  sideEffectsReleased?: boolean;
+  /** Payment confirmed by the gateway after the order was already cancelled. Needs a manual refund. */
+  paidAfterCancel?: boolean;
+  paymentMethod?: 'zarinpal' | 'snapppay' | 'cod' | string;
+  isShiraz?: boolean;
+
   createdAt: string;
   updatedAt?: string;
 }
@@ -518,8 +568,10 @@ export interface Coupon {
   minOrderAmount?: number; // حداقل مبلغ سفارش
   maxDiscountAmount?: number; // حداکثر سقف تخفیف درصدی
   usageLimit?: number; // حداکثر تعداد مجاز استفاده
-  usageCount: number; // تعداد دفعات استفاده شده تاکنون
+  perUserLimit?: number; // حداکثر تعداد استفاده برای هر کاربر
+  usageCount: number; // تعداد دفعات استفاده شده تاکنون (فقط سفارش‌های پرداخت‌شده / COD)
   isActive: boolean; // فعال / غیرفعال
+  startsAt?: string | null; // شروع اعتبار (ایزو یا شمسی)
   expiresAt?: string | null; // تاریخ انقضا به شمسی یا ایزو
   createdAt: string;
   updatedAt?: string;

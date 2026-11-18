@@ -4,6 +4,7 @@ import { setSessionCookie, verifyPhoneProof } from '@/lib/session';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { isValidEmail } from '@/lib/email';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getEffectiveTier } from '@/lib/subscription';
 import type { User } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -98,8 +99,8 @@ export async function POST(req: NextRequest) {
       phone: user.phone || '',
       name: user.name || cleanName,
       role: user.role,
-      tier: user.tier,
-      isProMember: user.isProMember,
+      tier: getEffectiveTier(user),
+      isProMember: getEffectiveTier(user) !== 'FREE',
     });
 
     return res;

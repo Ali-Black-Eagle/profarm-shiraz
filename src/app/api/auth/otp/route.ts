@@ -4,6 +4,7 @@ import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { setSessionCookie, getSessionFromRequest, signPhoneProof } from '@/lib/session';
 import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getEffectiveTier } from '@/lib/subscription';
 
 export async function POST(req: NextRequest) {
   try {
@@ -83,8 +84,8 @@ export async function POST(req: NextRequest) {
         phone: cleanPhone,
         name: attachResult.user.name || 'کاربر گرامی',
         role: attachResult.user.role,
-        tier: attachResult.user.tier,
-        isProMember: attachResult.user.isProMember,
+        tier: getEffectiveTier(attachResult.user),
+        isProMember: getEffectiveTier(attachResult.user) !== 'FREE',
       });
 
       return res;
@@ -161,8 +162,8 @@ export async function POST(req: NextRequest) {
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,
-        tier: user.tier,
-        isProMember: user.isProMember,
+        tier: getEffectiveTier(user),
+        isProMember: getEffectiveTier(user) !== 'FREE',
       });
 
       return res;

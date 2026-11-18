@@ -3,14 +3,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requestPayment } from '@/lib/zarinpal';
 import { requestSnappPayPayment } from '@/lib/snapppay';
-import { Order, OrderItem } from '@/types';
+import { Order, OrderItem, Product } from '@/types';
 import { getSessionFromRequest } from '@/lib/session';
-import { normalizePhoneNumber, calculateCartDiscounts } from '@/lib/formatters';
+import { normalizePhoneNumber } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
-import { isDayAllowedForUser } from '@/lib/jalali';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { isMockGatewayEnabled, createMockAuthority } from '@/lib/mock-gateway';
+import { quoteCart } from '@/lib/pricing';
+
+const PAYMENT_METHODS = ['zarinpal', 'snapppay', 'cod'];
+
+function sanitizeText(str?: string | null, maxLen = 200): string {
+  if (!str) return '';
+  return String(str).trim().slice(0, maxLen).replace(/<[^>]*>?/gm, '');
+}
+
+/** Product snapshot stored on an order item. Cost price is kept separately (costPriceAtSale), never exposed here. */
+function publicProductSnapshot(product: Product): Product {
+  const { costPrice: _cost, ...rest } = product;
+  return rest as Product;
+}
 
 export async function GET(req: NextRequest) {
   const session = getSessionFromRequest(req);
@@ -82,7 +95,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ success: false, message: 'اطلاعات ارسالی نامعتبر است.' }, { status: 400 });
+    }
     const {
       recipientName,
       phone,
@@ -91,9 +107,7 @@ export async function POST(req: NextRequest) {
       streetAddress,
       unit,
       postalCode,
-      isShiraz,
       deliverySlot,
-      isBulkOrder,
       isSubscription,
       subscriptionPlan,
       items,
@@ -101,204 +115,78 @@ export async function POST(req: NextRequest) {
       paymentMethod = 'zarinpal',
     } = body;
 
-    const isCityShiraz =
-      city?.trim() === 'شیراز' || city?.trim() === 'شهر شیراز' || isShiraz === true;
-
-    // 1. Geographic validation (only required for physical goods, not subscriptions)
-    if (!isSubscription) {
-      const totalItems = items?.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0) || 0;
-      if (!isCityShiraz && !(isBulkOrder && totalItems >= 10)) {
+    // The client's isShiraz / isBulkOrder / jalali fields are ignored: the server derives them.
+    const isSub = isSubscription === true;
+    const method = String(paymentMethod || 'zarinpal');
+    if (!PAYMENT_METHODS.includes(method)) {
+      return NextResponse.json({ success: false, message: 'روش پرداخت انتخابی نامعتبر است.' }, { status: 400 });
+    }
+    if (method === 'cod') {
+      if (isSub) {
         return NextResponse.json(
-          {
-            success: false,
-            message:
-              'خرده‌فروشی صرفاً مختص شهر شیراز است. سفارش‌های خارج از شیراز باید به صورت عمده (حداقل ۱۰ بسته) ثبت شوند.',
-          },
+          { success: false, message: 'اشتراک فقط به‌صورت پرداخت آنلاین قابل خرید است.' },
           { status: 400 }
         );
       }
+      if (!farmStore.getPaymentSettings().general?.allowCashOnDelivery) {
+        return NextResponse.json({ success: false, message: 'پرداخت در محل در حال حاضر فعال نیست.' }, { status: 400 });
+      }
     }
 
-    // 2. Resolve the account strictly by the id in the session.
-    // SECURITY: the phone typed at checkout never links or attaches to an account.
-    const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
+    // Account is resolved strictly by the session id. The phone typed at checkout never links to an account.
     const user = farmStore.getAllUsers().find((u) => u.id === session.userId);
-
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'حساب کاربری شما یافت نشد. لطفاً مجدداً وارد شوید.' },
+        { success: false, message: 'حساب کاربری شما یافت نشد. لطفاً مجدداً وارد حساب شوید.' },
         { status: 401 }
       );
     }
 
-    const subSettings = farmStore.getSubscriptionSettings();
+    const slotId =
+      typeof deliverySlot === 'string' ? deliverySlot : deliverySlot && typeof deliverySlot === 'object' ? deliverySlot.id : null;
 
-    // 3. SERVER-SIDE PRICE & ITEM CALCULATION (Never trust client totalAmount)
-    let fullItems: OrderItem[] = [];
-    let itemsSubtotal = 0;
-    let finalTotalAmount = 0;
+    // ONE pricing function: the quote decides the total that is charged.
+    const quote = quoteCart({
+      user,
+      items: isSub ? [] : items,
+      couponCode: typeof appliedCouponCode === 'string' ? appliedCouponCode : null,
+      slotId: isSub ? null : slotId,
+      city: isSub ? undefined : typeof city === 'string' ? city : '',
+      requireSlot: !isSub,
+      isSubscription: isSub,
+      subscriptionPlan,
+    });
 
-    function sanitizeText(str?: string | null, maxLen = 200): string {
-      if (!str) return '';
-      return String(str).trim().slice(0, maxLen).replace(/<[^>]*>?/gm, '');
+    if (!quote.ok) {
+      if (quote.stockIssue) {
+        return NextResponse.json(
+          { success: false, errorCode: 'INSUFFICIENT_STOCK', message: quote.errors[0], errors: quote.errors },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, message: quote.errors[0], errors: quote.errors },
+        { status: 400 }
+      );
     }
 
-    if (isSubscription) {
-      // Only the two paid plans can be bought. Anything else is rejected instead of defaulting to PRO.
-      if (subscriptionPlan !== 'PLUS' && subscriptionPlan !== 'PRO') {
-        return NextResponse.json(
-          { success: false, message: 'طرح اشتراک انتخابی نامعتبر است. لطفاً پلاس یا پرو را انتخاب فرمایید.' },
-          { status: 400 }
-        );
-      }
+    const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
+    const cityName = sanitizeText(city, 50) || 'شیراز';
+    const addressId = `addr-${Date.now()}`;
 
-      const planPrice =
-        subscriptionPlan === 'PLUS'
-          ? subSettings.plusMonthlyPrice
-          : subSettings.proMonthlyPrice;
+    const orderItems: OrderItem[] = quote.lines.map((line, idx) => ({
+      id: `item-${Date.now()}-${idx}`,
+      productId: line.productId,
+      product: publicProductSnapshot(line.product),
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      totalPrice: line.lineTotal,
+      discountAmount: line.discount,
+      eggDiscountedCount: line.eggDiscountedCount,
+      costPriceAtSale: line.costPrice,
+    }));
 
-      finalTotalAmount = planPrice;
-      fullItems = [
-        {
-          id: `item-sub-${Date.now()}`,
-          productId: `sub-${(subscriptionPlan || 'pro').toLowerCase()}`,
-          product: {
-            id: `sub-${(subscriptionPlan || 'pro').toLowerCase()}`,
-            slug: `sub-${(subscriptionPlan || 'pro').toLowerCase()}`,
-            title:
-              subscriptionPlan === 'PLUS'
-                ? 'اشتراک نقره‌ای پروفارم پلاس (۱ ماهه)'
-                : 'اشتراک طلایی پروفارم پرو (۱ ماهه)',
-            category: 'اشتراک',
-            price: planPrice,
-            images: ['/images/hero-shiraz-farm.jpg'],
-            stock: 9999,
-            isAvailable: true,
-            description: 'ارسال ۶ روز در هفته و تخفیف‌های ویژه مزارع فارس',
-          } as any,
-          quantity: 1,
-          unitPrice: planPrice,
-          totalPrice: planPrice,
-        },
-      ];
-    } else {
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return NextResponse.json(
-          { success: false, message: 'سبد خرید نمی‌تواند خالی باشد.' },
-          { status: 400 }
-        );
-      }
-
-      if (items.length > 100) {
-        return NextResponse.json(
-          { success: false, message: 'تعداد اقلام سفارش بیش از حد مجاز است.' },
-          { status: 400 }
-        );
-      }
-
-      for (let idx = 0; idx < items.length; idx++) {
-        const i = items[idx];
-        if (!i || typeof i !== 'object' || !i.productId || typeof i.productId !== 'string') {
-          return NextResponse.json(
-            { success: false, message: 'اطلاعات کالا در سبد خرید نامعتبر است.' },
-            { status: 400 }
-          );
-        }
-
-        const prod = farmStore.getProductBySlug(i.productId);
-
-        if (!prod) {
-          return NextResponse.json(
-            { success: false, message: 'یکی از کالاهای سبد خرید در فروشگاه یافت نشد. لطفاً سبد خرید را بررسی فرمایید.' },
-            { status: 400 }
-          );
-        }
-
-        const rawQty = Number(i.quantity);
-        if (!Number.isSafeInteger(rawQty) || rawQty < 1 || rawQty > 1000) {
-          return NextResponse.json(
-            { success: false, message: `تعداد انتخابی برای محصول «${prod.title}» نامعتبر است (باید بین ۱ تا ۱۰۰۰ باشد).` },
-            { status: 400 }
-          );
-        }
-        const qty = rawQty;
-        const serverUnitPrice = prod.price;
-        const itemTotal = serverUnitPrice * qty;
-        itemsSubtotal += itemTotal;
-
-        fullItems.push({
-          id: `item-${Date.now()}-${idx}`,
-          productId: prod.slug,
-          product: prod,
-          quantity: qty,
-          unitPrice: serverUnitPrice,
-          totalPrice: itemTotal,
-        });
-      }
-
-      // Validate delivery slot against user's subscription tier and remaining capacity
-      const userTier = user.tier || (user.isProMember ? 'PRO' : 'FREE');
-      if (deliverySlot) {
-        const slotDayIndex = deliverySlot.jalali?.dayOfWeekIndex;
-        if (slotDayIndex !== undefined && !isDayAllowedForUser(Number(slotDayIndex), userTier)) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                userTier === 'PRO'
-                  ? 'روز تحویل انتخابی مجاز نمی‌باشد.'
-                  : 'روز تحویل انتخابی با سطح اشتراک شما مطابقت ندارد. اعضای عادی فقط روزهای یکشنبه و چهارشنبه مجاز به دریافت سفارش هستند.',
-            },
-            { status: 400 }
-          );
-        }
-
-        if (deliverySlot.id) {
-          const capCheck = farmStore.checkSlotCapacity(deliverySlot.id);
-          if (!capCheck.isAvailable || capCheck.remainingCapacity <= 0) {
-            return NextResponse.json(
-              {
-                success: false,
-                message: 'متاسفانه ظرفیت سانس تحویل انتخابی در شیراز تکمیل شده است. لطفاً سانس یا تاریخ دیگری را انتخاب فرمایید.',
-              },
-              { status: 400 }
-            );
-          }
-        }
-      }
-
-      // Compute server-side subscription discounts on items (eggs & other goods) & shipping fee
-      const cartItemsForCalc = fullItems.map((fi) => ({
-        product: fi.product,
-        quantity: fi.quantity,
-      }));
-      // Fetch user's rolling 30-day egg quota usage (including active pending orders to prevent race conditions)
-      const usedEggQuota = farmStore.getUserRolling30DaysEggDiscountUsed(user.id, user.phone || cleanPhone);
-      const subDiscounts = calculateCartDiscounts(cartItemsForCalc, userTier, subSettings, usedEggQuota);
-
-      const subItemDiscount = subDiscounts.eggDiscount + subDiscounts.otherDiscount;
-      const shippingFee = isCityShiraz ? subDiscounts.finalShipping : 0;
-
-      // Validate discount coupon strictly on server
-      let couponDiscountAmount = 0;
-      if (appliedCouponCode) {
-        const couponVal = farmStore.validateAndApplyCoupon(
-          appliedCouponCode,
-          cartItemsForCalc as any,
-          shippingFee,
-          Math.max(0, itemsSubtotal - subItemDiscount)
-        );
-        if (couponVal.isValid) {
-          couponDiscountAmount = couponVal.discountAmount;
-          farmStore.incrementCouponUsage(appliedCouponCode);
-        }
-      }
-
-      finalTotalAmount = Math.max(0, itemsSubtotal + shippingFee - subItemDiscount - couponDiscountAmount);
-    }
-
-    // 4. ATOMIC ORDER CREATION (Fails with 409 if any item has insufficient stock)
-    // Cryptographically secure, unpredictable order number (Fix for H-5 & L-2)
+    // Cryptographically secure, unpredictable order number
     const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
     const orderNumber = `PRF-1405-${Date.now().toString(36).toUpperCase()}-${randomSuffix}`;
 
@@ -308,49 +196,76 @@ export async function POST(req: NextRequest) {
         orderNumber,
         userId: user.id,
         user: sanitizeUser(user),
-        addressId: `addr-${Date.now()}`,
+        addressId,
         address: {
-          id: `addr-${Date.now()}`,
+          id: addressId,
           userId: user.id,
           recipientName: sanitizeText(recipientName, 100) || user.name || 'کاربر',
           phone: cleanPhone || user.phone || '',
           province: sanitizeText(province, 50) || 'فارس',
-          city: sanitizeText(city, 50) || 'شیراز',
+          city: isSub ? 'شیراز' : cityName,
           postalCode: sanitizeText(postalCode, 20) || '',
           streetAddress: sanitizeText(streetAddress, 300) || 'فعال‌سازی سرویس دیجیتال مشترک',
           unit: unit ? sanitizeText(unit, 20) : null,
-          isShiraz: isCityShiraz,
+          isShiraz: quote.isShiraz,
         },
-        deliverySlotId: isSubscription ? null : deliverySlot?.id || null,
-        deliverySlot: isSubscription ? null : deliverySlot || null,
-        totalAmount: finalTotalAmount,
+        deliverySlotId: isSub ? null : quote.slot?.id ?? null,
+        deliverySlot: isSub ? null : quote.slot,
+        totalAmount: quote.total,
         status: 'PENDING_PAYMENT',
-        isBulkOrder: !!isBulkOrder,
-        isSubscription: !!isSubscription,
-        subscriptionPlan: isSubscription ? subscriptionPlan : undefined,
-        items: fullItems,
+        isBulkOrder: !isSub && quote.isBulk,
+        isSubscription: isSub,
+        subscriptionPlan: isSub && quote.subscriptionPlan ? quote.subscriptionPlan : undefined,
+        items: orderItems,
+        subtotal: quote.subtotal,
+        tierDiscountAmount: quote.tierDiscount,
+        shippingFee: quote.shipping,
+        couponCode: quote.couponCode,
+        couponDiscountAmount: quote.couponDiscount,
+        couponCounted: false,
+        paymentMethod: method,
+        isShiraz: quote.isShiraz,
       });
-    } catch (err: any) {
-      if (err.message && err.message.includes('INSUFFICIENT_STOCK')) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('INSUFFICIENT_STOCK')) {
         return NextResponse.json(
-          {
-            success: false,
-            errorCode: 'INSUFFICIENT_STOCK',
-            message: err.message.replace('INSUFFICIENT_STOCK: ', ''),
-          },
+          { success: false, errorCode: 'INSUFFICIENT_STOCK', message: message.replace('INSUFFICIENT_STOCK: ', '') },
           { status: 409 }
         );
       }
       throw err;
     }
 
-    // 5. Request Payment with Server-Calculated Amount
+    const amount = quote.total;
+
+    // Cash on delivery: no online payment. The coupon counts now, because the order is final at creation.
+    if (method === 'cod') {
+      farmStore.attachPaymentToOrder(orderNumber, {
+        id: `pay-${Date.now()}`,
+        orderId: orderNumber,
+        amount,
+        gateway: 'COD',
+        authority: null,
+        status: 'INITIATED',
+        createdAt: new Date().toISOString(),
+      });
+      farmStore.countOrderCoupon(orderNumber);
+      return NextResponse.json({ success: true, order: newOrder, gateway: 'cod' });
+    }
+
+    // Online payment. If the gateway refuses the request, the order is cancelled at once so its stock is released.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const callbackBase = `${appUrl}/api/payment/verify?orderNumber=${encodeURIComponent(orderNumber)}`;
 
-    if (paymentMethod === 'snapppay') {
+    const failAndRelease = async (message: string) => {
+      await farmStore.updateOrderStatus(orderNumber, 'CANCELLED');
+      return NextResponse.json({ success: false, message }, { status: 400 });
+    };
+
+    if (method === 'snapppay') {
       const snappPayReq = await requestSnappPayPayment({
-        amount: finalTotalAmount,
+        amount,
         description: `خرید اقساطی ۴ ماهه اسنپ‌پی سفارش کد ${orderNumber}`,
         orderNumber,
         callbackUrl: `${callbackBase}&gateway=snapppay`,
@@ -358,20 +273,13 @@ export async function POST(req: NextRequest) {
       });
 
       if (!snappPayReq.success || !snappPayReq.paymentUrl) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: snappPayReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت اقساطی اسنپ‌پی',
-          },
-          { status: 400 }
-        );
+        return failAndRelease(snappPayReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت اقساطی اسنپ‌پی');
       }
 
-      // Record payment token for secure verification (prevents H-5 attack)
       farmStore.attachPaymentToOrder(orderNumber, {
         id: `pay-${Date.now()}`,
         orderId: orderNumber,
-        amount: finalTotalAmount,
+        amount,
         gateway: 'snapppay',
         authority: snappPayReq.paymentToken || null,
         status: 'INITIATED',
@@ -390,11 +298,11 @@ export async function POST(req: NextRequest) {
 
     // DEV ONLY: mock gateway (lib/mock-gateway.ts). Never active outside NODE_ENV=development with PAYMENT_MOCK_GATEWAY=1.
     if (isMockGatewayEnabled()) {
-      const mockAuthority = createMockAuthority(orderNumber, finalTotalAmount);
+      const mockAuthority = createMockAuthority(orderNumber, amount);
       farmStore.attachPaymentToOrder(orderNumber, {
         id: `pay-${Date.now()}`,
         orderId: orderNumber,
-        amount: finalTotalAmount,
+        amount,
         gateway: 'zarinpal',
         authority: mockAuthority,
         status: 'INITIATED',
@@ -405,13 +313,13 @@ export async function POST(req: NextRequest) {
         success: true,
         order: newOrder,
         authority: mockAuthority,
-        paymentUrl: `/checkout/mock-gateway?orderNumber=${encodeURIComponent(orderNumber)}&Authority=${encodeURIComponent(mockAuthority)}&amount=${finalTotalAmount}`,
+        paymentUrl: `/checkout/mock-gateway?orderNumber=${encodeURIComponent(orderNumber)}&Authority=${encodeURIComponent(mockAuthority)}&amount=${amount}`,
         gateway: 'zarinpal',
       });
     }
 
     const paymentReq = await requestPayment({
-      amount: finalTotalAmount,
+      amount,
       description: `سفارش محصولات ارگانیک شیراز کد ${orderNumber}`,
       orderNumber,
       callbackUrl: `${callbackBase}&gateway=zarinpal`,
@@ -419,20 +327,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (!paymentReq.success || !paymentReq.paymentUrl) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: paymentReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت زرین‌پال',
-        },
-        { status: 400 }
-      );
+      return failAndRelease(paymentReq.message || 'خطا در برقراری ارتباط با درگاه پرداخت زرین‌پال');
     }
 
-    // Record ZarinPal payment authority for secure verification (prevents H-5 attack)
     farmStore.attachPaymentToOrder(orderNumber, {
       id: `pay-${Date.now()}`,
       orderId: orderNumber,
-      amount: finalTotalAmount,
+      amount,
       gateway: 'zarinpal',
       authority: paymentReq.authority || null,
       status: 'INITIATED',

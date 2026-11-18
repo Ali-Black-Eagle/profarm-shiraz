@@ -108,6 +108,15 @@ export function isValidEmail(email?: string | null): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+export interface CartDiscountLine {
+  /** Eggs on this line (packs * eggs per pack). */
+  eggCount: number;
+  /** Eggs on this line that received the subscription egg discount (within the quota). */
+  eggDiscountedCount: number;
+  /** Subscription discount on this line (egg + other goods), تومان. */
+  discount: number;
+}
+
 export interface CartDiscounts {
   eggDiscount: number;
   eggCount: number;
@@ -122,82 +131,97 @@ export interface CartDiscounts {
   finalShipping: number;
   itemsSubtotal: number;
   finalPayable: number;
+  /** Per-line breakdown, in the same order as the input items. */
+  lines: CartDiscountLine[];
 }
 
+/** Default subscription settings used when none are supplied. Keep in sync with DEFAULT_SUBSCRIPTION_SETTINGS. */
+const FALLBACK_SUBSCRIPTION_MATH = {
+  baseShippingFee: 49000,
+  plusEggMaxQuota: 200,
+  plusEggDiscountPercent: 15,
+  proEggMaxQuota: 600,
+  proEggDiscountPercent: 25,
+  proOtherDiscountPercent: 10,
+  proShippingDiscountPercent: 100,
+} as SubscriptionSettings;
+
+/** Eggs per pack for a product: explicit eggPackSize first, then a packSize heuristic (20 or 30). */
+export function getEggsPerPack(product: { packSize?: string | null; eggPackSize?: number | null }): number {
+  const explicit = Number(product.eggPackSize);
+  if (Number.isInteger(explicit) && explicit > 0) return explicit;
+  const packStr = product.packSize || '';
+  return packStr.includes('20') || packStr.includes('۲۰') ? 20 : 30;
+}
+
+/** Whether a product is an egg product (category, title or id). */
+export function isEggProduct(
+  product: { category?: string; title?: string; id?: string },
+  productId?: string
+): boolean {
+  return (
+    product.category === 'تخم‌مرغ و ماکیان' ||
+    (product.title || '').includes('تخم‌مرغ') ||
+    (product.id || '').includes('egg') ||
+    (productId || '').includes('egg')
+  );
+}
+
+/**
+ * Subscription discounts for a cart. Shared by the storefront (display) and the server quote (charge),
+ * so both always compute the same numbers. Egg quota is allocated in item order.
+ */
 export function calculateCartDiscounts(
   items: CartItem[],
   tier: SubscriptionTier = 'FREE',
   settings?: SubscriptionSettings,
   usedEggQuotaThisMonth: number = 0
 ): CartDiscounts {
-  const effectiveSettings = settings || ({
-    baseShippingFee: 49000,
-    plusEggMaxQuota: 200,
-    plusEggDiscountPercent: 15,
-    proEggMaxQuota: 600,
-    proEggDiscountPercent: 25,
-    proOtherDiscountPercent: 10,
-    proShippingDiscountPercent: 100,
-  } as SubscriptionSettings);
-
+  const eff = settings || FALLBACK_SUBSCRIPTION_MATH;
   const itemsSubtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const baseShipping = items.length > 0 ? (effectiveSettings.baseShippingFee ?? 49000) : 0;
+  const baseShipping = items.length > 0 ? (eff.baseShippingFee ?? 49000) : 0;
+
+  let eggQuota = 0;
+  let eggPct = 0;
+  let otherPct = 0;
+  let shipPct = 0;
+  if (tier === 'PRO') {
+    eggQuota = eff.proEggMaxQuota ?? 600;
+    eggPct = eff.proEggDiscountPercent ?? 25;
+    otherPct = eff.proOtherDiscountPercent ?? 10;
+    shipPct = eff.proShippingDiscountPercent ?? 100;
+  } else if (tier === 'PLUS') {
+    eggQuota = eff.plusEggMaxQuota ?? 200;
+    eggPct = eff.plusEggDiscountPercent ?? 15;
+  }
+  const hasEggQuota = tier === 'PRO' || tier === 'PLUS';
+  const remainingEggQuota = hasEggQuota ? Math.max(0, eggQuota - usedEggQuotaThisMonth) : 0;
+  let quotaLeft = remainingEggQuota;
 
   let totalEggCount = 0;
-  let eggItemsTotal = 0;
-  let otherItemsTotal = 0;
+  let eggDiscount = 0;
+  let otherDiscount = 0;
+  const lines: CartDiscountLine[] = [];
 
   for (const item of items) {
-    const isEgg =
-      item.product.category === 'تخم‌مرغ و ماکیان' ||
-      item.product.title.includes('تخم‌مرغ') ||
-      item.product.id.includes('egg');
-
-    if (isEgg) {
-      const packStr = item.product.packSize || '';
-      const eggsPerPack =
-        packStr.includes('20') || packStr.includes('۲۰') ? 20 : 30;
-      totalEggCount += eggsPerPack * item.quantity;
-      eggItemsTotal += item.product.price * item.quantity;
+    const lineTotal = item.product.price * item.quantity;
+    if (isEggProduct(item.product)) {
+      const eggs = getEggsPerPack(item.product) * item.quantity;
+      const eligible = Math.min(eggs, quotaLeft);
+      quotaLeft -= eligible;
+      const discount = eggs > 0 && eligible > 0 ? Math.round(lineTotal * (eligible / eggs) * (eggPct / 100)) : 0;
+      totalEggCount += eggs;
+      eggDiscount += discount;
+      lines.push({ eggCount: eggs, eggDiscountedCount: eligible, discount });
     } else {
-      otherItemsTotal += item.product.price * item.quantity;
+      const discount = tier === 'PRO' ? Math.round(lineTotal * (otherPct / 100)) : 0;
+      otherDiscount += discount;
+      lines.push({ eggCount: 0, eggDiscountedCount: 0, discount });
     }
   }
 
-  let eggDiscount = 0;
-  let eggQuota = 0;
-  let remainingEggQuota = 0;
-  let eggCapExceeded = false;
-  let otherDiscount = 0;
-  let shippingDiscount = 0;
-
-  if (tier === 'PRO') {
-    eggQuota = effectiveSettings.proEggMaxQuota ?? 600;
-    remainingEggQuota = Math.max(0, eggQuota - usedEggQuotaThisMonth);
-    const eligibleEggs = Math.min(remainingEggQuota, totalEggCount);
-    eggCapExceeded = (totalEggCount + usedEggQuotaThisMonth) > eggQuota;
-    const eligibleFraction = totalEggCount > 0 ? eligibleEggs / totalEggCount : 0;
-    eggDiscount = Math.round(
-      eggItemsTotal * eligibleFraction * ((effectiveSettings.proEggDiscountPercent ?? 25) / 100)
-    );
-    otherDiscount = Math.round(otherItemsTotal * ((effectiveSettings.proOtherDiscountPercent ?? 10) / 100));
-    shippingDiscount =
-      baseShipping > 0
-        ? Math.round(baseShipping * ((effectiveSettings.proShippingDiscountPercent ?? 100) / 100))
-        : 0;
-  } else if (tier === 'PLUS') {
-    eggQuota = effectiveSettings.plusEggMaxQuota ?? 200;
-    remainingEggQuota = Math.max(0, eggQuota - usedEggQuotaThisMonth);
-    const eligibleEggs = Math.min(remainingEggQuota, totalEggCount);
-    eggCapExceeded = (totalEggCount + usedEggQuotaThisMonth) > eggQuota;
-    const eligibleFraction = totalEggCount > 0 ? eligibleEggs / totalEggCount : 0;
-    eggDiscount = Math.round(
-      eggItemsTotal * eligibleFraction * ((effectiveSettings.plusEggDiscountPercent ?? 15) / 100)
-    );
-    otherDiscount = 0;
-    shippingDiscount = 0;
-  }
-
+  const eggCapExceeded = hasEggQuota && totalEggCount + usedEggQuotaThisMonth > eggQuota;
+  const shippingDiscount = tier === 'PRO' && baseShipping > 0 ? Math.round(baseShipping * (shipPct / 100)) : 0;
   const finalShipping = Math.max(0, baseShipping - shippingDiscount);
   const totalDiscount = eggDiscount + otherDiscount + shippingDiscount;
   const finalPayable = Math.max(0, itemsSubtotal - (eggDiscount + otherDiscount) + finalShipping);
@@ -216,7 +240,42 @@ export function calculateCartDiscounts(
     finalShipping,
     itemsSubtotal,
     finalPayable,
+    lines,
   };
+}
+
+/** Bulk (عمده) thresholds: at least 10 packs in total, or a gross subtotal of at least 5,000,000 تومان. */
+export const BULK_MIN_ITEMS = 10;
+export const BULK_MIN_SUBTOTAL = 5000000;
+
+/**
+ * Single bulk rule, used by the server quote and by the storefront. `subtotal` is the gross subtotal (تومان).
+ */
+export function isBulkOrder(
+  items: { quantity: number }[],
+  subtotal: number,
+  thresholds: { minItems: number; minSubtotal: number } = { minItems: BULK_MIN_ITEMS, minSubtotal: BULK_MIN_SUBTOTAL }
+): boolean {
+  const totalCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+  return totalCount >= thresholds.minItems || subtotal >= thresholds.minSubtotal;
+}
+
+/** Normalizes Persian text for comparisons: Arabic ی/ك to Persian forms, no ZWNJ, trimmed, lowercase. */
+export function normalizePersianText(input: string): string {
+  return input
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[​‌‍﻿]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** Whether a city name is Shiraz (Persian or English spelling). */
+export function isShirazCity(city?: string | null): boolean {
+  if (!city || typeof city !== 'string') return false;
+  const n = normalizePersianText(city);
+  return n === 'شیراز' || n === 'شهر شیراز' || n === 'شهرشیراز' || n === 'shiraz';
 }
 
 /**

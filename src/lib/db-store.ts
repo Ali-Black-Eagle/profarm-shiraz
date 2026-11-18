@@ -8,6 +8,7 @@ import {
   Order,
   Payment,
   DeliverySlot,
+  AvailableDeliverySlot,
   User,
   BulkInquiry,
   OrderStatus,
@@ -57,9 +58,31 @@ import {
   DEFAULT_SMS_EVENT_TEMPLATES,
   INITIAL_PRODUCT_REVIEWS,
 } from './initial-data';
-import { generateDeliverySlots, formatToJalali, PERSIAN_MONTHS, PERSIAN_WEEKDAYS } from './jalali';
+import {
+  generateDeliverySlots,
+  formatToJalali,
+  formatIsoDateToJalali,
+  PERSIAN_MONTHS,
+  PERSIAN_WEEKDAYS,
+  DEFAULT_DAILY_CAPACITY,
+  MAX_BOOKING_DAYS_AHEAD,
+  DEFAULT_SLOT_WINDOW,
+  SLOT_TIME_LABEL,
+  buildSlotId,
+  parseSlotId,
+  parseTehranDateValue,
+  getTehranIsoDate,
+  addDaysIso,
+  isDayAllowedForUser,
+} from './jalali';
 import { sendOrderStatusSms, sendCustomSms } from './sms';
-import { isCountableSaleOrder } from './order-utils';
+import {
+  isCountableSaleOrder,
+  canTransition,
+  canTransitionReturn,
+  isCodOrder,
+} from './order-utils';
+import { getEffectiveTier } from './subscription';
 import {
   generateSeoSlug,
   generateProductSeoTitle,
@@ -293,7 +316,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   general: {
     currency: 'IRT',
     allowCashOnDelivery: false,
-    paymentTimeoutMinutes: 15,
+    paymentTimeoutMinutes: 30,
     guideMessage: 'پرداخت امن از طریق درگاه رسمی شاپرک با کلیه کارت‌های عضو شتاب',
   },
   updatedAt: new Date().toISOString(),
@@ -454,6 +477,83 @@ export const INITIAL_COUPONS: Coupon[] = [
 ];
 
 // Persistent in-process memory stores
+const COUPON_TARGET_TYPES: Coupon['targetType'][] = ['ALL_PRODUCTS', 'SPECIFIC_PRODUCT', 'SHIPPING'];
+const COUPON_DISCOUNT_TYPES: Coupon['discountType'][] = ['PERCENTAGE', 'FIXED_AMOUNT'];
+
+function normalizeCouponDate(value: unknown, label: string): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const s = String(value).trim();
+  if (parseTehranDateValue(s, false) === null) {
+    throw new BusinessError(`${label} نامعتبر است.`, 400);
+  }
+  return s;
+}
+
+/**
+ * Whitelists and validates coupon fields that come from the admin API. Unknown keys (id, usageCount, createdAt, ...)
+ * are ignored, so they can never be set from a request.
+ */
+function sanitizeCouponFields(input: Record<string, unknown>): Partial<Coupon> {
+  const out: Partial<Coupon> = {};
+  const num = (v: unknown, label: string): number | undefined => {
+    if (v === null || v === undefined || v === '') return undefined;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) throw new BusinessError(`مقدار «${label}» نامعتبر است.`, 400);
+    return n;
+  };
+
+  if (typeof input.code === 'string') {
+    const code = input.code.trim().toUpperCase();
+    if (!code || code.length > 40 || /\s/.test(code)) {
+      throw new BusinessError('کد تخفیف نامعتبر است.', 400);
+    }
+    out.code = code;
+  }
+  if ('title' in input) out.title = String(input.title ?? '').trim().slice(0, 200);
+  if ('description' in input) out.description = String(input.description ?? '').trim().slice(0, 1000);
+  if ('targetType' in input) {
+    if (!COUPON_TARGET_TYPES.includes(input.targetType as Coupon['targetType'])) {
+      throw new BusinessError('نوع هدف کد تخفیف نامعتبر است.', 400);
+    }
+    out.targetType = input.targetType as Coupon['targetType'];
+  }
+  if ('targetProductId' in input) out.targetProductId = input.targetProductId ? String(input.targetProductId) : undefined;
+  if ('targetProductName' in input) {
+    out.targetProductName = input.targetProductName ? String(input.targetProductName).slice(0, 200) : undefined;
+  }
+  if ('discountType' in input) {
+    if (!COUPON_DISCOUNT_TYPES.includes(input.discountType as Coupon['discountType'])) {
+      throw new BusinessError('نوع تخفیف نامعتبر است.', 400);
+    }
+    out.discountType = input.discountType as Coupon['discountType'];
+  }
+  if ('discountValue' in input) {
+    const v = num(input.discountValue, 'مقدار تخفیف');
+    if (v === undefined) throw new BusinessError('مقدار تخفیف الزامی است.', 400);
+    out.discountValue = v;
+  }
+  if ('minOrderAmount' in input) out.minOrderAmount = num(input.minOrderAmount, 'حداقل خرید');
+  if ('maxDiscountAmount' in input) out.maxDiscountAmount = num(input.maxDiscountAmount, 'سقف تخفیف');
+  if ('usageLimit' in input) out.usageLimit = num(input.usageLimit, 'سقف استفاده');
+  if ('perUserLimit' in input) out.perUserLimit = num(input.perUserLimit, 'سقف استفاده هر کاربر');
+  if ('isActive' in input) out.isActive = Boolean(input.isActive);
+  if ('startsAt' in input) out.startsAt = normalizeCouponDate(input.startsAt, 'تاریخ شروع');
+  if ('expiresAt' in input) out.expiresAt = normalizeCouponDate(input.expiresAt, 'تاریخ انقضا');
+  return out;
+}
+
+/** Percentages are clamped to 0..100 and no value is negative. */
+function clampCouponValues(c: Coupon): Coupon {
+  const next = { ...c };
+  const value = Number(next.discountValue);
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+  next.discountValue = next.discountType === 'PERCENTAGE' ? Math.min(100, safe) : safe;
+  if (next.maxDiscountAmount !== undefined && next.maxDiscountAmount !== null) {
+    next.maxDiscountAmount = Math.max(0, Number(next.maxDiscountAmount) || 0);
+  }
+  return next;
+}
+
 class FarmDataStore {
   private products: Product[] = [...INITIAL_PRODUCTS];
   private orders: Order[] = [...INITIAL_ADMIN_ORDERS];
@@ -462,7 +562,6 @@ class FarmDataStore {
   private pendingAdminCredentials: { user: User; password: string } | null = null;
   private bulkInquiries: BulkInquiry[] = [];
   private categories: string[] = [...INITIAL_CATEGORIES];
-  private slotBookings: Map<string, number> = new Map();
   private siteContent: SiteContent = { ...DEFAULT_SITE_CONTENT };
   private subscriptionSettings: SubscriptionSettings = { ...DEFAULT_SUBSCRIPTION_SETTINGS };
   private coupons: Coupon[] = [...INITIAL_COUPONS];
@@ -712,7 +811,6 @@ class FarmDataStore {
       bulkInquiries: this.bulkInquiries,
       reviews: this.reviews,
       returnRequests: this.returnRequests,
-      slotBookings: Array.from(this.slotBookings.entries()),
       dailyCapacityOverrides: this.dailyCapacityOverrides,
     };
   }
@@ -859,11 +957,7 @@ class FarmDataStore {
     if (data.siteContent && typeof data.siteContent === 'object') {
       this.siteContent = { ...DEFAULT_SITE_CONTENT, ...data.siteContent };
     }
-    if (Array.isArray(data.slotBookings)) {
-      this.slotBookings = new Map(
-        data.slotBookings.filter((e: unknown) => Array.isArray(e) && typeof e[0] === 'string')
-      );
-    }
+    // Legacy snapshots may still contain slotBookings: ignored. Slot occupancy is derived from orders.
     if (data.dailyCapacityOverrides && typeof data.dailyCapacityOverrides === 'object') {
       this.dailyCapacityOverrides = data.dailyCapacityOverrides;
     }
@@ -2319,6 +2413,10 @@ class FarmDataStore {
   private calculateOrderCost(order: Order): number {
     if (order.isSubscription) return 0;
     return order.items.reduce((sum, item) => {
+      // Prefer the cost snapshot taken at sale time; fall back to the live product for legacy orders
+      if (typeof item.costPriceAtSale === 'number' && item.costPriceAtSale >= 0) {
+        return sum + item.costPriceAtSale * item.quantity;
+      }
       const prod =
         this.products.find((p) => p.id === item.productId || p.slug === item.productId) ||
         item.product;
@@ -3413,9 +3511,36 @@ class FarmDataStore {
     return newReq;
   }
 
+  /**
+   * Updates a return request. Allowed moves: PENDING -> APPROVED | REJECTED; APPROVED -> REFUNDED | REJECTED.
+   * REFUNDED and REJECTED are final. A refund cannot exceed what was actually paid on the order.
+   */
   updateReturnStatus(id: string, status: ReturnStatus, adminNotes?: string): ReturnRequest | null {
     const req = this.returnRequests.find((r) => r.id === id);
     if (!req) return null;
+
+    const transition = canTransitionReturn(req.status, status);
+    if (!transition.allowed) {
+      throw new BusinessError(transition.reason || 'تغییر وضعیت مرجوعی مجاز نیست.', 400);
+    }
+    if (status === 'REFUNDED') {
+      const refund = Number(req.refundAmount);
+      if (!Number.isFinite(refund) || refund < 0) {
+        throw new BusinessError('مبلغ عودت نامعتبر است.', 400);
+      }
+      const order = this.getOrders().find((o) => o.orderNumber === req.orderNumber);
+      if (!order) {
+        throw new BusinessError('سفارش مرتبط با این درخواست مرجوعی یافت نشد.', 400);
+      }
+      const paidAmount = isCountableSaleOrder(order) ? order.totalAmount : 0;
+      if (refund > paidAmount) {
+        throw new BusinessError(
+          `مبلغ عودت نمی‌تواند بیشتر از مبلغ پرداخت‌شده سفارش (${paidAmount.toLocaleString('fa-IR')} تومان) باشد.`,
+          400
+        );
+      }
+    }
+
     req.status = status;
     if (adminNotes !== undefined) req.adminNotes = adminNotes;
     req.updatedAt = new Date().toLocaleDateString('fa-IR');
@@ -3578,51 +3703,151 @@ class FarmDataStore {
     return newSms;
   }
 
-  // --- SLOTS ---
-  getSlotsForUser(tierOrIsPro: boolean | SubscriptionTier) {
-    const slots = generateDeliverySlots(tierOrIsPro);
-    // Overlay booked counts from store
-    return slots.map((slot) => {
-      const extraBookings = this.slotBookings.get(slot.id) || 0;
-      const totalBookings = Math.min(slot.maxCapacity, slot.currentBookings + extraBookings);
-      const remaining = Math.max(0, slot.maxCapacity - totalBookings);
-      return {
-        ...slot,
-        currentBookings: totalBookings,
-        remainingCapacity: remaining,
-        isAvailable: slot.isAllowedForTier && remaining > 0,
-      };
-    });
+  // --- PAYMENT TIMEOUT (one value for every expiry check) ---
+  /** Minutes an online payment may stay pending before the order is auto-cancelled. Default 30. */
+  getPaymentTimeoutMinutes(): number {
+    const v = Number(this.paymentSettings?.general?.paymentTimeoutMinutes);
+    return Number.isFinite(v) && v > 0 ? v : 30;
   }
 
-  bookSlot(slotId: string): boolean {
-    const current = this.slotBookings.get(slotId) || 0;
-    this.slotBookings.set(slotId, current + 1);
-    this.saveServerState();
-    return true;
+  // --- SLOTS (server is the source of truth: closures and capacity live here, occupancy comes from orders) ---
+  /**
+   * Orders holding a place on a slot. CANCELLED orders never count. Expired PENDING online orders that have not
+   * been swept yet are ignored too, so a read-only check gives the same answer as a sweep would.
+   */
+  countSlotBookings(slotId: string, now: Date = new Date()): number {
+    const timeoutMs = this.getPaymentTimeoutMinutes() * 60 * 1000;
+    return this.getOrders().filter((o) => {
+      if (o.status === 'CANCELLED' || o.deliverySlotId !== slotId) return false;
+      if (o.status === 'PENDING_PAYMENT' && !isCodOrder(o)) {
+        const created = new Date(o.createdAt).getTime();
+        if (!Number.isNaN(created) && now.getTime() - created > timeoutMs) return false;
+      }
+      return true;
+    }).length;
   }
 
-  unbookSlot(slotId?: string | null): boolean {
-    if (!slotId) return false;
-    const current = this.slotBookings.get(slotId) || 0;
-    if (current > 0) {
-      this.slotBookings.set(slotId, current - 1);
-      this.saveServerState();
+  /** Capacity and manual closure for a civil date (YYYY-MM-DD). */
+  getDailyCapacitySetting(isoDate: string): { maxCapacity: number; isClosedManually: boolean } {
+    const override = this.dailyCapacityOverrides[isoDate];
+    return {
+      maxCapacity: override?.maxCapacity ?? DEFAULT_DAILY_CAPACITY,
+      isClosedManually: override?.isClosedManually ?? false,
+    };
+  }
+
+  /**
+   * Validates a client-supplied slot id for a user's tier (Asia/Tehran calendar). Never throws; returns the
+   * canonical slot to store, or a Persian error. Rejects malformed ids, past dates, dates beyond the booking
+   * horizon, days the tier cannot receive (Friday is always closed), manually closed days and full days.
+   */
+  validateDeliverySlot(
+    slotId: unknown,
+    tier: SubscriptionTier,
+    now: Date = new Date()
+  ): { ok: true; slot: DeliverySlot } | { ok: false; error: string } {
+    const parsed = parseSlotId(slotId);
+    if (!parsed) {
+      return { ok: false, error: 'سانس تحویل انتخابی نامعتبر است. لطفاً سانس را دوباره انتخاب فرمایید.' };
     }
-    return true;
-  }
-
-  checkSlotCapacity(slotId: string): { isAvailable: boolean; remainingCapacity: number } {
-    this.releaseExpiredPendingOrders(15);
-    const slots = this.getSlotsForUser(true);
-    const found = slots.find((s) => s.id === slotId);
-    if (!found) {
-      return { isAvailable: true, remainingCapacity: 30 };
+    const today = getTehranIsoDate(now);
+    if (parsed.isoDate <= today) {
+      return { ok: false, error: 'سانس تحویل انتخابی گذشته است. لطفاً تاریخ دیگری را انتخاب فرمایید.' };
+    }
+    if (parsed.isoDate > addDaysIso(today, MAX_BOOKING_DAYS_AHEAD)) {
+      return { ok: false, error: 'سانس تحویل انتخابی خارج از بازه رزرو است.' };
+    }
+    if (!isDayAllowedForUser(parsed.dayOfWeekIndex, tier)) {
+      return {
+        ok: false,
+        error:
+          tier === 'PRO'
+            ? 'روز تحویل انتخابی مجاز نمی‌باشد.'
+            : 'روز تحویل انتخابی با سطح اشتراک شما مطابقت ندارد. اعضای عادی فقط روزهای یکشنبه و چهارشنبه مجاز به دریافت سفارش هستند.',
+      };
+    }
+    const setting = this.getDailyCapacitySetting(parsed.isoDate);
+    if (setting.isClosedManually) {
+      return { ok: false, error: 'این روز تحویل به‌صورت موقت تعطیل است. لطفاً تاریخ دیگری را انتخاب فرمایید.' };
+    }
+    const booked = this.countSlotBookings(slotId as string, now);
+    if (booked >= setting.maxCapacity) {
+      return {
+        ok: false,
+        error: 'متاسفانه ظرفیت سانس تحویل انتخابی در شیراز تکمیل شده است. لطفاً سانس یا تاریخ دیگری را انتخاب فرمایید.',
+      };
     }
     return {
-      isAvailable: found.isAvailable && found.remainingCapacity > 0,
-      remainingCapacity: found.remainingCapacity,
+      ok: true,
+      slot: this.buildCanonicalSlot(parsed.isoDate, parsed.window, booked, setting.maxCapacity),
     };
+  }
+
+  /** Canonical slot stored on an order: identity and display fields only. */
+  buildCanonicalSlot(isoDate: string, window: string, bookedCount: number, maxCapacity: number): DeliverySlot {
+    const j = formatIsoDateToJalali(isoDate);
+    return {
+      id: buildSlotId(isoDate, window),
+      isoDate,
+      window,
+      jalaliLabel: j.jalaliLabel,
+      dayOfWeekIndex: j.dayOfWeekIndex,
+      date: j.shortDate,
+      dayOfWeek: j.dayOfWeek,
+      timeWindow: SLOT_TIME_LABEL,
+      maxCapacity,
+      currentBookings: bookedCount,
+      isAvailable: true,
+    };
+  }
+
+  /**
+   * Upcoming delivery slots for a user (tier-aware), for the Phase 3 API and checkout. Friday is never offered.
+   */
+  getAvailableSlotsForUser(
+    user: User | null | undefined,
+    days: number = 14,
+    now: Date = new Date()
+  ): AvailableDeliverySlot[] {
+    const tier = getEffectiveTier(user, now.getTime());
+    const today = getTehranIsoDate(now);
+    const horizon = Math.min(Math.max(1, Math.floor(days)), MAX_BOOKING_DAYS_AHEAD);
+    const result: AvailableDeliverySlot[] = [];
+    for (let i = 1; i <= horizon; i++) {
+      const isoDate = addDaysIso(today, i);
+      const j = formatIsoDateToJalali(isoDate);
+      if (j.dayOfWeekIndex === 5) continue;
+      const id = buildSlotId(isoDate, DEFAULT_SLOT_WINDOW);
+      const setting = this.getDailyCapacitySetting(isoDate);
+      const bookedCount = this.countSlotBookings(id, now);
+      const isAllowedForTier = isDayAllowedForUser(j.dayOfWeekIndex, tier);
+      const remainingCapacity = setting.isClosedManually ? 0 : Math.max(0, setting.maxCapacity - bookedCount);
+      result.push({
+        id,
+        isoDate,
+        window: DEFAULT_SLOT_WINDOW,
+        jalaliLabel: j.jalaliLabel,
+        dayOfWeekIndex: j.dayOfWeekIndex,
+        maxCapacity: setting.maxCapacity,
+        bookedCount,
+        remainingCapacity,
+        isClosed: setting.isClosedManually,
+        isAllowedForTier,
+        isAvailable: isAllowedForTier && remainingCapacity > 0,
+      });
+    }
+    return result;
+  }
+
+  /** Remaining places on a slot id (checks closure and capacity; never throws). */
+  checkSlotCapacity(slotId: string): { isAvailable: boolean; remainingCapacity: number } {
+    const parsed = parseSlotId(slotId);
+    if (!parsed) return { isAvailable: false, remainingCapacity: 0 };
+    const setting = this.getDailyCapacitySetting(parsed.isoDate);
+    const remaining = setting.isClosedManually
+      ? 0
+      : Math.max(0, setting.maxCapacity - this.countSlotBookings(slotId));
+    return { isAvailable: remaining > 0, remainingCapacity: remaining };
   }
 
   // --- ORDERS ---
@@ -3637,30 +3862,136 @@ class FarmDataStore {
   }
 
   /**
-   * Automatically releases inventory for orders stuck in PENDING_PAYMENT for longer than timeoutMinutes.
+   * Auto-cancels online orders still PENDING_PAYMENT after the payment timeout (see getPaymentTimeoutMinutes).
+   * COD orders are not subject to the timeout. Uses the same cancel side effects as an admin cancel.
    */
-  releaseExpiredPendingOrders(timeoutMinutes: number = 15): number {
+  releaseExpiredPendingOrders(timeoutMinutes: number = this.getPaymentTimeoutMinutes()): number {
     this.getOrders();
     const now = Date.now();
     const timeoutMs = timeoutMinutes * 60 * 1000;
     let releasedCount = 0;
 
-    this.orders.forEach((order) => {
-      if (order.status === 'PENDING_PAYMENT') {
-        const orderTime = new Date(order.createdAt).getTime();
-        if (!isNaN(orderTime) && now - orderTime > timeoutMs) {
-          order.status = 'CANCELLED';
-          this.restoreOrderStock(order.orderNumber);
-          releasedCount++;
+    for (const order of this.orders) {
+      if (order.status !== 'PENDING_PAYMENT' || isCodOrder(order)) continue;
+      const orderTime = new Date(order.createdAt).getTime();
+      if (Number.isNaN(orderTime) || now - orderTime <= timeoutMs) continue;
+
+      if (order.payment && order.payment.status === 'INITIATED') {
+        order.payment = { ...order.payment, status: 'FAILED' };
+      }
+      order.status = 'CANCELLED';
+      order.updatedAt = new Date().toISOString();
+      this.cancelOrderSideEffects(order);
+      releasedCount++;
+    }
+
+    return releasedCount;
+  }
+
+  /**
+   * The one place where a cancelled order gives back its resources: stock, the delivery slot (occupancy is derived
+   * from orders, so the slot frees itself) and the coupon use. Idempotent through order.sideEffectsReleased.
+   * The caller sets status to CANCELLED.
+   */
+  cancelOrderSideEffects(order: Order): boolean {
+    if (order.sideEffectsReleased) return false;
+
+    for (const item of order.items || []) {
+      if (!item.productId || item.productId.startsWith('sub-')) continue;
+      const prod = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
+      if (prod) {
+        prod.stock = (prod.stock || 0) + item.quantity;
+        if (prod.status === 'OUT_OF_STOCK' && prod.stock > 0) {
+          prod.status = 'AVAILABLE';
         }
       }
-    });
-
-    if (releasedCount > 0) {
-      this.saveOrders();
-      this.saveProducts();
     }
-    return releasedCount;
+
+    if (order.couponCounted && order.couponCode) {
+      this.adjustCouponUsage(order.couponCode, -1);
+    }
+    order.couponCounted = false;
+    order.sideEffectsReleased = true;
+    order.updatedAt = new Date().toISOString();
+
+    this.saveProducts();
+    this.saveOrders();
+    return true;
+  }
+
+  /** Counts the order's coupon use once. Used for COD orders at creation and for online orders once paid. */
+  private countOrderCouponOnce(order: Order): void {
+    if (order.couponCode && !order.couponCounted) {
+      this.adjustCouponUsage(order.couponCode, 1);
+      order.couponCounted = true;
+    }
+  }
+
+  /** Public form of countOrderCouponOnce (idempotent). */
+  countOrderCoupon(idOrNumber: string): boolean {
+    this.getOrders();
+    const order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
+    if (!order) return false;
+    this.countOrderCouponOnce(order);
+    this.saveOrders();
+    return true;
+  }
+
+  /**
+   * Records a gateway-confirmed payment. Only PENDING_PAYMENT orders become paid (PROCESSING).
+   * - PAID: payment SUCCESS, status PROCESSING, coupon counted.
+   * - ALREADY_PAID: repeated callback for a paid order. Nothing changes.
+   * - PAID_AFTER_CANCEL: the order was already cancelled (for example auto-expired). It is NOT revived. The payment is
+   *   recorded and flagged paidAfterCancel so that support refunds it.
+   * - NOT_PAYABLE: the order is in a state where an online payment cannot apply.
+   * Callers must hold the per-order lock (src/lib/order-lock.ts).
+   */
+  recordSuccessfulPayment(
+    idOrNumber: string,
+    confirmation: { refId: string; gateway?: string }
+  ): { outcome: 'PAID' | 'ALREADY_PAID' | 'PAID_AFTER_CANCEL' | 'NOT_PAYABLE'; order: Order | null } {
+    this.getOrders();
+    const order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
+    if (!order) return { outcome: 'NOT_PAYABLE', order: null };
+
+    const setSuccessfulPayment = () => {
+      const base = order.payment || {
+        id: `pay-${Date.now()}`,
+        orderId: order.orderNumber,
+        amount: order.totalAmount,
+        gateway: confirmation.gateway || 'zarinpal',
+        status: 'INITIATED' as const,
+      };
+      order.payment = { ...base, status: 'SUCCESS', refId: confirmation.refId };
+    };
+
+    if (order.status === 'CANCELLED') {
+      if (order.paidAfterCancel) return { outcome: 'PAID_AFTER_CANCEL', order };
+      setSuccessfulPayment();
+      order.paidAfterCancel = true;
+      order.updatedAt = new Date().toISOString();
+      this.saveOrders();
+      return { outcome: 'PAID_AFTER_CANCEL', order };
+    }
+
+    if (order.status !== 'PENDING_PAYMENT') {
+      return {
+        outcome: order.payment?.status === 'SUCCESS' ? 'ALREADY_PAID' : 'NOT_PAYABLE',
+        order,
+      };
+    }
+
+    setSuccessfulPayment();
+    if (!canTransition(order, 'PROCESSING').allowed) {
+      return { outcome: 'NOT_PAYABLE', order };
+    }
+    order.status = 'PROCESSING';
+    order.settlementRef = confirmation.refId;
+    order.settlementStatus = 'SETTLED';
+    order.updatedAt = new Date().toISOString();
+    this.countOrderCouponOnce(order);
+    this.saveOrders();
+    return { outcome: 'PAID', order };
   }
 
   createOrder(orderData: Omit<Order, 'id' | 'createdAt'>): Order {
@@ -3668,7 +3999,7 @@ class FarmDataStore {
     this.getProducts();
 
     // 1. Release any expired pending orders before verifying stock
-    this.releaseExpiredPendingOrders(15);
+    this.releaseExpiredPendingOrders();
 
     // 2. ATOMIC PRE-CHECK: Verify all requested physical items have sufficient stock
     for (const item of orderData.items) {
@@ -3693,6 +4024,9 @@ class FarmDataStore {
       ...orderData,
       id: `ord-${Date.now()}`,
       createdAt: new Date().toISOString(),
+      couponCounted: false,
+      sideEffectsReleased: false,
+      paidAfterCancel: false,
     };
 
     // 3. ATOMIC STOCK DEDUCTION: Only runs if all items passed the check
@@ -3708,11 +4042,7 @@ class FarmDataStore {
     });
     this.saveProducts();
 
-    // Track delivery slot booking
-    if (newOrder.deliverySlotId) {
-      this.bookSlot(newOrder.deliverySlotId);
-    }
-
+    // Slot occupancy is derived from orders (see countSlotBookings), so nothing else is booked here.
     this.orders.unshift(newOrder);
     this.saveOrders();
 
@@ -3777,12 +4107,28 @@ class FarmDataStore {
     return order;
   }
 
+  /**
+   * Changes an order's status through the single transition table (order-utils canTransition).
+   * Throws BusinessError for a forbidden move. Moving to CANCELLED runs cancelOrderSideEffects exactly once.
+   */
   async updateOrderStatus(id: string, newStatus: OrderStatus): Promise<Order | null> {
     this.getOrders();
     const order = this.orders.find((o) => o.id === id || o.orderNumber === id);
     if (!order) return null;
+    if (order.status === newStatus) return order;
 
-    order.status = newStatus;
+    const check = canTransition(order, newStatus);
+    if (!check.allowed) {
+      throw new BusinessError(check.reason || 'تغییر وضعیت سفارش مجاز نیست.', 400);
+    }
+
+    if (newStatus === 'CANCELLED') {
+      order.status = 'CANCELLED';
+      this.cancelOrderSideEffects(order);
+    } else {
+      order.status = newStatus;
+      this.countOrderCouponOnce(order);
+    }
     order.updatedAt = new Date().toISOString();
     // saveOrders also schedules the PostgreSQL mirror (queued, logged on failure)
     this.saveOrders();
@@ -3840,88 +4186,38 @@ class FarmDataStore {
     return order;
   }
 
-  restoreOrderStock(idOrNumber: string): boolean {
-    this.getOrders();
-    const order = this.orders.find((o) => o.id === idOrNumber || o.orderNumber === idOrNumber);
-    if (!order) return false;
-
-    order.items.forEach((item) => {
-      const prod = this.products.find((p) => p.id === item.productId || p.slug === item.productId);
-      if (prod) {
-        prod.stock = (prod.stock || 0) + item.quantity;
-        if (prod.status === 'OUT_OF_STOCK' && prod.stock > 0) {
-          prod.status = 'AVAILABLE';
-        }
-      }
-    });
-
-    // Release Shiraz delivery slot booking
-    if (order.deliverySlotId) {
-      this.unbookSlot(order.deliverySlotId);
-    }
-
-    this.saveProducts();
-    this.saveOrders();
-    return true;
-  }
-
   /**
-   * Calculates the total eggs purchased with subscription discount by a user within a rolling 30-day window.
-   * Includes paid orders (PROCESSING, OUT_FOR_DELIVERY, DELIVERED) and active non-expired PENDING_PAYMENT orders
-   * to protect against multi-tab concurrency race conditions.
+   * Eggs that counted against a user's subscription egg quota in the last 30 days (rolling window).
+   * Matched by account id only (never by phone). Only eggs that received the discount are counted: each item stores
+   * eggDiscountedCount at creation. Items created before that field existed count as 0.
+   * Includes paid orders and PENDING orders still inside the payment window (so two tabs cannot overspend).
    */
-  getUserRolling30DaysEggDiscountUsed(userId?: string, phone?: string): number {
-    const cleanPhone = phone ? normalizePhoneNumber(phone) : '';
-    if (!userId && !cleanPhone) return 0;
+  getUserRolling30DaysEggDiscountUsed(userId?: string | null): number {
+    if (!userId) return 0;
 
     const now = Date.now();
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    const cutoffTime = now - thirtyDaysMs;
-    const pendingTimeoutMs = (this.paymentSettings?.general?.paymentTimeoutMinutes || 30) * 60 * 1000;
+    const cutoffTime = now - 30 * 24 * 60 * 60 * 1000;
+    const pendingTimeoutMs = this.getPaymentTimeoutMinutes() * 60 * 1000;
+    let totalEggsDiscounted = 0;
 
-    const allOrders = this.getOrders();
-    let totalEggCountUsed = 0;
-
-    for (const ord of allOrders) {
-      if (ord.isSubscription) continue;
-
-      const isUserMatch =
-        (userId && ord.userId === userId) ||
-        (cleanPhone && cleanPhone.length >= 10 && (
-          (ord.address?.phone && normalizePhoneNumber(ord.address.phone) === cleanPhone) ||
-          (ord.user?.phone && normalizePhoneNumber(ord.user.phone) === cleanPhone)
-        ));
-      if (!isUserMatch) continue;
+    for (const ord of this.getOrders()) {
+      if (ord.isSubscription || ord.userId !== userId) continue;
 
       const orderCreatedAt = new Date(ord.createdAt).getTime();
-      if (isNaN(orderCreatedAt) || orderCreatedAt < cutoffTime) continue;
+      if (Number.isNaN(orderCreatedAt) || orderCreatedAt < cutoffTime) continue;
 
-      // Include paid orders
       const isPaid = ['PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(ord.status);
-      // Include active pending payment orders to prevent multi-tab concurrency race condition
-      const isActivePending = ord.status === 'PENDING_PAYMENT' && (now - orderCreatedAt < pendingTimeoutMs);
-
+      const isActivePending =
+        ord.status === 'PENDING_PAYMENT' && (isCodOrder(ord) || now - orderCreatedAt < pendingTimeoutMs);
       if (!isPaid && !isActivePending) continue;
 
-      let orderEggs = 0;
       for (const item of ord.items || []) {
-        const prod = item.product;
-        const isEgg =
-          prod?.category === 'تخم‌مرغ و ماکیان' ||
-          prod?.title?.includes('تخم‌مرغ') ||
-          prod?.id?.includes('egg') ||
-          item.productId?.includes('egg');
-
-        if (isEgg) {
-          const packStr = prod?.packSize || '';
-          const eggsPerPack = packStr.includes('20') || packStr.includes('۲۰') ? 20 : 30;
-          orderEggs += eggsPerPack * (item.quantity || 1);
-        }
+        const n = Math.floor(Number(item.eggDiscountedCount));
+        if (Number.isFinite(n) && n > 0) totalEggsDiscounted += n;
       }
-      totalEggCountUsed += orderEggs;
     }
 
-    return totalEggCountUsed;
+    return totalEggsDiscounted;
   }
 
   resetOrders(): Order[] {
@@ -4403,13 +4699,19 @@ class FarmDataStore {
     return this.subscriptionSettings;
   }
 
+  /** Accounts whose plan applies today (expired plans do not count). Used for plan capacity checks. */
+  countActiveMembers(plan: 'PLUS' | 'PRO', nowMs: number = Date.now()): number {
+    return this.getAllUsers().filter((u) => getEffectiveTier(u, nowMs) === plan).length;
+  }
+
   getSubscriptionStats(): SubscriptionStats {
     const users = this.getAllUsers();
     const settings = this.getSubscriptionSettings();
 
-    const proCount = users.filter((u) => u.tier === 'PRO' || (u.isProMember && !u.tier)).length;
-    const plusCount = users.filter((u) => u.tier === 'PLUS').length;
-    const freeCount = users.filter((u) => u.tier === 'FREE' || (!u.tier && !u.isProMember)).length;
+    // Counts use the tier that applies today (an expired plan counts as FREE)
+    const proCount = users.filter((u) => getEffectiveTier(u) === 'PRO').length;
+    const plusCount = users.filter((u) => getEffectiveTier(u) === 'PLUS').length;
+    const freeCount = users.filter((u) => getEffectiveTier(u) === 'FREE').length;
     const totalUsers = users.length;
 
     const proCapacity = settings.proMaxCapacity || 0;
@@ -4464,7 +4766,7 @@ class FarmDataStore {
       general: {
         currency: s.general?.currency || 'IRT',
         allowCashOnDelivery: Boolean(s.general?.allowCashOnDelivery),
-        paymentTimeoutMinutes: s.general?.paymentTimeoutMinutes ?? 15,
+        paymentTimeoutMinutes: s.general?.paymentTimeoutMinutes ?? 30,
         guideMessage: s.general?.guideMessage,
       },
     };
@@ -4530,30 +4832,58 @@ class FarmDataStore {
   }
 
   createCoupon(data: Omit<Coupon, 'id' | 'createdAt' | 'usageCount'>): Coupon {
-    const newCoupon: Coupon = {
-      ...data,
+    const fields = sanitizeCouponFields(data as unknown as Record<string, unknown>);
+    if (!fields.code) throw new BusinessError('کد تخفیف الزامی است.', 400);
+    if (this.coupons.some((c) => c.code.toUpperCase() === fields.code)) {
+      throw new BusinessError('این کد تخفیف قبلاً تعریف شده است. لطفاً کد دیگری انتخاب کنید.', 409);
+    }
+    const now = new Date().toISOString();
+    const newCoupon = clampCouponValues({
       id: `coup-${Date.now()}`,
-      code: data.code.trim().toUpperCase(),
+      code: fields.code,
+      title: fields.title ?? '',
+      description: fields.description,
+      targetType: fields.targetType ?? 'ALL_PRODUCTS',
+      targetProductId: fields.targetProductId,
+      targetProductName: fields.targetProductName,
+      discountType: fields.discountType ?? 'PERCENTAGE',
+      discountValue: fields.discountValue ?? 0,
+      minOrderAmount: fields.minOrderAmount,
+      maxDiscountAmount: fields.maxDiscountAmount,
+      usageLimit: fields.usageLimit,
+      perUserLimit: fields.perUserLimit,
       usageCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      isActive: fields.isActive ?? true,
+      startsAt: fields.startsAt ?? null,
+      expiresAt: fields.expiresAt ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
     this.coupons.unshift(newCoupon);
     this.persistCoupons();
     return newCoupon;
   }
 
+  /** Updates only whitelisted fields. id, usageCount and createdAt can never change through this method. */
   updateCoupon(id: string, updates: Partial<Coupon>): Coupon | null {
     const idx = this.coupons.findIndex((c) => c.id === id);
     if (idx === -1) return null;
-    this.coupons[idx] = {
-      ...this.coupons[idx],
-      ...updates,
-      code: updates.code ? updates.code.trim().toUpperCase() : this.coupons[idx].code,
+    const current = this.coupons[idx];
+    const fields = sanitizeCouponFields(updates as unknown as Record<string, unknown>);
+    if (fields.code && fields.code !== current.code && this.coupons.some((c) => c.id !== id && c.code.toUpperCase() === fields.code)) {
+      throw new BusinessError('این کد تخفیف قبلاً تعریف شده است. لطفاً کد دیگری انتخاب کنید.', 409);
+    }
+    const next = clampCouponValues({
+      ...current,
+      ...fields,
+      id: current.id,
+      usageCount: current.usageCount || 0,
+      createdAt: current.createdAt,
       updatedAt: new Date().toISOString(),
-    };
+    } as Coupon);
+    this.coupons[idx] = next;
     this.persistCoupons();
-    return this.coupons[idx];
+    return next;
   }
 
   deleteCoupon(id: string): boolean {
@@ -4572,12 +4902,12 @@ class FarmDataStore {
     return coupon;
   }
 
-  incrementCouponUsage(code: string): void {
+  /** Adds or removes coupon uses. Only called from order payment, COD creation and order cancellation. */
+  private adjustCouponUsage(code: string, delta: number): void {
     const coupon = this.getCouponByCode(code);
-    if (coupon) {
-      coupon.usageCount = (coupon.usageCount || 0) + 1;
-      this.persistCoupons();
-    }
+    if (!coupon) return;
+    coupon.usageCount = Math.max(0, (coupon.usageCount || 0) + delta);
+    this.persistCoupons();
   }
 
   private persistCoupons(): void {
@@ -4591,146 +4921,102 @@ class FarmDataStore {
     }
   }
 
+  /**
+   * Validates a coupon and computes its discount for a cart. The discount never exceeds the amount it targets
+   * (shipping fee, one product line, or the items subtotal) and never exceeds 100% of it.
+   * Checks: active flag, start and expiry dates (Asia/Tehran, inclusive end), total usage, per-user usage, minimum order.
+   * options.now defaults to the current time. options.userId enables the per-user limit.
+   */
   validateAndApplyCoupon(
     code: string,
     cartItems: { product: { id: string; price: number; title?: string }; quantity: number }[],
     shippingFee: number,
-    itemsSubtotal: number
+    itemsSubtotal: number,
+    options: { userId?: string | null; now?: number } = {}
   ): CouponValidationResult {
-    const cleanCode = code.trim().toUpperCase();
-    if (!cleanCode) {
-      return {
-        isValid: false,
-        message: 'لطفاً کد تخفیف را وارد نمایید.',
-        discountAmount: 0,
-      };
-    }
+    const invalid = (message: string): CouponValidationResult => ({ isValid: false, message, discountAmount: 0 });
+
+    const cleanCode = String(code || '').trim().toUpperCase();
+    if (!cleanCode) return invalid('لطفاً کد تخفیف را وارد نمایید.');
 
     const coupon = this.getCouponByCode(cleanCode);
+    if (!coupon) return invalid('کد تخفیف وارد شده معتبر نمی‌باشد.');
+    if (!coupon.isActive) return invalid('این کد تخفیف در حال حاضر غیرفعال است.');
 
-    if (!coupon) {
-      return {
-        isValid: false,
-        message: 'کد تخفیف وارد شده معتبر نمی‌باشد.',
-        discountAmount: 0,
-      };
+    const now = options.now ?? Date.now();
+    if (coupon.startsAt) {
+      const start = parseTehranDateValue(coupon.startsAt, false);
+      if (start === null) return invalid('تاریخ شروع این کد تخفیف نامعتبر است.');
+      if (now < start) return invalid('این کد تخفیف هنوز فعال نشده است.');
+    }
+    if (coupon.expiresAt) {
+      const end = parseTehranDateValue(coupon.expiresAt, true);
+      if (end === null) return invalid('تاریخ انقضای این کد تخفیف نامعتبر است.');
+      if (now > end) return invalid('این کد تخفیف منقضی شده است.');
     }
 
-    if (!coupon.isActive) {
-      return {
-        isValid: false,
-        message: 'این کد تخفیف در حال حاضر غیرفعال است.',
-        discountAmount: 0,
-      };
+    if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
+      return invalid('ظرفیت استفاده از این کد تخفیف به اتمام رسیده است.');
     }
-
-    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
-      return {
-        isValid: false,
-        message: 'ظرفیت استفاده از این کد تخفیف به اتمام رسیده است.',
-        discountAmount: 0,
-      };
+    if (coupon.perUserLimit && options.userId) {
+      const used = this.getOrders().filter(
+        (o) => o.userId === options.userId && o.couponCode === coupon.code && o.status !== 'CANCELLED'
+      ).length;
+      if (used >= coupon.perUserLimit) {
+        return invalid('شما قبلاً از این کد تخفیف به حداکثر تعداد مجاز استفاده کرده‌اید.');
+      }
     }
 
     if (coupon.minOrderAmount && itemsSubtotal < coupon.minOrderAmount) {
-      return {
-        isValid: false,
-        message: `حداقل ارزش سبد برای این کد تخفیف ${coupon.minOrderAmount.toLocaleString('fa-IR')} تومان است.`,
-        discountAmount: 0,
-      };
+      return invalid(`حداقل ارزش سبد برای این کد تخفیف ${coupon.minOrderAmount.toLocaleString('fa-IR')} تومان است.`);
     }
 
-    let discountAmount = 0;
+    const value = Number(coupon.discountValue);
+    if (!Number.isFinite(value) || value < 0) return invalid('مقدار تخفیف این کد نامعتبر است.');
+    const isPercent = coupon.discountType === 'PERCENTAGE';
+    const percent = Math.min(100, value);
+    const cap = isPercent && coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0 ? coupon.maxDiscountAmount : Infinity;
 
-    if (coupon.targetType === 'SHIPPING') {
-      if (shippingFee <= 0) {
-        return {
-          isValid: false,
-          message: 'هزینه ارسال سفارش شما در حال حاضر رایگان است.',
-          discountAmount: 0,
-        };
-      }
-      if (coupon.discountType === 'PERCENTAGE') {
-        discountAmount = Math.round(shippingFee * (coupon.discountValue / 100));
-      } else {
-        discountAmount = Math.min(shippingFee, coupon.discountValue);
-      }
-    } else if (coupon.targetType === 'SPECIFIC_PRODUCT') {
-      const item = cartItems.find((ci) => ci.product.id === coupon.targetProductId);
-      if (!item) {
-        return {
-          isValid: false,
-          message: `این کد تخفیف فقط برای «${coupon.targetProductName || 'محصول انتخاب‌شده'}» است و در سبد شما وجود ندارد.`,
-          discountAmount: 0,
-        };
-      }
-      const itemTotal = item.product.price * item.quantity;
-      if (coupon.discountType === 'PERCENTAGE') {
-        discountAmount = Math.round(itemTotal * (coupon.discountValue / 100));
-        if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
-          discountAmount = coupon.maxDiscountAmount;
-        }
-      } else {
-        discountAmount = Math.min(itemTotal, coupon.discountValue);
-      }
-    } else if (coupon.targetType === 'ALL_PRODUCTS') {
-      if (coupon.discountType === 'PERCENTAGE') {
-        discountAmount = Math.round(itemsSubtotal * (coupon.discountValue / 100));
-        if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
-          discountAmount = coupon.maxDiscountAmount;
-        }
-      } else {
-        discountAmount = Math.min(itemsSubtotal, coupon.discountValue);
-      }
-    }
-
-    return {
+    const amountFor = (base: number): number => {
+      if (base <= 0) return 0;
+      let amount = isPercent ? Math.round((base * percent) / 100) : value;
+      amount = Math.min(amount, cap, base);
+      return Math.max(0, Math.round(amount));
+    };
+    const valid = (amount: number): CouponValidationResult => ({
       isValid: true,
       message: `کد تخفیف اعمال شد: ${coupon.title}`,
       coupon,
-      discountAmount,
+      discountAmount: amount,
       targetType: coupon.targetType,
-    };
+    });
+
+    if (coupon.targetType === 'SHIPPING') {
+      if (shippingFee <= 0) return invalid('هزینه ارسال سفارش شما در حال حاضر رایگان است.');
+      return valid(amountFor(shippingFee));
+    }
+    if (coupon.targetType === 'SPECIFIC_PRODUCT') {
+      const item = cartItems.find((ci) => ci.product.id === coupon.targetProductId);
+      if (!item) {
+        return invalid(`این کد تخفیف فقط برای «${coupon.targetProductName || 'محصول انتخاب‌شده'}» است و در سبد شما وجود ندارد.`);
+      }
+      return valid(amountFor(item.product.price * item.quantity));
+    }
+    if (coupon.targetType === 'ALL_PRODUCTS') {
+      return valid(amountFor(itemsSubtotal));
+    }
+    return invalid('نوع کد تخفیف نامعتبر است.');
   }
 
   // --- Daily Delivery Capacity Management (Admin Exclusive & Checkout Enforcement) ---
-  getDailyCapacities(): DailyCapacityItem[] {
-    const rawSlots = generateDeliverySlots(true, 12);
-    // Server: overrides live in the persisted store. Browser: legacy localStorage copy.
-    let overrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> =
-      typeof window === 'undefined' ? { ...this.dailyCapacityOverrides } : {};
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('profarm_daily_capacities');
-        if (stored) {
-          overrides = JSON.parse(stored);
-        }
-      } catch (e) {
-        console.error('Error loading daily capacities', e);
-      }
-    }
-
-    const orders = this.getOrders();
-
+  // --- Daily Delivery Capacity Management (server state; admin changes persist with saveServerState) ---
+  getDailyCapacities(now: Date = new Date()): DailyCapacityItem[] {
+    const rawSlots = generateDeliverySlots(true, 12, undefined, false, now);
     return rawSlots.map((slot) => {
       const dateIso = slot.jalali.isoDateString;
-      const override = overrides[dateIso];
-      const maxCapacity = override?.maxCapacity ?? 30;
-      const isClosedManually = override?.isClosedManually ?? false;
-
-      // Count actual orders booked for this date
-      const matchingOrders = orders.filter((o) => {
-        if (!o.deliverySlot) return false;
-        return (
-          o.deliverySlot.isoDate === dateIso ||
-          o.deliverySlot.date === slot.jalali.shortDate ||
-          o.deliverySlot.date === slot.jalali.formattedDate
-        );
-      });
-
-      // baseline simulation + actual orders
-      const baseline = slot.currentBookings;
-      const bookedCount = isClosedManually ? maxCapacity : Math.min(maxCapacity, Math.max(baseline, matchingOrders.length));
+      const { maxCapacity, isClosedManually } = this.getDailyCapacitySetting(dateIso);
+      const booked = this.countSlotBookings(slot.id, now);
+      const bookedCount = isClosedManually ? maxCapacity : Math.min(maxCapacity, booked);
       const remainingCapacity = isClosedManually ? 0 : Math.max(0, maxCapacity - bookedCount);
 
       let status: 'OPEN' | 'NEAR_FULL' | 'FULL' = 'OPEN';
@@ -4742,7 +5028,7 @@ class FarmDataStore {
 
       return {
         dateIso,
-        jalaliFormatted: slot.jalali.formattedDate,
+        jalaliFormatted: slot.jalali.jalaliLabel,
         dayOfWeek: slot.jalali.dayOfWeek,
         maxCapacity,
         bookedCount,
@@ -4754,25 +5040,22 @@ class FarmDataStore {
   }
 
   setDailyCapacity(dateIso: string, updates: { maxCapacity?: number; isClosedManually?: boolean }): DailyCapacityItem[] {
-    if (typeof window === 'undefined') {
-      this.dailyCapacityOverrides = {
-        ...this.dailyCapacityOverrides,
-        [dateIso]: { ...this.dailyCapacityOverrides[dateIso], ...updates },
-      };
-      this.saveServerState();
-      return this.getDailyCapacities();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateIso)) || parseTehranDateValue(dateIso, false) === null) {
+      throw new BusinessError('تاریخ روز تحویل نامعتبر است.', 400);
     }
-    try {
-      const stored = localStorage.getItem('profarm_daily_capacities');
-      const overrides: Record<string, { maxCapacity?: number; isClosedManually?: boolean }> = stored ? JSON.parse(stored) : {};
-      overrides[dateIso] = {
-        ...overrides[dateIso],
-        ...updates,
-      };
-      localStorage.setItem('profarm_daily_capacities', JSON.stringify(overrides));
-    } catch (e) {
-      console.error('Error saving daily capacity', e);
+    const next: { maxCapacity?: number; isClosedManually?: boolean } = { ...this.dailyCapacityOverrides[dateIso] };
+    if (updates.maxCapacity !== undefined) {
+      const n = Math.floor(Number(updates.maxCapacity));
+      if (!Number.isFinite(n) || n < 0 || n > 10000) {
+        throw new BusinessError('ظرفیت روزانه باید عددی بین ۰ تا ۱۰۰۰۰ باشد.', 400);
+      }
+      next.maxCapacity = n;
     }
+    if (updates.isClosedManually !== undefined) {
+      next.isClosedManually = Boolean(updates.isClosedManually);
+    }
+    this.dailyCapacityOverrides = { ...this.dailyCapacityOverrides, [dateIso]: next };
+    this.saveServerState();
     return this.getDailyCapacities();
   }
 
@@ -4887,7 +5170,6 @@ class FarmDataStore {
     this.smsEventTemplates = [...DEFAULT_SMS_EVENT_TEMPLATES];
     this.smsSettings = { ...DEFAULT_SMS_PROVIDER_SETTINGS };
     this.reviews = [...INITIAL_PRODUCT_REVIEWS];
-    this.slotBookings = new Map();
     this.dailyCapacityOverrides = {};
     this.saveServerState();
 

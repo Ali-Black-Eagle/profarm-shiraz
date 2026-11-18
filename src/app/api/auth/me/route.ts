@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/session';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { getEffectiveTier } from '@/lib/subscription';
 
 // Fields a customer may change through POST /api/auth/me. Anything else (role, tier, phone,
 // email verification, subscription data, ...) is ignored.
@@ -43,7 +44,13 @@ export async function GET(req: NextRequest) {
 
   // Sanitize user (stripping password hash, secret salt, etc.)
   const safeUser = sanitizeUser(fullUser);
-  const usedEggQuotaThisMonth = farmStore.getUserRolling30DaysEggDiscountUsed(safeUser.id, safeUser.phone || session.phone);
+  // The tier that applies today (an expired plan is reported as FREE)
+  const tier = getEffectiveTier(fullUser);
+  safeUser.tier = tier;
+  safeUser.subscriptionTier = tier;
+  safeUser.isProMember = tier !== 'FREE';
+  safeUser.isPlusMember = tier === 'PLUS';
+  const usedEggQuotaThisMonth = farmStore.getUserRolling30DaysEggDiscountUsed(safeUser.id);
   safeUser.eggDiscountUsed = usedEggQuotaThisMonth;
 
   return NextResponse.json({
