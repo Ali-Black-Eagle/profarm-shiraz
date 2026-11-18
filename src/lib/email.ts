@@ -22,6 +22,11 @@ export interface SendEmailOptions {
   text?: string;
   html?: string;
   fallbackForSms?: boolean;
+  /**
+   * true for messages that carry a secret (verification or OTP codes). Their body is never printed and is
+   * stored as '[redacted]' in the email log, in every mode. The message is still delivered to the address.
+   */
+  sensitive?: boolean;
 }
 
 export interface SendEmailResult {
@@ -211,7 +216,7 @@ export async function createMailTransporter(settings: EmailProviderSettings) {
  * Sends a real or simulated email, records the log in farmStore, and notifies subscribers.
  */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  const { to, recipientName, subject, text, html, fallbackForSms } = options;
+  const { to, recipientName, subject, text, html, fallbackForSms, sensitive } = options;
 
   if (!isValidEmail(to)) {
     return {
@@ -239,6 +244,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     fallbackForSms: !!fallbackForSms,
     createdAt: new Date().toISOString(),
   };
+  // A sensitive body (a code) is kept out of the log, in every mode
+  if (sensitive) logEntry.body = '[redacted]';
 
   const settings = getEffectiveEmailSettings();
   const hasSmtpAuth = Boolean(
@@ -278,7 +285,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     console.log(`To: ${to} (${recipientName || 'کاربر'})`);
     console.log(`Subject: ${subject}`);
     if (fallbackForSms) console.log(`[Notice] Delivered as automatic fallback for SMS!`);
-    console.log(`Content:\n${content}`);
+    console.log(sensitive ? `Content: [sensitive content redacted]` : `Content:\n${content}`);
     console.log(`Note: To send real emails, set SMTP_HOST, SMTP_USER, and SMTP_PASS in .env or via Admin Panel.`);
     console.log(`===========================================================================\n`);
     logEntry.status = 'SENT';

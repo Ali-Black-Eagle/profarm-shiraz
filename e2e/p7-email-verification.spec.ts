@@ -264,10 +264,18 @@ test.describe('P7 email ownership: local dev build', () => {
     expect(r.json.user.email).toBe(S.regEmail);
   });
 
-  test('9. the code request refuses an address a verified account holds (409)', async () => {
+  test('9. the code request for an address a verified account holds answers like a fresh one, but sends nothing', async () => {
+    // Enumeration: the answer is the same 200 as for a free address, and no code is issued or reserved
     const rc = await send('POST', '/api/auth/email/register-code', { body: { email: S.xEmail } });
-    expect(rc.status).toBe(409);
-    expect(rc.json.success).toBe(false);
+    expect(rc.status).toBe(200);
+    expect(rc.json.success).toBe(true);
+    expect(rc.json.debugCode, 'no code is issued for a taken address').toBeUndefined();
+    // Registration with that address still fails: there is no valid code for it
+    const reg = await send('POST', '/api/auth/register', {
+      body: { name: 'تست آدرس تصاحب‌شده', email: S.xEmail, password: PASSWORD, emailCode: '123456' },
+    });
+    expect(reg.status).toBeGreaterThanOrEqual(400);
+    expect(reg.json.success).toBe(false);
   });
 
   test('10. removing the email needs no code and clears the pending address', async () => {

@@ -32,6 +32,9 @@ model User {
   username               String?
   name                   String?
   email                  String?         @unique
+  isEmailVerified        Boolean         @default(false) // true only after a code sent to `email` was entered (or Google sign-in)
+  pendingEmail           String?         // address waiting for its code; reserves nothing
+  sessionVersion         Int             @default(0) // bumped on password change; older session cookies stop working
   password               String?
   authProvider           String          @default("PHONE_OTP") // PHONE_OTP, PASSWORD, GOOGLE
   isPhoneVerified        Boolean         @default(false)

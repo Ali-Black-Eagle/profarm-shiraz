@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { isValidEmail } from '@/lib/email';
-import { requestEmailCode } from '@/lib/email-verification';
+import { EMAIL_CODE_SENT_MESSAGE, requestEmailCode } from '@/lib/email-verification';
 import { getSecureClientIp } from '@/lib/formatters';
 
 export const dynamic = 'force-dynamic';
@@ -25,10 +25,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Same answer as the registration itself would give, so no code is sent for an address that is taken
+    // An address that another account holds gets the same answer as a fresh one, but no code is sent and nothing
+    // is reserved. The response therefore does not reveal which addresses have accounts. Registration then fails
+    // with the generic message, because the code was never sent.
     const claim = farmStore.checkEmailClaim('', email);
     if (!claim.ok) {
-      return NextResponse.json({ success: false, message: claim.message }, { status: claim.status });
+      return NextResponse.json({ success: true, message: EMAIL_CODE_SENT_MESSAGE });
     }
 
     const sent = await requestEmailCode({

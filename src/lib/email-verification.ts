@@ -146,10 +146,15 @@ const SUBJECTS: Record<EmailCodePurpose, string> = {
   register: 'کد تایید ثبت‌نام با ایمیل پروفارم شیراز',
 };
 
+/** Success text of a code request. Also used when an address is taken, so the answer does not reveal the account. */
+export const EMAIL_CODE_SENT_MESSAGE = 'کد تایید ۶ رقمی به آدرس ایمیل شما ارسال شد. این کد تا ۱۵ دقیقه معتبر است.';
+
 /**
  * Rate-limits, creates and sends a code to `email` (already trimmed and lower-cased, format checked by the caller).
  * Limits: 3 codes per address per 15 minutes; 10 per account per hour (when signed in); 10 per IP per hour
- * (skipped when the IP is unknown, like the other routes).
+ * (skipped when the IP is unknown, like the other routes); 200 per hour across all addresses.
+ * In production without a live SMTP provider no code is created at all (503): a code that cannot be delivered
+ * is never issued.
  */
 export async function requestEmailCode(input: {
   purpose: EmailCodePurpose;
@@ -160,7 +165,16 @@ export async function requestEmailCode(input: {
 }): Promise<EmailCodeRequestResult> {
   const { purpose, email, userId, ip, recipientName } = input;
 
+  if (process.env.NODE_ENV === 'production' && isEmailDeliveryMock()) {
+    return {
+      success: false,
+      status: 503,
+      message: 'ارسال ایمیل در حال حاضر امکان‌پذیر نیست.',
+    };
+  }
+
   const checks: Array<Promise<{ allowed: boolean; retryAfterSeconds?: number }> | null> = [
+    checkDistributedRateLimit('email_code_global', 200, 60 * 60),
     checkDistributedRateLimit(`email_code_addr:${email}`, 3, 15 * 60),
     userId ? checkDistributedRateLimit(`email_code_user:${userId}`, 10, 60 * 60) : null,
     ip !== 'unknown' ? checkDistributedRateLimit(`email_code_ip:${ip}`, 10, 60 * 60) : null,
@@ -185,6 +199,7 @@ export async function requestEmailCode(input: {
     recipientName,
     subject: SUBJECTS[purpose],
     text: `کد تایید ایمیل شما: ${code}\n\nاین کد تا ۱۵ دقیقه معتبر است. اگر این درخواست از سوی شما نبوده، این پیام را نادیده بگیرید و کسی را از کد آگاه نکنید.`,
+    sensitive: true,
   });
   if (!sent.success) {
     discardEmailCode(purpose, email);
@@ -198,7 +213,7 @@ export async function requestEmailCode(input: {
   return {
     success: true,
     status: 200,
-    message: 'کد تایید ۶ رقمی به آدرس ایمیل شما ارسال شد. این کد تا ۱۵ دقیقه معتبر است.',
+    message: EMAIL_CODE_SENT_MESSAGE,
     debugCode: canExposeDebugCode() ? code : undefined,
   };
 }

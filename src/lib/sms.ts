@@ -375,6 +375,7 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
         subject: 'کد تایید ورود و احراز هویت پروفارم شیراز (جایگزین پیامک)',
         text: `کد تایید ورود و احراز هویت شما:\n\n${code}\n\nاین کد تا ۲ دقیقه معتبر است.`,
         fallbackForSms: true,
+        sensitive: true,
       });
       return {
         success: true,
@@ -404,8 +405,9 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
   // Mask phone number for server logs (L-3 Fix)
   const maskedPhone = maskPhoneNumber(phone);
 
-  // SECURITY: Never leak OTP codes in production server logs
-  if (process.env.NODE_ENV !== 'production') {
+  // SECURITY: the code is printed only where the response exposes it too (dev with the MOCK provider).
+  // Every other run logs the masked phone only.
+  if (canExposeDebugOtp()) {
     console.log(`[SMS OTP DEV] To: ${maskedPhone} | Code: ${code} | Valid for 2 mins`);
   } else {
     console.log(`[SMS OTP] Sent verification code to ${maskedPhone}`);
@@ -426,6 +428,7 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
         subject: 'کد تایید ورود و تایید حساب پروفارم شیراز',
         text: `کد تایید شما برای ورود یا تایید شماره در مزارع ارگانیک پروفارم شیراز:\n\n${code}\n\nاین کد تا ۲ دقیقه دارای اعتبار است.`,
         fallbackForSms: !realSmsResult.success,
+        sensitive: true,
       });
     } catch (e) {
       console.warn('[sendOtp Email Dispatch Error]', e);

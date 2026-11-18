@@ -130,6 +130,15 @@ import {
 /** Extra minutes after the payment window before an unpaid online order is released (late gateway callbacks). */
 const PAYMENT_EXPIRY_GRACE_MS = 5 * 60 * 1000;
 
+/**
+ * Same cost as a real password hash. An unknown identifier is checked against it, so a failed login takes the
+ * same time whether or not the account exists. Its password is random and never matches a login.
+ */
+const DUMMY_PASSWORD_HASH = hashPassword(crypto.randomBytes(24).toString('hex'));
+
+/** Shown for every refused email claim, so the answer never reveals who holds an address. */
+const EMAIL_UNAVAILABLE_MESSAGE = 'این آدرس ایمیل قابل استفاده نیست. آدرس دیگری وارد کنید.';
+
 export function sanitizeUser(user: User): User {
   const { password, ...safeUser } = user;
   return safeUser as User;
@@ -829,6 +838,9 @@ class FarmDataStore {
             plusExpiresAt: u.plusExpiresAt,
             proExpiresAt: u.proExpiresAt,
             eggDiscountUsed: u.eggDiscountUsed || 0,
+            isEmailVerified: u.isEmailVerified === true,
+            pendingEmail: u.pendingEmail || null,
+            sessionVersion: u.sessionVersion ?? 0,
             addresses: mappedAddresses,
           };
           this.indexUser(mappedUser);
@@ -1072,6 +1084,9 @@ class FarmDataStore {
               eggDiscountUsed: u.eggDiscountUsed || 0,
               authProvider: u.authProvider || 'PHONE_OTP',
               isPhoneVerified: u.isPhoneVerified || false,
+              isEmailVerified: u.isEmailVerified === true,
+              pendingEmail: u.pendingEmail || null,
+              sessionVersion: u.sessionVersion ?? 0,
             },
             create: {
               id: u.id,
@@ -1089,6 +1104,9 @@ class FarmDataStore {
               eggDiscountUsed: u.eggDiscountUsed || 0,
               authProvider: u.authProvider || 'PHONE_OTP',
               isPhoneVerified: u.isPhoneVerified || false,
+              isEmailVerified: u.isEmailVerified === true,
+              pendingEmail: u.pendingEmail || null,
+              sessionVersion: u.sessionVersion ?? 0,
             },
           })
           .catch(logFailure(`user ${u.id} upsert`));
@@ -2531,35 +2549,41 @@ class FarmDataStore {
     const holders = this.uniqueUsers().filter(
       (u) => u.id !== userId && !!u.email && u.email.trim().toLowerCase() === clean
     );
-    if (holders.some((u) => u.role === 'ADMIN')) {
-      return {
-        ok: false,
-        message: 'این آدرس ایمیل متعلق به حساب مدیر سیستم است و امکان ثبت آن وجود ندارد.',
-        status: 409,
-      };
-    }
-    if (holders.some((u) => u.isEmailVerified === true)) {
-      return {
-        ok: false,
-        message: 'این آدرس ایمیل قبلاً برای حساب کاربری دیگری ثبت و تایید شده است.',
-        status: 409,
-      };
+    // One generic answer for an admin holder and for a verified holder alike (no enumeration of accounts)
+    if (holders.some((u) => u.role === 'ADMIN' || u.isEmailVerified === true)) {
+      return { ok: false, message: EMAIL_UNAVAILABLE_MESSAGE, status: 409 };
     }
     return { ok: true };
   }
 
   /**
    * Removes `cleanEmail` from every other account that holds it UNVERIFIED (legacy value). Called only when
-   * someone proves control of the address. Admin accounts are never touched.
+   * someone proves control of the address. Admin accounts are never touched. A username equal to the released
+   * address goes too, so the address cannot keep acting as a login name.
    */
   private releaseLegacyEmailHolders(cleanEmail: string, exceptUserId: string): void {
     for (const holder of this.uniqueUsers()) {
       if (holder.id === exceptUserId || holder.role === 'ADMIN' || holder.isEmailVerified === true) continue;
       if (holder.email && holder.email.trim().toLowerCase() === cleanEmail) {
         holder.email = null;
+        if (holder.username && holder.username.trim().toLowerCase() === cleanEmail) holder.username = null;
         this.indexUser(holder);
       }
     }
+  }
+
+  /** A random `user_` + 6 hex characters that no account uses yet (case-insensitive). */
+  private generateUniqueUsername(): string {
+    const taken = new Set(
+      this.uniqueUsers()
+        .map((u) => (u.username || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const candidate = `user_${crypto.randomBytes(3).toString('hex')}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+    return `user_${crypto.randomBytes(8).toString('hex')}`;
   }
 
   /** Gives a verified address to `user`. The caller re-indexes and saves. */
@@ -2614,12 +2638,24 @@ class FarmDataStore {
     this.getAllUsers();
     const user = this.getUserById(userId);
     if (!user) return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
+    const previousEmail = user.email?.trim().toLowerCase() || null;
     user.email = null;
     user.isEmailVerified = false;
     user.pendingEmail = null;
+    if (previousEmail && user.username?.trim().toLowerCase() === previousEmail) user.username = null;
     this.indexUser(user);
     this.saveUsers();
     return { success: true, user: sanitizeUser(user), message: 'ایمیل حساب کاربری شما حذف شد.' };
+  }
+
+  /** Puts back the pending address an account had before a request that then failed. Reserves nothing. */
+  restorePendingEmail(userId: string, previous: string | null): void {
+    this.getAllUsers();
+    const user = this.getUserById(userId);
+    if (!user) return;
+    user.pendingEmail = previous;
+    this.indexUser(user);
+    this.saveUsers();
   }
 
   registerUser(params: {
@@ -2644,9 +2680,9 @@ class FarmDataStore {
       throw new BusinessError('برای ثبت ایمیل، ابتدا کد تایید ارسال‌شده به آن را وارد نمایید.', 400);
     }
 
-    // Auto-generate username: email or phone (no separate username required)
-    const autoUsername =
-      params.username?.trim() || cleanEmail || cleanPhone || `user_${Date.now().toString().slice(-4)}`;
+    // No username is taken from the email or the phone: a username that is an address would be a login name
+    // that other accounts could collide with. A random `user_` name is used unless one was given.
+    const username = params.username?.trim() || this.generateUniqueUsername();
 
     // Only a verified (or admin) holder blocks the address. Unverified legacy holders are released below.
     if (cleanEmail) {
@@ -2670,7 +2706,7 @@ class FarmDataStore {
       id: userId,
       phone: cleanPhone || '',
       isPhoneVerified: Boolean(cleanPhone && params.phoneVerified),
-      username: autoUsername,
+      username,
       email: cleanEmail || null,
       isEmailVerified: Boolean(cleanEmail),
       name: params.name?.trim() || 'کاربر گرامی',
@@ -2905,24 +2941,30 @@ class FarmDataStore {
 
     // Find by username, phone or id first
     const accounts = this.uniqueUsers();
-    let user = accounts.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === cleanId) ||
-        u.phone === cleanId ||
-        u.id.toLowerCase() === cleanId
-    );
+    let user: User | undefined;
 
-    // Then by email. A verified address always identifies its owner. A legacy (unverified) address identifies
-    // its holder only when exactly one account holds it, so existing accounts keep working without letting
-    // an ambiguous legacy value pick an account.
-    if (!user && cleanId) {
+    if (cleanId.includes('@')) {
+      // An address identifies its owner and nothing else: usernames are never compared with it. A verified
+      // address always identifies its owner. A legacy (unverified) address identifies its holder only when
+      // exactly one account holds it.
       const holders = accounts.filter((u) => !!u.email && u.email.trim().toLowerCase() === cleanId);
       const verified = holders.filter((u) => u.isEmailVerified === true);
       if (verified.length === 1) user = verified[0];
       else if (verified.length === 0 && holders.length === 1) user = holders[0];
+    } else if (cleanId) {
+      // A phone number first, then a username, then the account id. Email is never matched here.
+      const phoneId = normalizePhoneNumber(cleanId);
+      user =
+        accounts.find((u) => !!u.phone && u.phone === phoneId) ||
+        accounts.find((u) => !!u.username && u.username.trim().toLowerCase() === cleanId) ||
+        accounts.find((u) => u.id.toLowerCase() === cleanId);
     }
 
-    if (!user) return null;
+    if (!user || !user.password) {
+      // Same work as a real check, so the response time does not reveal whether the identifier exists
+      verifyPassword(cleanPass, DUMMY_PASSWORD_HASH);
+      return null;
+    }
 
     // Cryptographic PBKDF2 verification (no plaintext fallbacks allowed)
     const isHashValid = verifyPassword(cleanPass, user.password);
@@ -3517,6 +3559,18 @@ class FarmDataStore {
     if (!userId) return 0;
     return this.getOrders().filter(
       (o) => o.userId === userId && isUnconfirmedCodOrder(o) && !this.isPendingPaymentExpired(o, nowMs)
+    ).length;
+  }
+
+  /** Unconfirmed COD orders whose delivery phone is `phone` (normalized), across all accounts. */
+  countOpenCodOrdersByPhone(phone: string, nowMs: number = Date.now()): number {
+    const clean = normalizePhoneNumber(phone || '');
+    if (!clean) return 0;
+    return this.getOrders().filter(
+      (o) =>
+        isUnconfirmedCodOrder(o) &&
+        !this.isPendingPaymentExpired(o, nowMs) &&
+        normalizePhoneNumber(o.address?.phone || '') === clean
     ).length;
   }
 

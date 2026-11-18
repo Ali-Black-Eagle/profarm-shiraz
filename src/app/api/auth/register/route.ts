@@ -128,16 +128,13 @@ export async function POST(req: NextRequest) {
       }
       user = completed.user;
     } else {
-      // Auto username: email or phone (no separate username field needed)
-      const autoUsername = cleanEmail || cleanPhone;
-
+      // No username is derived from the email or phone: the store generates a unique `user_` name
       user = farmStore.registerUser({
         name: cleanName,
         email: cleanEmail || undefined,
         emailVerified,
         phone: cleanPhone || undefined,
         phoneVerified: Boolean(cleanPhone),
-        username: autoUsername,
         password: cleanPassword || undefined,
       });
     }

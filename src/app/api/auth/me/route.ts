@@ -89,15 +89,40 @@ export async function POST(req: NextRequest) {
       emailChange = clean;
     }
 
-    // A new address must not already belong to a verified or admin account (checked before a code is sent)
-    if (emailChange) {
-      const current = farmStore.getUserById(session.userId);
-      const alreadyMine = current?.isEmailVerified === true && current.email?.trim().toLowerCase() === emailChange;
-      if (!alreadyMine) {
-        const claim = farmStore.checkEmailClaim(session.userId, emailChange);
-        if (!claim.ok) {
-          return NextResponse.json({ success: false, message: claim.message }, { status: claim.status });
-        }
+    const current = farmStore.getUserById(session.userId);
+    const alreadyMine = Boolean(emailChange) && current?.isEmailVerified === true && current.email?.trim().toLowerCase() === emailChange;
+    // A genuinely new address (not the verified one already on the account)
+    const newEmail: string | null = emailChange && !alreadyMine ? emailChange : null;
+    const previousPending = current?.pendingEmail ?? null;
+
+    // Order matters: every email step runs BEFORE any profile field is saved. A new address must not already
+    // belong to a verified or admin account; then the rate limit and the code; then the pending address.
+    // A refusal at any of these steps leaves the account exactly as it was.
+    if (newEmail) {
+      const claim = farmStore.checkEmailClaim(session.userId, newEmail);
+      if (!claim.ok) {
+        return NextResponse.json({ success: false, message: claim.message }, { status: claim.status });
+      }
+    }
+
+    let sent: Awaited<ReturnType<typeof requestEmailCode>> | null = null;
+    if (newEmail) {
+      sent = await requestEmailCode({
+        purpose: 'change',
+        email: newEmail,
+        userId: session.userId,
+        ip: getSecureClientIp(req),
+        recipientName: current?.name || undefined,
+      });
+      if (!sent.success) {
+        return NextResponse.json(
+          { success: false, message: sent.message, retryAfterSeconds: sent.retryAfterSeconds },
+          { status: sent.status, headers: sent.retryAfterSeconds ? { 'Retry-After': String(sent.retryAfterSeconds) } : undefined }
+        );
+      }
+      const pending = farmStore.setPendingEmail(session.userId, newEmail);
+      if (!pending.success) {
+        return NextResponse.json({ success: false, message: pending.message }, { status: pending.status ?? 409 });
       }
     }
 
@@ -108,6 +133,8 @@ export async function POST(req: NextRequest) {
 
     const result = farmStore.updateUserProfile(session.userId, updates as Parameters<typeof farmStore.updateUserProfile>[1]);
     if (!result.success) {
+      // The profile was refused: give back the pending address set above, so nothing from this request is kept
+      if (newEmail) farmStore.restorePendingEmail(session.userId, previousPending);
       return NextResponse.json(
         { success: false, message: result.message },
         { status: result.status ?? 400 }
@@ -124,34 +151,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, message: cleared.message }, { status: cleared.status ?? 400 });
       }
       message = 'ایمیل حساب کاربری شما حذف شد.';
-    } else if (emailChange) {
-      const current = farmStore.getUserById(session.userId);
-      const alreadyMine = current?.isEmailVerified === true && current.email?.trim().toLowerCase() === emailChange;
-      if (alreadyMine) {
-        message = 'این ایمیل هم‌اکنون برای حساب شما تایید شده است.';
-      } else {
-        const ip = getSecureClientIp(req);
-        const sent = await requestEmailCode({
-          purpose: 'change',
-          email: emailChange,
-          userId: session.userId,
-          ip,
-          recipientName: current?.name || undefined,
-        });
-        if (!sent.success) {
-          return NextResponse.json(
-            { success: false, message: sent.message, retryAfterSeconds: sent.retryAfterSeconds },
-            { status: sent.status, headers: sent.retryAfterSeconds ? { 'Retry-After': String(sent.retryAfterSeconds) } : undefined }
-          );
-        }
-        const pending = farmStore.setPendingEmail(session.userId, emailChange);
-        if (!pending.success) {
-          return NextResponse.json({ success: false, message: pending.message }, { status: pending.status ?? 409 });
-        }
-        emailCodeSent = true;
-        debugCode = sent.debugCode;
-        message = sent.message;
-      }
+    } else if (newEmail && sent) {
+      emailCodeSent = true;
+      debugCode = sent.debugCode;
+      message = sent.message;
+    } else if (alreadyMine) {
+      message = 'این ایمیل هم‌اکنون برای حساب شما تایید شده است.';
     }
 
     const fresh = farmStore.getUserById(session.userId);

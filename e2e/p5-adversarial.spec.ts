@@ -458,9 +458,11 @@ test.describe('P5 adversarial: local dev build', () => {
     });
     expect([400, 409]).toContain(r.status);
     expect(r.json.success).toBe(false);
-    // Without a code the account is not created; a code request for the verified address is refused outright
+    // Without a code the account is not created; a code request for the verified address answers like a fresh
+    // address (200) but issues no code, so nothing is reserved and no enumeration is possible
     const rc = await send('POST', '/api/auth/email/register-code', { body: { email: S.aEmail } });
-    expect(rc.status).toBe(409);
+    expect(rc.status).toBe(200);
+    expect(rc.json.debugCode, 'no code is issued for a taken address').toBeUndefined();
   });
 
   test('3.9 password change needs currentPassword once a password exists', async () => {

@@ -16,6 +16,9 @@ const PAYMENT_METHODS = ['zarinpal', 'snapppay', 'cod'];
 /** Unconfirmed cash-on-delivery orders one account may have open at the same time. */
 const MAX_OPEN_COD_ORDERS = 3;
 
+/** Unconfirmed cash-on-delivery orders that may be open for one delivery phone number, across all accounts. */
+const MAX_OPEN_COD_ORDERS_PER_PHONE = 3;
+
 function sanitizeText(str?: string | null, maxLen = 200): string {
   if (!str) return '';
   return String(str).trim().slice(0, maxLen).replace(/<[^>]*>?/gm, '');
@@ -206,6 +209,20 @@ export async function POST(req: NextRequest) {
       );
     }
     const cleanPhone = normalizePhoneNumber(phoneInput);
+
+    // The same cap per delivery phone: several accounts cannot stack unconfirmed COD orders on one number.
+    // Synchronous from here to createOrder, like the per-account check above.
+    const deliveryPhone = normalizePhoneNumber(cleanPhone || user.phone || '');
+    if (method === 'cod' && deliveryPhone && farmStore.countOpenCodOrdersByPhone(deliveryPhone) >= MAX_OPEN_COD_ORDERS_PER_PHONE) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'برای این شماره تلفن ۳ سفارش پرداخت در محل تأیید‌نشده ثبت شده است. لطفاً ابتدا سفارش‌های قبلی را پرداخت یا لغو کنید.',
+        },
+        { status: 409 }
+      );
+    }
+
     const cityName = sanitizeText(city, 50) || 'شیراز';
     const addressId = `addr-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
