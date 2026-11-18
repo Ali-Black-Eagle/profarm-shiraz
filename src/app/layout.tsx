@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { connection } from 'next/server';
 import './globals.css';
 import { Header } from '@/components/modules/Header';
 import { Footer } from '@/components/modules/Footer';
@@ -7,6 +8,7 @@ import { ScrollToTop } from '@/components/modules/ScrollToTop';
 import { CartFloatingPopup } from '@/components/modules/CartFloatingPopup';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { safeJsonLdStringify } from '@/lib/formatters';
+import { farmStore } from '@/lib/db-store';
 
 const vazirmatn = localFont({
   src: './fonts/Vazirmatn-Variable.woff2',
@@ -59,9 +61,7 @@ export const metadata: Metadata = {
     address: true,
     telephone: true,
   },
-  alternates: {
-    canonical: BASE_URL,
-  },
+  // No root canonical: every indexable page declares its own canonical in its metadata.
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   },
@@ -108,11 +108,17 @@ export const metadata: Metadata = {
   category: 'supermarket, organic food, agriculture, local produce',
 };
 
-export default function RootLayout({
+const BRAND_ICON_URL = `${BASE_URL}/icons/icon-512.png`;
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // CMS content is read per request, so header, footer and home edits show without a rebuild.
+  await connection();
+  const siteContent = farmStore.getSiteContent();
+
   // Rich Structured Data for Google Local Business & Store
   const localStoreSchema = {
     '@context': 'https://schema.org',
@@ -166,7 +172,7 @@ export default function RootLayout({
         name: 'استان فارس',
       },
     ],
-    logo: `${BASE_URL}/images/hero-shiraz-farm.jpg`,
+    logo: BRAND_ICON_URL,
     image: `${BASE_URL}/images/hero-shiraz-farm.jpg`,
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
@@ -208,7 +214,7 @@ export default function RootLayout({
     '@id': `${BASE_URL}/#organization`,
     name: 'مزارع ارگانیک پروفارم شیراز',
     url: BASE_URL,
-    logo: `${BASE_URL}/images/hero-shiraz-farm.jpg`,
+    logo: BRAND_ICON_URL,
     contactPoint: {
       '@type': 'ContactPoint',
       telephone: '+987136280000',
@@ -240,29 +246,17 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(organizationSchema) }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window !== 'undefined') {
-                window.addEventListener('unhandledrejection', function(e) {
-                  if (e.reason && (
-                    String(e.reason).includes('MetaMask') || 
-                    String(e.reason.message || '').includes('MetaMask') ||
-                    String(e.reason).includes('Failed to connect')
-                  )) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                  }
-                });
-              }
-            `,
-          }}
-        />
         <ToastProvider>
           <ScrollToTop />
-          <Header />
+          <Header
+            siteContent={{
+              topBannerActive: siteContent.topBannerActive,
+              topBannerText: siteContent.topBannerText,
+              topBannerLinkText: siteContent.topBannerLinkText,
+            }}
+          />
           <main id="main-content" className="flex-1 flex flex-col w-full min-w-0 [&>*]:w-full [&>*]:min-w-0">{children}</main>
-          <Footer />
+          <Footer content={siteContent} />
           <CartFloatingPopup />
         </ToastProvider>
       </body>

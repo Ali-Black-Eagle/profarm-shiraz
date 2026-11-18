@@ -1,4 +1,4 @@
-import { Product, ProductReview } from '@/types';
+import type { Product } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
 
@@ -193,26 +193,40 @@ export function generateCategorySeoDescription(categoryName: string): string {
   return `فروش آنلاین تازه‌ترین ${categoryName} طبیعی و بهداشتی با ارسال روزانه پیک در شیراز. تضمین سلامت، قیمت منصفانه و ارسال مستقیم از مزارع استان فارس.`;
 }
 
+export interface JsonLdReview {
+  rating: number;
+  comment: string;
+  createdAt?: string;
+  /** Already masked for public display (first name plus initial). */
+  authorName?: string;
+}
+
+function toIsoDateString(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
 /**
- * Generates complete JSON-LD Structured Data for Product with Reviews.
+ * Generates the single Product JSON-LD block of a product page.
+ * `reviews` must be the approved reviews only. AggregateRating is emitted only when real reviews exist,
+ * so no rating is ever invented.
  */
 export function generateProductJsonLd(
   product: Product,
-  reviews: ProductReview[] = [],
+  reviews: JsonLdReview[] = [],
   baseUrl = BASE_URL
 ) {
   const productUrl = `${baseUrl}/products/${product.slug}`;
   const images = (product.images || []).map((img) =>
     img.startsWith('http') ? img : `${baseUrl}${img}`
   );
+  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const approvedReviews = reviews.filter((r) => r.status === 'APPROVED');
   const avgRating =
-    approvedReviews.length > 0
-      ? (
-          approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length
-        ).toFixed(1)
-      : '5.0';
+    reviews.length > 0
+      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+      : null;
 
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
@@ -232,7 +246,7 @@ export function generateProductJsonLd(
       url: productUrl,
       priceCurrency: 'IRT',
       price: product.price,
-      priceValidUntil: '2027-12-31',
+      priceValidUntil,
       availability:
         (product.stock || 0) > 0
           ? 'https://schema.org/InStock'
@@ -251,50 +265,57 @@ export function generateProductJsonLd(
         returnMethod: 'https://schema.org/ReturnByMail',
         returnFees: 'https://schema.org/FreeReturn',
       },
-      shippingDetails: {
-        '@type': 'OfferShippingDetails',
-        shippingRate: {
-          '@type': 'MonetaryAmount',
-          value: '45000',
-          currency: 'IRT',
-        },
-        shippingDestination: {
-          '@type': 'DefinedRegion',
-          addressCountry: 'IR',
-          addressRegion: 'فارس',
-          addressLocality: 'شیراز',
-        },
-      },
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: avgRating,
-      reviewCount: Math.max(1, approvedReviews.length).toString(),
-      bestRating: '5',
-      worstRating: '1',
     },
   };
 
-  // Add individual reviews for Google rich snippet stars
-  if (approvedReviews.length > 0) {
-    schema.review = approvedReviews.slice(0, 5).map((r) => ({
-      '@type': 'Review',
-      author: {
-        '@type': 'Person',
-        name: r.userName || 'خریدار پروفارم',
-      },
-      datePublished: r.createdAt || '۱۴۰۵/۰۶/۰۱',
-      reviewBody: r.comment,
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: r.rating.toString(),
-        bestRating: '5',
-        worstRating: '1',
-      },
-    }));
+  if (avgRating !== null) {
+    schema.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: avgRating,
+      reviewCount: reviews.length.toString(),
+      bestRating: '5',
+      worstRating: '1',
+    };
+    schema.review = reviews.slice(0, 5).map((r) => {
+      const published = toIsoDateString(r.createdAt);
+      return {
+        '@type': 'Review',
+        author: {
+          '@type': 'Person',
+          name: r.authorName || 'خریدار پروفارم',
+        },
+        ...(published ? { datePublished: published } : {}),
+        reviewBody: r.comment,
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.rating.toString(),
+          bestRating: '5',
+          worstRating: '1',
+        },
+      };
+    });
   }
 
   return schema;
+}
+
+/** BreadcrumbList for one product page: home, catalog, category, product. */
+export function generateProductBreadcrumbJsonLd(product: Product, baseUrl = BASE_URL) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'خانه', item: baseUrl },
+      { '@type': 'ListItem', position: 2, name: 'محصولات ارگانیک شیراز', item: `${baseUrl}/products` },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: product.category,
+        item: `${baseUrl}/products?category=${encodeURIComponent(product.category)}`,
+      },
+      { '@type': 'ListItem', position: 4, name: product.title, item: `${baseUrl}/products/${product.slug}` },
+    ],
+  };
 }
 
 /**
@@ -343,8 +364,9 @@ export function generateProductSeoMetadata(
   baseUrl = BASE_URL
 ) {
   if (!product) {
+    // The root title template adds the brand, so the title itself must not repeat it.
     return {
-      title: 'محصول یافت نشد | پروفارم شیراز',
+      title: 'محصول یافت نشد',
       description: 'کالای مورد نظر شما در فروشگاه پروفارم شیراز یافت نشد یا ممکن است ناموجود شده باشد.',
       robots: { index: false, follow: true },
     };

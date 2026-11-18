@@ -1,16 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { notFound, useSearchParams } from 'next/navigation';
-import { farmStore } from '@/lib/db-store';
-import { INITIAL_PRODUCTS } from '@/lib/initial-data';
-import { Product, ProductReview } from '@/types';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
-import { formatToman, toPersianDigits, safeJsonLdStringify } from '@/lib/formatters';
+import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { SITE_CONFIG } from '@/lib/site-config';
 import { ProductCard } from '@/components/modules/ProductCard';
+import type { Product } from '@/types';
 import {
   Sparkles,
   Truck,
@@ -42,32 +39,42 @@ import {
   Lock,
 } from 'lucide-react';
 
+/** Approved review as the public API shapes it: masked reviewer name, no contact data. */
+export interface StorefrontReview {
+  id: string;
+  rating: number;
+  title: string | null;
+  comment: string;
+  pros: string[];
+  cons: string[];
+  isRecommended: boolean | null;
+  isVerifiedBuyer: boolean;
+  adminResponse: string | null;
+  userName: string;
+  /** Persian calendar date, formatted on the server. */
+  dateLabel: string;
+}
+
 interface ProductDetailClientProps {
-  slug: string;
-  initialProduct?: Product;
+  product: Product;
+  reviews: StorefrontReview[];
+  related: Product[];
+  /** True when the visitor came from the post-delivery SMS link (?review=true). */
+  openReview?: boolean;
 }
 
 export default function ProductDetailClient({
-  slug,
-  initialProduct,
+  product,
+  reviews,
+  related,
+  openReview = false,
 }: ProductDetailClientProps) {
-  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const { items, addItem, updateQuantity } = useCart();
 
-  // Load product from farmStore or initial data
-  const [product, setProduct] = useState<Product | undefined>(() => {
-    return (
-      initialProduct ||
-      farmStore.getProductBySlug(slug) ||
-      INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug)
-    );
-  });
-
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [activeTab, setActiveTab] = useState<'specs' | 'nutrition' | 'faqs' | 'reviews'>('specs');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const [selectedImage, setSelectedImage] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string>(product.images[0] || '/images/prod-eggs.jpg');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Review Form Modal State
@@ -85,35 +92,35 @@ export default function ProductDetailClient({
   const [conInput, setConInput] = useState('');
   const [isRecommended, setIsRecommended] = useState<boolean>(true);
   const [reviewSubmittedSuccess, setReviewSubmittedSuccess] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewFormError, setReviewFormError] = useState<string | null>(null);
 
   // Sticky Bar visibility
   const [showStickyBar, setShowStickyBar] = useState(false);
 
-  useEffect(() => {
-    const currentProd =
-      initialProduct ||
-      farmStore.getProductBySlug(slug) ||
-      INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
-    setProduct(currentProd);
+  // Quantity picked on the page before the item is in the cart
+  const [selectedQty, setSelectedQty] = useState(1);
+  const cartItem = items.find((i) => i.product.id === product.id);
 
-    if (currentProd) {
-      setSelectedImage(currentProd.images[0] || '/images/prod-eggs.jpg');
-      setReviews(farmStore.getProductReviews(currentProd.slug, true));
-    }
-  }, [slug, initialProduct]);
-
-  // Check URL query ?review=true (from post-delivery SMS)
+  // Synchronize selectedQty with cart quantity if item exists in cart
   useEffect(() => {
-    if (searchParams.get('review') === 'true' && product) {
-      setActiveTab('reviews');
-      // Scroll to reviews section
-      setTimeout(() => {
-        const el = document.getElementById('reviews-section');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-        handleOpenReviewModal();
-      }, 500);
+    if (cartItem) {
+      setSelectedQty(cartItem.quantity);
     }
-  }, [searchParams, product]);
+  }, [cartItem]);
+
+  // Post-delivery SMS link (?review=true): open the reviews tab and, for signed-in buyers, the form
+  useEffect(() => {
+    if (!openReview) return;
+    setActiveTab('reviews');
+    const timer = window.setTimeout(() => {
+      document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' });
+      handleOpenReviewModal();
+    }, 500);
+    return () => window.clearTimeout(timer);
+    // Runs once per page view; the handler reads the current user at call time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openReview]);
 
   // Scroll listener for sticky bottom bar
   useEffect(() => {
@@ -127,20 +134,6 @@ export default function ProductDetailClient({
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  if (!product) {
-    notFound();
-  }
-
-  const cartItem = items.find((i) => i.product.id === product.id);
-  const [selectedQty, setSelectedQty] = useState(1);
-
-  // Synchronize selectedQty with cart quantity if item exists in cart
-  useEffect(() => {
-    if (cartItem) {
-      setSelectedQty(cartItem.quantity);
-    }
-  }, [cartItem]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -181,25 +174,15 @@ export default function ProductDetailClient({
     }
   };
 
-  // Review Eligibility Check & Modal Opening
+  // Opens the review form for signed-in visitors. Whether the visitor bought and received the product is
+  // decided by the server when the review is submitted (403 otherwise), so there is no client-side guess.
   const handleOpenReviewModal = () => {
     if (!user || !user.id) {
       setIneligibilityReason('جهت ثبت نظر برای این کالا ابتدا باید وارد حساب کاربری خود شوید.');
       setIsEligibilityModalOpen(true);
       return;
     }
-
-    const check = farmStore.canUserReviewProduct(user.id, product.slug);
-    if (!check.canReview) {
-      setIneligibilityReason(
-        check.reason ||
-          'تنها خریدارانی که این کالا را خریداری کرده و سفارش آنها تحویل داده شده است، امکان ثبت نظر دارند.'
-      );
-      setIsEligibilityModalOpen(true);
-      return;
-    }
-
-    // Eligible! Open the review form
+    setReviewFormError(null);
     setIsReviewModalOpen(true);
   };
 
@@ -225,51 +208,63 @@ export default function ProductDetailClient({
     setReviewCons((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || reviewSubmitting) return;
     if (!reviewComment.trim()) {
-      showToast('لطفاً متن نظر خود را وارد فرمایید.');
+      setReviewFormError('لطفاً متن نظر خود را وارد فرمایید.');
       return;
     }
 
-    const check = farmStore.canUserReviewProduct(user.id, product.slug);
-    if (!check.canReview) {
-      showToast(check.reason || 'امکان ثبت نظر وجود ندارد.');
-      return;
-    }
+    setReviewFormError(null);
+    setReviewSubmitting(true);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productSlug: product.slug,
+          rating: reviewRating,
+          title: reviewTitle.trim() || undefined,
+          comment: reviewComment.trim(),
+          pros: reviewPros,
+          cons: reviewCons,
+          isRecommended,
+        }),
+      });
+      const data = await res.json().catch(() => null);
 
-    const res = farmStore.addProductReview({
-      productId: product.id,
-      productSlug: product.slug,
-      productTitle: product.title,
-      userId: user.id,
-      userName: user.name || 'خریدار پروفارم',
-      userPhone: user.phone,
-      rating: reviewRating,
-      title: reviewTitle.trim() || undefined,
-      comment: reviewComment.trim(),
-      isVerifiedBuyer: true,
-      orderId: check.orderId,
-      pros: reviewPros,
-      cons: reviewCons,
-      isRecommended,
-      status: 'PENDING',
-    });
+      if (res.ok && data?.success) {
+        setReviewSubmittedSuccess(true);
+        setTimeout(() => {
+          setIsReviewModalOpen(false);
+          setReviewSubmittedSuccess(false);
+          setReviewRating(5);
+          setReviewTitle('');
+          setReviewComment('');
+          setReviewPros([]);
+          setReviewCons([]);
+          showToast(data?.message || 'دیدگاه شما ثبت شد و پس از تایید مدیریت منتشر می‌شود.');
+        }, 2500);
+        return;
+      }
 
-    if (res) {
-      setReviewSubmittedSuccess(true);
-      setTimeout(() => {
+      const message = data?.message || 'ثبت دیدگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید.';
+      if (res.status === 401 || res.status === 403) {
+        // Not signed in, or not a delivered buyer of this product: explain the rule
         setIsReviewModalOpen(false);
-        setReviewSubmittedSuccess(false);
-        // Reset form
-        setReviewRating(5);
-        setReviewTitle('');
-        setReviewComment('');
-        setReviewPros([]);
-        setReviewCons([]);
-        showToast('دیدگاه شما با موفقیت ثبت شد و پس از تایید مدیریت منتشر می‌شود.');
-      }, 2500);
+        setIneligibilityReason(message);
+        setIsEligibilityModalOpen(true);
+      } else if (res.status === 409) {
+        setIsReviewModalOpen(false);
+        showToast(message);
+      } else {
+        setReviewFormError(message);
+      }
+    } catch {
+      setReviewFormError('ارتباط با سرور برقرار نشد. لطفاً اتصال اینترنت خود را بررسی کنید.');
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -280,90 +275,8 @@ export default function ProductDetailClient({
       ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalApprovedReviews).toFixed(1)
       : null;
 
-  // Related products from same category or fallback
-  const relatedProducts = farmStore
-    .getProducts()
-    .filter((p) => p.id !== product.id && (p.category === product.category || p.isOrganicCertified))
-    .slice(0, 4);
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
-  const productUrl = `${baseUrl}/products/${product.slug}`;
-  const absoluteImages = product.images.map((img) =>
-    img.startsWith('http') ? img : `${baseUrl}${img}`
-  );
-
-  const productSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.title,
-    image: absoluteImages,
-    description: product.description,
-    sku: product.id,
-    mpn: product.slug,
-    brand: {
-      '@type': 'Brand',
-      name: 'پروفارم شیراز',
-    },
-    category: product.category,
-    offers: {
-      '@type': 'Offer',
-      url: productUrl,
-      priceCurrency: 'IRT',
-      price: product.price,
-      priceValidUntil: '2027-12-31',
-      availability:
-        (product.stock || 0) > 0
-          ? 'https://schema.org/InStock'
-          : 'https://schema.org/OutOfStock',
-      itemCondition: 'https://schema.org/NewCondition',
-      seller: {
-        '@type': 'Organization',
-        name: SITE_CONFIG.brandName,
-      },
-    },
-    ...(totalApprovedReviews > 0 && averageRating
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: averageRating,
-            reviewCount: totalApprovedReviews.toString(),
-            bestRating: '5',
-            worstRating: '1',
-          },
-        }
-      : {}),
-  };
-
-  const breadcrumbSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'صفحه اصلی',
-        item: baseUrl,
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: 'محصولات ارگانیک',
-        item: `${baseUrl}/products`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 3,
-        name: product.category,
-        item: `${baseUrl}/products?category=${encodeURIComponent(product.category)}`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 4,
-        name: product.title,
-        item: productUrl,
-      },
-    ],
-  };
+  // Related products come from the server (same category first)
+  const relatedProducts = related;
 
   const isAvailable =
     product.status !== 'COMING_SOON' &&
@@ -379,16 +292,6 @@ export default function ProductDetailClient({
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Google SEO JSON-LD Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(productSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbSchema) }}
-      />
 
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-2 text-xs text-gray-500 font-medium">
@@ -645,7 +548,7 @@ export default function ProductDetailClient({
                           ? cartItem.quantity >= (product.stock || 1)
                           : selectedQty >= (product.stock || 1)
                       }
-                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                       aria-label="افزایش تعداد"
                     >
                       <Plus className="w-4 h-4" />
@@ -657,7 +560,7 @@ export default function ProductDetailClient({
                       type="button"
                       onClick={handleDecreaseQty}
                       disabled={!cartItem && selectedQty <= 1}
-                      className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                      className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                       aria-label="کاهش تعداد"
                     >
                       <Minus className="w-4 h-4" />
@@ -719,6 +622,7 @@ export default function ProductDetailClient({
           <button
             type="button"
             onClick={() => setActiveTab('specs')}
+            aria-pressed={activeTab === 'specs'}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'specs'
                 ? 'bg-farm-primary text-white shadow-sm'
@@ -735,6 +639,7 @@ export default function ProductDetailClient({
           <button
             type="button"
             onClick={() => setActiveTab('nutrition')}
+            aria-pressed={activeTab === 'nutrition'}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'nutrition'
                 ? 'bg-farm-primary text-white shadow-sm'
@@ -751,6 +656,7 @@ export default function ProductDetailClient({
           <button
             type="button"
             onClick={() => setActiveTab('faqs')}
+            aria-pressed={activeTab === 'faqs'}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'faqs'
                 ? 'bg-farm-primary text-white shadow-sm'
@@ -767,6 +673,7 @@ export default function ProductDetailClient({
           <button
             type="button"
             onClick={() => setActiveTab('reviews')}
+            aria-pressed={activeTab === 'reviews'}
             className={`w-full py-2.5 px-1 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center ${
               activeTab === 'reviews'
                 ? 'bg-farm-primary text-white shadow-sm'
@@ -970,6 +877,7 @@ export default function ProductDetailClient({
                       <button
                         type="button"
                         onClick={() => setOpenFaqIndex(isOpen ? null : fIdx)}
+                        aria-expanded={isOpen}
                         className="w-full p-4 text-right flex items-center justify-between gap-3 bg-gray-50/50 hover:bg-gray-100/70 transition-colors cursor-pointer"
                       >
                         <span className="font-bold text-gray-900 text-xs sm:text-sm">
@@ -1082,7 +990,7 @@ export default function ProductDetailClient({
                             )}
                           </div>
                           <span className="text-xs text-gray-600 mt-0.5 block">
-                            ثبت شده در {rev.createdAt}
+                            {rev.dateLabel}
                           </span>
                         </div>
                       </div>
@@ -1146,7 +1054,7 @@ export default function ProductDetailClient({
                     )}
 
                     {/* Recommendation */}
-                    {rev.isRecommended !== undefined && (
+                    {typeof rev.isRecommended === 'boolean' && (
                       <div className="text-xs font-bold pt-1">
                         {rev.isRecommended ? (
                           <span className="text-emerald-700 flex items-center gap-1">
@@ -1460,6 +1368,12 @@ export default function ProductDetailClient({
                   </div>
                 </div>
 
+                {reviewFormError && (
+                  <div role="alert" className="p-3 rounded-xl bg-rose-50 text-rose-800 text-xs font-bold border border-rose-200">
+                    {reviewFormError}
+                  </div>
+                )}
+
                 {/* Notice */}
                 <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs leading-relaxed border border-amber-200">
                   توجه: به منظور رعایت ادب و استانداردهای فروشگاه، دیدگاه‌ها پس از تایید توسط ادمین
@@ -1477,9 +1391,10 @@ export default function ProductDetailClient({
                   </button>
                   <button
                     type="submit"
+                    disabled={reviewSubmitting}
                     className="px-6 py-2.5 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark shadow-md cursor-pointer transition-all hover:scale-102"
                   >
-                    ثبت نهایی دیدگاه
+                    {reviewSubmitting ? 'در حال ثبت...' : 'ثبت نهایی دیدگاه'}
                   </button>
                 </div>
               </form>

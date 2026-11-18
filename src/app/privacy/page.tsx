@@ -5,6 +5,7 @@ import { SITE_CONFIG } from '@/lib/site-config';
 
 export const metadata = {
   title: 'سیاست حفظ حریم خصوصی',
+  alternates: { canonical: '/privacy' },
   description: 'قوانین و تعهدات مزارع ارگانیک پروفارم شیراز در راستای حفاظت از اطلاعات و حریم خصوصی کاربران',
 };
 

@@ -6,22 +6,16 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'پروفارم شیراز',
     description: 'فروشگاه آنلاین خرید مستقیم محصولات ارگانیک، تخم‌مرغ محلی، عسل و لبنیات تازه شیراز',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
     background_color: '#F9F8F5',
     theme_color: '#2C4A2E',
     lang: 'fa',
     dir: 'rtl',
     icons: [
-      {
-        src: '/images/hero-shiraz-farm.jpg',
-        sizes: '192x192',
-        type: 'image/jpeg',
-      },
-      {
-        src: '/images/hero-shiraz-farm.jpg',
-        sizes: '512x512',
-        type: 'image/jpeg',
-      },
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
 }

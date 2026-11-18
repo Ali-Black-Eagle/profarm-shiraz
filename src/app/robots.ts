@@ -1,44 +1,18 @@
 import type { MetadataRoute } from 'next';
 
-export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://profarm-shiraz.ir';
 
+export default function robots(): MetadataRoute.Robots {
+  // One rule set for every crawler. Private and transactional areas are closed to all of them.
   return {
     rules: [
       {
         userAgent: '*',
-        allow: [
-          '/',
-          '/products',
-          '/products/*',
-          '/pro',
-          '/bulk',
-          '/terms',
-          '/privacy',
-          '/images/*',
-        ],
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/checkout/',
-          '/login/',
-        ],
-      },
-      {
-        userAgent: 'Googlebot',
         allow: '/',
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/checkout/',
-        ],
-      },
-      {
-        userAgent: 'Googlebot-Image',
-        allow: ['/images/*', '/products/*'],
+        disallow: ['/admin', '/api/', '/login', '/cart', '/checkout', '/account', '/profile'],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
+    sitemap: `${BASE_URL}/sitemap.xml`,
+    host: BASE_URL,
   };
 }

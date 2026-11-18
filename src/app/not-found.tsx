@@ -1,6 +1,13 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Home, ShoppingBag, ArrowRight, Compass } from 'lucide-react';
+
+// The root title template adds the brand name, so the title here stays short.
+export const metadata: Metadata = {
+  title: 'صفحه یافت نشد',
+  robots: { index: false, follow: true },
+};
 
 export default function NotFound() {
   return (

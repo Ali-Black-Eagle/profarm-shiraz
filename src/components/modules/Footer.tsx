@@ -1,35 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Leaf,
-  ShieldCheck,
-  Truck,
-  Phone,
-  MapPin,
-  Clock,
-  Heart,
-  Share2,
-  Send,
-  MessageCircle,
-} from 'lucide-react';
-import { farmStore, DEFAULT_SITE_CONTENT } from '@/lib/db-store';
-import { SiteContent } from '@/types';
+import { Leaf, ShieldCheck, Truck, Phone, MapPin, Clock, Heart } from 'lucide-react';
+import type { SiteContent } from '@/types';
 import { SITE_CONFIG } from '@/lib/site-config';
 import { formatToJalali } from '@/lib/jalali';
 import { toPersianDigits } from '@/lib/formatters';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  /** CMS content, read on the server by the root layout. */
+  content: SiteContent;
+}
+
+export const Footer: React.FC<FooterProps> = ({ content }) => {
   const pathname = usePathname();
-  const [content, setContent] = useState<SiteContent>({ ...DEFAULT_SITE_CONTENT });
 
-  useEffect(() => {
-    setContent(farmStore.getSiteContent());
-  }, []);
-
-  // Never render public store footer on admin pages (placed safely AFTER all hooks)
+  // Never render public store footer on admin pages
   if (pathname?.startsWith('/admin')) {
     return null;
   }

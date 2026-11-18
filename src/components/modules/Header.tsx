@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ShoppingBag,
   Sparkles,
@@ -26,23 +26,35 @@ import {
 } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
-import { farmStore } from '@/lib/db-store';
 import { toPersianDigits, formatToman } from '@/lib/formatters';
 import { SITE_CONFIG } from '@/lib/site-config';
+import type { Product } from '@/types';
 
 interface HeaderProps {
-  onOpenCart?: () => void;
+  /** Top banner settings from the CMS, read on the server by the root layout. */
+  siteContent?: {
+    topBannerActive: boolean;
+    topBannerText: string;
+    topBannerLinkText: string;
+  };
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
+const DEFAULT_BANNER_TEXT = 'توزیع مستقیم مزارع استان فارس به شیراز | تحویل با پیک پروفارم';
+const DEFAULT_BANNER_LINK = 'عضویت در باشگاه و ارسال روزانه';
+
+type SearchStatus = 'idle' | 'loading' | 'done' | 'error';
+
+const SEARCH_FOCUSABLE =
+  'input:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+export const Header: React.FC<HeaderProps> = ({ siteContent }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [bannerText, setBannerText] = useState(
-    'توزیع مستقیم مزارع استان فارس به شیراز | تحویل با پیک پروفارم'
-  );
-  const [bannerLinkText, setBannerLinkText] = useState('عضویت در باشگاه و ارسال روزانه');
-  const [subSettings, setSubSettings] = useState(() => farmStore.getSubscriptionSettings());
-  const [bannerActive, setBannerActive] = useState(true);
+  const bannerActive = siteContent?.topBannerActive ?? true;
+  const bannerText = siteContent?.topBannerText || DEFAULT_BANNER_TEXT;
+  const bannerLinkText =
+    siteContent?.topBannerLinkText !== undefined ? siteContent.topBannerLinkText : DEFAULT_BANNER_LINK;
   const { getTotalItemsCount } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -50,8 +62,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const searchDialogRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle');
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
@@ -61,27 +76,56 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const closeSearch = () => {
     setSearchOpen(false);
     setSearchQuery('');
+    setSearchResults([]);
+    setSearchStatus('idle');
     requestAnimationFrame(() => searchButtonRef.current?.focus());
+  };
+
+  const submitSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchStatus('idle');
+    router.push(`/products?search=${encodeURIComponent(query)}`);
   };
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const content = farmStore.getSiteContent();
-      if (content?.topBannerText) {
-        setBannerText(content.topBannerText);
-      }
-      if (content?.topBannerLinkText) {
-        setBannerLinkText(content.topBannerLinkText);
-      }
-      if (content?.topBannerActive !== undefined) {
-        setBannerActive(content.topBannerActive);
-      }
-      setSubSettings(farmStore.getSubscriptionSettings());
-    } catch {
-      // fallback to default
-    }
   }, []);
+
+  // Live search results for the quick search modal, loaded from the public products API
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!searchOpen || !query) {
+      setSearchResults([]);
+      setSearchStatus('idle');
+      return;
+    }
+    const controller = new AbortController();
+    setSearchStatus('loading');
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&limit=8`, {
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) throw new Error('search failed');
+        setSearchResults(Array.isArray(data.products) ? data.products : []);
+        setSearchStatus('done');
+      } catch {
+        if (controller.signal.aborted) return;
+        setSearchResults([]);
+        setSearchStatus('error');
+      }
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery, searchOpen]);
 
   // Lock body scroll when mobile drawer or search modal is open
   useEffect(() => {
@@ -115,6 +159,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [searchOpen, mobileMenuOpen]);
+
+  // Keep Tab and Shift+Tab inside the open search dialog (focus trap)
+  const handleSearchDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || !searchDialogRef.current) return;
+    const focusable = Array.from(
+      searchDialogRef.current.querySelectorAll<HTMLElement>(SEARCH_FOCUSABLE)
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    if (e.shiftKey && (active === first || !searchDialogRef.current.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   // Close user account menu on outside click or Escape key
   useEffect(() => {
@@ -171,20 +234,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
     }
     return true;
   });
-
-  const searchResults = React.useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const query = searchQuery.trim().toLowerCase();
-    const allProducts = farmStore.getProducts();
-    return allProducts
-      .filter(
-        (p) =>
-          p.title.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
-      )
-      .slice(0, 8);
-  }, [searchQuery]);
 
   // Never render public store header or public banner on admin pages (placed safely AFTER all hooks)
   if (pathname?.startsWith('/admin')) {
@@ -658,18 +707,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             {/* Quick Search Modal (Portal-mounted outside .glass-nav) */}
             {searchOpen && (
               <div
+                ref={searchDialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-label="جستجوی سریع محصولات"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) closeSearch();
                 }}
+                onKeyDown={handleSearchDialogKeyDown}
                 className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-20 px-4 animate-in fade-in"
                 dir="rtl"
               >
                 <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-farm-border overflow-hidden flex flex-col max-h-[80vh] text-right animate-in zoom-in-95">
-                  <div className="p-4 border-b border-farm-border flex items-center gap-3">
-                    <Search className="w-5 h-5 text-farm-primary shrink-0" />
+                  <form onSubmit={submitSearch} role="search" className="p-4 border-b border-farm-border flex items-center gap-3">
+                    <Search className="w-5 h-5 text-farm-primary shrink-0" aria-hidden="true" />
                     <input
                       type="search"
                       autoFocus
@@ -677,7 +728,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                       placeholder="جستجوی فرآورده‌های ارگانیک شیراز (مانند: عسل، تخم‌مرغ، عرقیات)..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full text-base sm:text-sm outline-none bg-transparent placeholder-gray-500 text-gray-900"
+                      className="w-full min-h-[44px] text-base sm:text-sm outline-none bg-transparent placeholder-gray-500 text-gray-900"
                     />
                     <button
                       type="button"
@@ -687,14 +738,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                     >
                       <X className="w-5 h-5" />
                     </button>
-                  </div>
+                  </form>
 
-                  <div className="p-3 overflow-y-auto overscroll-contain divide-y divide-farm-bg-warm space-y-1 max-h-[60vh]">
-                    {searchResults.length === 0 ? (
+                  <div
+                    className="p-3 overflow-y-auto overscroll-contain divide-y divide-farm-bg-warm space-y-1 max-h-[60vh]"
+                    aria-live="polite"
+                  >
+                    {!searchQuery.trim() ? (
                       <div className="py-8 text-center text-sm text-farm-text-muted">
-                        {searchQuery.trim()
-                          ? 'محصولی مطابق با عبارت جستجو شده در مزرعه یافت نشد.'
-                          : 'نام محصول، دسته‌بندی یا ویژگی مورد نظر خود را تایپ کنید.'}
+                        نام محصول، دسته‌بندی یا ویژگی مورد نظر خود را تایپ کنید.
+                      </div>
+                    ) : searchStatus === 'loading' && searchResults.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-farm-text-muted">در حال جستجو...</div>
+                    ) : searchStatus === 'error' ? (
+                      <div role="alert" className="py-8 text-center text-sm text-rose-700">
+                        جستجو در این لحظه انجام نشد. لطفاً دوباره تلاش کنید.
+                      </div>
+                    ) : searchStatus === 'done' && searchResults.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-farm-text-muted">
+                        محصولی مطابق با عبارت جستجو شده در مزرعه یافت نشد.
                       </div>
                     ) : (
                       searchResults.map((product) => (
@@ -706,7 +768,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                         >
                           <img
                             src={product.images[0] || '/images/prod-eggs.jpg'}
-                            alt={product.title}
+                            alt=""
+                            loading="lazy"
                             className="w-12 h-12 rounded-xl object-cover border border-farm-border shrink-0"
                           />
                           <div className="flex-1 min-w-0">
@@ -720,6 +783,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                       ))
                     )}
                   </div>
+
+                  {searchQuery.trim() && (
+                    <div className="p-3 border-t border-farm-border flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => submitSearch()}
+                        className="min-h-[44px] px-4 rounded-xl text-sm font-bold text-farm-primary hover:bg-farm-bg-warm transition-colors cursor-pointer"
+                      >
+                        مشاهده همه نتایج برای «{searchQuery.trim()}»
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

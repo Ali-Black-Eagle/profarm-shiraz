@@ -5,6 +5,7 @@ import { SITE_CONFIG } from '@/lib/site-config';
 
 export const metadata = {
   title: 'شرایط و قوانین خرید',
+  alternates: { canonical: '/terms' },
   description: 'قوانین و ضوابط خرید، زمان‌بندی تحویل با پیک پروفارم در شیراز و ضمانت کیفیت محصولات ارگانیک',
 };
 

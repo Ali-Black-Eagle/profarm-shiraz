@@ -128,20 +128,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 onClick={() => updateQuantity(product.id, quantity + 1)}
                 disabled={quantity >= product.stock}
                 aria-label={`افزایش تعداد ${product.title}`}
-                className="min-w-[36px] min-h-[36px] rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                className="min-w-[44px] min-h-[44px] rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-40"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden="true" />
               </button>
-              <span className="min-w-[24px] text-center text-sm font-black text-farm-primary">
+              <span className="min-w-[24px] text-center text-sm font-black text-farm-primary" aria-live="polite">
                 {toPersianDigits(quantity)}
               </span>
               <button
                 type="button"
                 onClick={() => updateQuantity(product.id, quantity - 1)}
                 aria-label={`کاهش تعداد ${product.title}`}
-                className="min-w-[36px] min-h-[36px] rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
+                className="min-w-[44px] min-h-[44px] rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
               >
-                <Minus className="w-4 h-4" />
+                <Minus className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           )}
