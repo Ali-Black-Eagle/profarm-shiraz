@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { farmStore } from './db-store';
-import { getSessionFromRequest, SessionPayload } from './session';
+import { getSessionFromRequest, isSessionStale, SessionPayload } from './session';
 import type { User } from '@/types';
 
 /**
@@ -29,6 +29,14 @@ export function requireAdmin(
   if (!user) {
     return NextResponse.json(
       { success: false, message: 'دسترسی غیرمجاز: حساب کاربری یافت نشد.' },
+      { status: 401 }
+    );
+  }
+
+  // Token issued before the latest password change: reject (the admin must sign in again)
+  if (isSessionStale(session, user)) {
+    return NextResponse.json(
+      { success: false, message: 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.' },
       { status: 401 }
     );
   }

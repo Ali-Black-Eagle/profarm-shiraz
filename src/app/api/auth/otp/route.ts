@@ -22,17 +22,20 @@ export async function POST(req: NextRequest) {
     const session = getSessionFromRequest(req);
 
     if (action === 'send' || action === 'send-checkout-otp' || action === 'send-checkout-phone') {
-      // SECURITY: IP-level rate limiting to prevent SMS toll fraud & SMS bombing (resistant to X-Forwarded-For spoofing)
+      // SECURITY: IP-level rate limiting to prevent SMS toll fraud & SMS bombing. Skipped when the IP is
+      // 'unknown' (no trusted proxy header); the per-phone and global SMS limits in sendOtp still apply.
       const ip = getSecureClientIp(req);
-      const ipRateCheck = await checkDistributedRateLimit(`otp_ip:${ip}`, 10, 600);
-      if (!ipRateCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `تعداد درخواست‌های پیامک از این شبکه بیش از حد مجاز است. لطفاً ${ipRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
-          },
-          { status: 429 }
-        );
+      if (ip !== 'unknown') {
+        const ipRateCheck = await checkDistributedRateLimit(`otp_ip:${ip}`, 10, 600);
+        if (!ipRateCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد درخواست‌های پیامک از این شبکه بیش از حد مجاز است. لطفاً ${ipRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+            },
+            { status: 429 }
+          );
+        }
       }
 
       // SECURITY: the only email a code may fall back to is the one already stored on the account
@@ -51,16 +54,42 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const verifyResult = await verifyOtp(cleanPhone, code);
-      if (!verifyResult.success) {
-        return NextResponse.json(verifyResult, { status: 400 });
-      }
-
+      // Check the session BEFORE consuming the OTP, so an anonymous caller cannot burn codes
       if (!session) {
         return NextResponse.json(
           { success: false, message: 'جهت تایید شماره همراه، ابتدا وارد حساب کاربری شوید.' },
           { status: 401 }
         );
+      }
+
+      // Same verify limits as action 'verify': per IP (when known) and per phone
+      const verifyIp = getSecureClientIp(req);
+      if (verifyIp !== 'unknown') {
+        const verifyIpCheck = await checkDistributedRateLimit(`otp_verify_ip:${verifyIp}`, 20, 300);
+        if (!verifyIpCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyIpCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+            },
+            { status: 429 }
+          );
+        }
+      }
+      const verifyPhoneCheck = await checkDistributedRateLimit(`otp_verify_phone:${cleanPhone}`, 10, 900);
+      if (!verifyPhoneCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های تایید کد برای این شماره بیش از حد مجاز است. لطفاً ${verifyPhoneCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+          },
+          { status: 429 }
+        );
+      }
+
+      const verifyResult = await verifyOtp(cleanPhone, code);
+      if (!verifyResult.success) {
+        return NextResponse.json(verifyResult, { status: 400 });
       }
 
       // Attach verified phone to user
@@ -81,6 +110,7 @@ export async function POST(req: NextRequest) {
       // Update session cookie with verified phone
       setSessionCookie(res, {
         userId: attachResult.user.id,
+        sv: attachResult.user.sessionVersion ?? 0,
         phone: cleanPhone,
         name: attachResult.user.name || 'کاربر گرامی',
         role: attachResult.user.role,
@@ -101,15 +131,17 @@ export async function POST(req: NextRequest) {
 
       // SECURITY: Rate limit verification attempts per IP to prevent brute-force attacks (resistant to spoofing)
       const ip = getSecureClientIp(req);
-      const verifyRateCheck = await checkDistributedRateLimit(`otp_verify_ip:${ip}`, 20, 300);
-      if (!verifyRateCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
-          },
-          { status: 429 }
-        );
+      if (ip !== 'unknown') {
+        const verifyRateCheck = await checkDistributedRateLimit(`otp_verify_ip:${ip}`, 20, 300);
+        if (!verifyRateCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+            },
+            { status: 429 }
+          );
+        }
       }
       // Per-phone cap: a rotated IP still cannot try unlimited codes for one number
       const verifyPhoneCheck = await checkDistributedRateLimit(`otp_verify_phone:${cleanPhone}`, 10, 900);
@@ -159,6 +191,7 @@ export async function POST(req: NextRequest) {
 
       setSessionCookie(res, {
         userId: user.id,
+        sv: user.sessionVersion ?? 0,
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,

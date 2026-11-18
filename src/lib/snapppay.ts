@@ -150,6 +150,7 @@ export async function requestSnappPayPayment(
     try {
       const res = await fetch(`${config.baseUrl}/payment/token`, {
         method: 'POST',
+      signal: AbortSignal.timeout(8000),
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`,
@@ -216,6 +217,7 @@ export async function verifySnappPayPayment(
   try {
     const res = await fetch(`${config.baseUrl}/payment/verify`, {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`,
@@ -303,6 +305,7 @@ export async function testSnappPayConnection(
   try {
     const res = await fetch(`${cleanBaseUrl}/payment/token`, {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Basic ${Buffer.from(`${cleanId}:${cleanSecret}`).toString('base64')}`,
@@ -314,7 +317,6 @@ export async function testSnappPayConnection(
         paymentMethodTypeDto: 'INSTALLMENT',
         returnUrl: 'https://profarm-shiraz.ir/test-callback',
       }),
-      signal: AbortSignal.timeout(8000),
     });
 
     const latencyMs = Date.now() - startTime;

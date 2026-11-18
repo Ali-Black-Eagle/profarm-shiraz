@@ -155,9 +155,9 @@ function quoteSubscription(input: QuoteInput, user: User | null, tier: Subscript
       {
         productId,
         title,
-        unitPrice: price,
+        unitPrice: Math.max(0, price),
         quantity: 1,
-        lineTotal: price,
+        lineTotal: Math.max(0, price),
         discount: 0,
         eggCount: 0,
         eggDiscountedCount: 0,
@@ -165,8 +165,8 @@ function quoteSubscription(input: QuoteInput, user: User | null, tier: Subscript
         product,
       },
     ];
-    quote.subtotal = price;
-    quote.total = price;
+    quote.subtotal = Math.max(0, price);
+    quote.total = Math.max(0, price);
   }
 
   quote.ok = quote.errors.length === 0;
@@ -235,7 +235,8 @@ export function quoteCart(input: QuoteInput): CartQuote {
     cartItems.push({ product: prod, quantity });
   }
 
-  const subtotal = cartItems.reduce((sum, c) => sum + c.product.price * c.quantity, 0);
+  // Prices are stored and validated as >= 0; the clamps here guarantee a negative value can never reduce a total
+  const subtotal = Math.max(0, cartItems.reduce((sum, c) => sum + Math.max(0, c.product.price) * c.quantity, 0));
   // Without an address (cart preview) the Shiraz rule is not evaluated and the Shiraz shipping is shown.
   // Shiraz needs the city Shiraz AND the province Fars (or an empty province).
   const deliveryKnown = input.city !== undefined;
@@ -296,10 +297,10 @@ export function quoteCart(input: QuoteInput): CartQuote {
     return {
       productId: e.productId,
       title: e.product.title,
-      unitPrice: e.product.price,
+      unitPrice: Math.max(0, e.product.price),
       quantity: e.quantity,
-      lineTotal: e.product.price * e.quantity,
-      discount: d.discount,
+      lineTotal: Math.max(0, e.product.price) * e.quantity,
+      discount: Math.max(0, d.discount),
       eggCount: d.eggCount,
       eggDiscountedCount: d.eggDiscountedCount,
       costPrice: typeof e.product.costPrice === 'number' && e.product.costPrice >= 0 ? e.product.costPrice : 0,

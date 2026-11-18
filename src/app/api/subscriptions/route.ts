@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { parseWith } from '@/lib/admin-api';
+import { subscriptionSettingsPatchSchema } from '@/lib/settings-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +74,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const updated = farmStore.updateSubscriptionSettings(newSettings);
+    const parsed = parseWith(subscriptionSettingsPatchSchema, newSettings);
+    if ('response' in parsed) return parsed.response;
+    const updated = farmStore.updateSubscriptionSettings(
+      parsed.data as Parameters<typeof farmStore.updateSubscriptionSettings>[0]
+    );
     const stats = farmStore.getSubscriptionStats();
 
     return NextResponse.json({

@@ -14,6 +14,18 @@ interface FooterProps {
   content: SiteContent;
 }
 
+/** Social links render only when they are http(s) URLs. javascript:, data:, relative and malformed values are dropped. */
+function safeSocialUrl(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 export const Footer: React.FC<FooterProps> = ({ content }) => {
   const pathname = usePathname();
 
@@ -87,9 +99,9 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
             <div className="pt-2">
               <span className="block text-xs font-bold text-[#D4A373] mb-2">ما را در شبکه‌های اجتماعی دنبال کنید:</span>
               <div className="flex items-center gap-2">
-                {content.socialInstagram && (
+                {safeSocialUrl(content.socialInstagram) && (
                   <a
-                    href={content.socialInstagram}
+                    href={safeSocialUrl(content.socialInstagram) ?? undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
@@ -97,9 +109,9 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
                     اینستاگرام
                   </a>
                 )}
-                {content.socialTelegram && (
+                {safeSocialUrl(content.socialTelegram) && (
                   <a
-                    href={content.socialTelegram}
+                    href={safeSocialUrl(content.socialTelegram) ?? undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
@@ -107,9 +119,9 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
                     تلگرام
                   </a>
                 )}
-                {content.socialEitaa && (
+                {safeSocialUrl(content.socialEitaa) && (
                   <a
-                    href={content.socialEitaa}
+                    href={safeSocialUrl(content.socialEitaa) ?? undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"
@@ -117,9 +129,9 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
                     ایتا
                   </a>
                 )}
-                {content.socialWhatsapp && !content.socialWhatsapp.includes('989170000000') && (
+                {safeSocialUrl(content.socialWhatsapp) && !(content.socialWhatsapp ?? '').includes('989170000000') && (
                   <a
-                    href={content.socialWhatsapp}
+                    href={safeSocialUrl(content.socialWhatsapp) ?? undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2.5 py-1 rounded-lg bg-farm-primary hover:bg-[#D4A373] hover:text-farm-primary-dark transition-colors text-xs font-bold"

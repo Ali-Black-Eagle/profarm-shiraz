@@ -67,7 +67,11 @@ export async function POST(req: NextRequest) {
     // phone numbers cannot flood the wholesale desk. The IP is spoof-resistant (see getSecureClientIp).
     const ip = getSecureClientIp(req);
     const phoneCheck = await checkDistributedRateLimit(`inquiry:${cleanPhone}`, 5, 900);
-    const ipCheck = await checkDistributedRateLimit(`inquiry-ip:${ip}`, 20, 900);
+    // Unknown IP (no trusted proxy header): the per-IP bucket is skipped; a global cap applies instead
+    const ipCheck =
+      ip !== 'unknown'
+        ? await checkDistributedRateLimit(`inquiry-ip:${ip}`, 20, 900)
+        : await checkDistributedRateLimit('inquiry-global', 100, 900);
     const blocked = !phoneCheck.allowed ? phoneCheck : !ipCheck.allowed ? ipCheck : null;
     if (blocked) {
       return NextResponse.json(

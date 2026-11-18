@@ -301,73 +301,58 @@ export function isShirazAddress(city?: string | null, province?: string | null):
   return isShirazCity(city) && isFarsProvince(province);
 }
 
+let proxyTrustWarningLogged = false;
+
 /**
  * Returns the client IP used as a rate-limit key.
  *
- * Forwarded/CDN headers (ar-real-ip, cf-connecting-ip, true-client-ip, x-real-ip, x-forwarded-for) are
- * client-controlled unless a proxy or CDN in front of the app overwrites them. They are therefore read
- * ONLY when the operator sets TRUST_PROXY_HEADERS=1 (see .env.example).
+ * Client-supplied forwarding headers are never trusted on their own. When TRUST_PROXY_HEADERS=1 is set
+ * (production behind the provided nginx, which sets X-Real-IP from $remote_addr and strips the other
+ * headers), exactly ONE header is read:
+ *   - TRUSTED_CDN=arvan      -> ar-real-ip
+ *   - TRUSTED_CDN=cloudflare -> cf-connecting-ip
+ *   - otherwise              -> x-real-ip
+ * X-Forwarded-For and True-Client-IP are never read.
  *
- * Without that flag the direct connection IP is used when the runtime exposes it; otherwise the constant
- * 'unknown'. Note: all clients that map to 'unknown' share one bucket for IP-keyed limits.
+ * Without TRUST_PROXY_HEADERS=1, or when the header is missing or invalid, the result is 'unknown'.
+ * Callers must then skip their per-IP limiter and rely on per-phone / per-identifier / global limits,
+ * so a single attacker cannot lock out every 'unknown' client.
  */
 export function getSecureClientIp(req: any): string {
-  if (process.env.TRUST_PROXY_HEADERS === '1' && req && req.headers) {
-    // Helper to extract header value from NextRequest or plain headers map
-    const getHeader = (name: string): string | null => {
-      try {
-        if (typeof req.headers.get === 'function') {
-          return req.headers.get(name);
-        }
-        return req.headers[name] || req.headers[name.toLowerCase()] || null;
-      } catch {
-        return null;
-      }
-    };
-
-    // 1. ArvanCloud edge header
-    const arvanIp = getHeader('ar-real-ip');
-    if (arvanIp && typeof arvanIp === 'string') {
-      const clean = arvanIp.trim();
-      if (isValidIp(clean)) return clean;
+  if (process.env.TRUST_PROXY_HEADERS !== '1') {
+    if (!proxyTrustWarningLogged) {
+      proxyTrustWarningLogged = true;
+      console.warn(
+        '[Security] TRUST_PROXY_HEADERS is not set to 1. Per-IP rate limits are skipped; production must run behind the provided nginx with TRUST_PROXY_HEADERS=1.'
+      );
     }
+    return 'unknown';
+  }
+  if (!req || !req.headers) return 'unknown';
 
-    // 2. Cloudflare connecting IP
-    const cfIp = getHeader('cf-connecting-ip');
-    if (cfIp && typeof cfIp === 'string') {
-      const clean = cfIp.trim();
-      if (isValidIp(clean)) return clean;
-    }
+  const cdn = (process.env.TRUSTED_CDN || '').trim().toLowerCase();
+  const headerName =
+    cdn === 'arvan' ? 'ar-real-ip' : cdn === 'cloudflare' ? 'cf-connecting-ip' : 'x-real-ip';
 
-    // 3. True-Client-IP (Akamai, Enterprise CDNs)
-    const trueClientIp = getHeader('true-client-ip');
-    if (trueClientIp && typeof trueClientIp === 'string') {
-      const clean = trueClientIp.trim();
-      if (isValidIp(clean)) return clean;
-    }
-
-    // 4. X-Real-IP (set by the reverse proxy from the socket address)
-    const xRealIp = getHeader('x-real-ip');
-    if (xRealIp && typeof xRealIp === 'string') {
-      const clean = xRealIp.trim();
-      if (isValidIp(clean)) return clean;
-    }
-
-    // 5. X-Forwarded-For: rightmost valid entry (closest proxy), never the client-supplied left side
-    const xForwardedFor = getHeader('x-forwarded-for');
-    if (xForwardedFor && typeof xForwardedFor === 'string') {
-      const parts = xForwardedFor.split(',').map((p: string) => p.trim()).filter(Boolean);
-      for (let i = parts.length - 1; i >= 0; i--) {
-        const candidate = parts[i];
-        if (isValidIp(candidate)) return candidate;
-      }
-    }
+  let raw: string | null = null;
+  try {
+    raw =
+      typeof req.headers.get === 'function'
+        ? req.headers.get(headerName)
+        : req.headers[headerName] || null;
+  } catch {
+    raw = null;
+  }
+  if (typeof raw === 'string') {
+    const clean = raw.trim();
+    if (isValidIp(clean)) return clean;
   }
 
-  // Direct socket IP, when the runtime exposes it (NextRequest.ip is not typed in Next 16)
-  const directIp = req && typeof req.ip === 'string' ? req.ip.trim() : '';
-  if (directIp && isValidIp(directIp)) return directIp;
-
+  if (!proxyTrustWarningLogged && (!raw || typeof raw !== 'string')) {
+    // Proxy is trusted but the expected header is absent: most likely the proxy config is wrong.
+    proxyTrustWarningLogged = true;
+    console.warn(`[Security] TRUST_PROXY_HEADERS=1 but header "${headerName}" is missing; per-IP limits are skipped.`);
+  }
   return 'unknown';
 }
 

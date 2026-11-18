@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { setSessionCookie, verifyPhoneProof } from '@/lib/session';
-import { normalizePhoneNumber } from '@/lib/formatters';
+import { getSecureClientIp, normalizePhoneNumber } from '@/lib/formatters';
 import { isValidEmail } from '@/lib/email';
+import { checkDistributedRateLimit } from '@/lib/sms';
 import { apiErrorResponse } from '@/lib/api-errors';
 import { getEffectiveTier } from '@/lib/subscription';
 import type { User } from '@/types';
@@ -14,10 +15,44 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { name, email, phone, password, phoneProof } = body;
 
-    const cleanName = (typeof name === 'string' ? name : '').trim();
-    const cleanEmail = (typeof email === 'string' ? email : '').trim().toLowerCase();
+    const rawName = typeof name === 'string' ? name : '';
+    const rawEmail = typeof email === 'string' ? email : '';
+    const rawPassword = typeof password === 'string' ? password : '';
+    if (rawName.length > 100 || rawEmail.length > 254 || rawPassword.length > 128) {
+      return NextResponse.json(
+        { success: false, message: 'طول یکی از فیلدها بیش از حد مجاز است.' },
+        { status: 400 }
+      );
+    }
+
+    const cleanName = rawName.trim();
+    const cleanEmail = rawEmail.trim().toLowerCase();
     const cleanPhone = typeof phone === 'string' && phone.trim() ? normalizePhoneNumber(phone) : '';
-    const cleanPassword = (typeof password === 'string' ? password : '').trim();
+    const cleanPassword = rawPassword.trim();
+
+    // Registration abuse limits: per IP (only when the IP is known), per phone and per email, and a global cap.
+    // Checked before any account lookup or password hashing.
+    const ip = getSecureClientIp(req);
+    const limitChecks = [
+      checkDistributedRateLimit('register_global', 60, 600),
+      ip !== 'unknown' ? checkDistributedRateLimit(`register_ip:${ip}`, 5, 600) : null,
+      cleanPhone ? checkDistributedRateLimit(`register_phone:${cleanPhone}`, 5, 600) : null,
+      cleanEmail ? checkDistributedRateLimit(`register_email:${cleanEmail}`, 5, 600) : null,
+    ];
+    for (const check of limitChecks) {
+      if (!check) continue;
+      const result = await check;
+      if (!result.allowed) {
+        const retry = Math.max(1, Math.ceil(Number(result.retryAfterSeconds) || 60));
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد درخواست‌های ثبت‌نام بیش از حد مجاز است. لطفاً ${retry} ثانیه دیگر مجدداً تلاش نمایید.`,
+          },
+          { status: 429, headers: { 'Retry-After': String(retry) } }
+        );
+      }
+    }
 
     if (!cleanName || cleanName.length < 2) {
       return NextResponse.json(
@@ -96,6 +131,7 @@ export async function POST(req: NextRequest) {
 
     setSessionCookie(res, {
       userId: user.id,
+      sv: user.sessionVersion ?? 0,
       phone: user.phone || '',
       name: user.name || cleanName,
       role: user.role,

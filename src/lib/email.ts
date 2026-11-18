@@ -41,6 +41,19 @@ export function isValidEmail(email?: string | null): boolean {
 }
 
 /**
+ * Escapes text for safe interpolation into HTML (element content and attribute values).
+ * Every value placed in the email template goes through this, including names and order fields.
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Retrieves current active email provider settings
  */
 export function getEffectiveEmailSettings(): EmailProviderSettings {
@@ -72,12 +85,15 @@ export function generateProFarmEmailHtml(options: {
   content: string;
   footerNote?: string;
 }): string {
-  const name = options.recipientName ? `جناب/سرکار ${options.recipientName}` : 'مشتری گرامی';
+  const safeSubject = escapeHtml(options.subject);
+  const name = options.recipientName
+    ? `جناب/سرکار ${escapeHtml(options.recipientName)}`
+    : 'مشتری گرامی';
   const formattedContent = options.content
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((p) => `<p style="margin: 0 0 14px 0; line-height: 1.8; color: #2D3748; font-size: 14px;">${p}</p>`)
+    .map((p) => `<p style="margin: 0 0 14px 0; line-height: 1.8; color: #2D3748; font-size: 14px;">${escapeHtml(p)}</p>`)
     .join('');
 
   return `
@@ -86,7 +102,7 @@ export function generateProFarmEmailHtml(options: {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${options.subject}</title>
+  <title>${safeSubject}</title>
 </head>
 <body style="margin:0; padding:0; background-color:#F9F8F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; direction: rtl; text-align: right;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #F9F8F5; padding: 30px 15px;">
@@ -114,7 +130,7 @@ export function generateProFarmEmailHtml(options: {
               
               <div style="background-color: #FAFAFA; border-right: 4px solid #2C4A2E; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;">
                 <h3 style="margin: 0; color: #1A202C; font-size: 15px; font-weight: 800;">
-                  ${options.subject}
+                  ${safeSubject}
                 </h3>
               </div>
 
@@ -123,7 +139,7 @@ export function generateProFarmEmailHtml(options: {
               ${
                 options.footerNote
                   ? `<div style="margin-top: 20px; padding: 12px; background-color: #FEF3C7; border-radius: 12px; border: 1px solid #FCD34D; font-size: 12px; color: #92400E;">
-                      ${options.footerNote}
+                      ${escapeHtml(options.footerNote)}
                     </div>`
                   : ''
               }
@@ -166,10 +182,9 @@ export async function createMailTransporter(settings: EmailProviderSettings) {
       user: settings.smtpUser,
       pass: settings.smtpPass,
     },
-    tls: {
-      // Do not fail on self-signed certificates or proxy handshakes
-      rejectUnauthorized: false,
-    },
+    // Certificate verification stays on. Only an operator who explicitly sets SMTP_ALLOW_SELF_SIGNED=1
+    // (for example a private relay with a self-signed certificate) turns it off.
+    ...(process.env.SMTP_ALLOW_SELF_SIGNED === '1' ? { tls: { rejectUnauthorized: false } } : {}),
   });
 }
 

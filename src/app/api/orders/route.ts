@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { Order, OrderItem, Product } from '@/types';
 import { getSessionFromRequest } from '@/lib/session';
-import { normalizeOrderNumberInput, normalizePhoneNumber } from '@/lib/formatters';
+import { isValidIranPhone, normalizeOrderNumberInput, normalizePhoneNumber } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
@@ -190,7 +190,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPhone = normalizePhoneNumber(typeof phone === 'string' ? phone : '');
+    // Persian or Arabic digits are normalized first. A phone that was typed must be a valid Iranian mobile.
+    const phoneInput = typeof phone === 'string' ? phone.trim() : '';
+    if (phoneInput && !isValidIranPhone(phoneInput)) {
+      return NextResponse.json(
+        { success: false, message: 'شماره تلفن وارد شده معتبر نیست. نمونه صحیح: ۰۹۱۲۳۴۵۶۷۸۹' },
+        { status: 400 }
+      );
+    }
+    const cleanPhone = normalizePhoneNumber(phoneInput);
     const cityName = sanitizeText(city, 50) || 'شیراز';
     const addressId = `addr-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
@@ -284,7 +292,7 @@ export async function POST(req: NextRequest) {
       orderNumber,
       amount,
       method: method as OnlinePaymentMethod,
-      mobile: phone,
+      mobile: cleanPhone || user.phone || '',
     });
     if (!payment.success) {
       return failAndRelease(payment.message);

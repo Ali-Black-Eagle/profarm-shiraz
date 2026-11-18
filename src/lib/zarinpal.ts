@@ -105,6 +105,8 @@ export async function requestPayment(
   try {
     const res = await fetch(`${config.baseUrl}/request.json`, {
       method: 'POST',
+      // Gateway calls time out after 8 s; a timeout is handled as a failed request by the catch below
+      signal: AbortSignal.timeout(8000),
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -170,6 +172,7 @@ export async function verifyPayment(
   try {
     const res = await fetch(`${config.baseUrl}/verify.json`, {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -259,6 +262,7 @@ export async function testZarinpalConnection(
   try {
     const res = await fetch(`${baseUrl}/request.json`, {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -270,7 +274,6 @@ export async function testZarinpalConnection(
         description: 'تست اتصال درگاه پروفارم شیراز',
         callback_url: 'https://profarm-shiraz.ir/test-callback',
       }),
-      signal: AbortSignal.timeout(8000),
     });
 
     const latencyMs = Date.now() - startTime;

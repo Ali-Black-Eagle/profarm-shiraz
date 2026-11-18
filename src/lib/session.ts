@@ -10,10 +10,20 @@ export interface SessionPayload {
   role: 'ADMIN' | 'USER';
   tier?: string;
   isProMember?: boolean;
+  /** Account session version at issue time (User.sessionVersion). Missing means 0. */
+  sv?: number;
   exp: number; // unix timestamp in seconds
 }
 
 export const SESSION_COOKIE_NAME = 'profarm_session';
+
+/**
+ * True when the token was issued before the account's latest password change, so it must be rejected.
+ * Tokens without `sv` (issued before this field existed) count as version 0.
+ */
+export function isSessionStale(session: { sv?: number }, user: { sessionVersion?: number | null }): boolean {
+  return (session.sv ?? 0) < (user.sessionVersion ?? 0);
+}
 
 // In-memory revocation blacklist (jti or token -> expiration timestamp)
 const gGlobal = (typeof globalThis !== 'undefined' ? globalThis : global) as unknown as {

@@ -8,6 +8,16 @@ import { getSessionFromRequest } from '@/lib/session';
 import { quoteCart } from '@/lib/pricing';
 import { publicCoupon, publicQuote } from '@/lib/public-api';
 
+/**
+ * Coupon-code guessing limit. Known IP: 15 checks per 5 minutes per IP. Unknown IP (no trusted proxy
+ * header): the per-IP bucket is skipped and a global cap applies instead, so one client cannot exhaust
+ * a shared 'unknown' bucket for everyone.
+ */
+async function couponCheckLimit(ip: string) {
+  if (ip !== 'unknown') return checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
+  return checkDistributedRateLimit('coupon_check_global', 300, 300);
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,7 +28,7 @@ export async function GET(request: Request) {
       // SECURITY: Rate limit coupon validation to prevent brute-force attacks (15 attempts / 5 mins)
       // The IP comes from edge/proxy headers that clients cannot spoof (see getSecureClientIp).
       const ip = getSecureClientIp(request);
-      const rateCheck = await checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
+      const rateCheck = await couponCheckLimit(ip);
       if (!rateCheck.allowed) {
         return NextResponse.json(
           {
@@ -110,7 +120,7 @@ export async function POST(request: Request) {
     if (body.action === 'validate' || Array.isArray(body.items)) {
       // SECURITY: Rate limit coupon validation to prevent brute-force attacks (15 attempts / 5 mins)
       const ip = getSecureClientIp(request);
-      const rateCheck = await checkDistributedRateLimit(`coupon_check:${ip}`, 15, 300);
+      const rateCheck = await couponCheckLimit(ip);
       if (!rateCheck.allowed) {
         return NextResponse.json(
           {

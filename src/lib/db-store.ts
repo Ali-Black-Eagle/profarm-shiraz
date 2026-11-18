@@ -2660,6 +2660,29 @@ class FarmDataStore {
       return { success: false, message: 'حساب کاربری مورد نظر یافت نشد.', status: 404 };
     }
 
+    // Length and format bounds (checked before anything is mutated)
+    if (typeof updates.name === 'string' && updates.name.trim().length > 100) {
+      return { success: false, message: 'نام نمی‌تواند بیش از ۱۰۰ کاراکتر باشد.', status: 400 };
+    }
+    if (typeof updates.username === 'string' && updates.username.trim().length > 40) {
+      return { success: false, message: 'نام کاربری نمی‌تواند بیش از ۴۰ کاراکتر باشد.', status: 400 };
+    }
+    if (typeof updates.email === 'string' && updates.email.trim().length > 254) {
+      return { success: false, message: 'آدرس ایمیل نمی‌تواند بیش از ۲۵۴ کاراکتر باشد.', status: 400 };
+    }
+    if (typeof updates.password === 'string' && updates.password.length > 128) {
+      return { success: false, message: 'کلمه عبور نمی‌تواند بیش از ۱۲۸ کاراکتر باشد.', status: 400 };
+    }
+    if (updates.nationalId !== undefined && updates.nationalId !== null && updates.nationalId !== '') {
+      const nid = toEnglishDigits(String(updates.nationalId)).trim();
+      if (!/^\d{10}$/.test(nid)) {
+        return { success: false, message: 'کد ملی باید ۱۰ رقم باشد.', status: 400 };
+      }
+    }
+    if (updates.birthDate !== undefined && updates.birthDate !== null && String(updates.birthDate).trim().length > 10) {
+      return { success: false, message: 'تاریخ تولد نامعتبر است.', status: 400 };
+    }
+
     const allUsers = Array.from(this.users.values()).filter((u, idx, arr) => arr.indexOf(u) === idx);
 
     // Usernames must not look like a phone number or an email address (they are used as login identifiers)
@@ -2733,12 +2756,24 @@ class FarmDataStore {
     if (nextPasswordHash) {
       user.password = nextPasswordHash;
       user.authProvider = 'PASSWORD';
+      // Invalidate every session issued before this password change
+      user.sessionVersion = (user.sessionVersion ?? 0) + 1;
     }
 
     this.indexUser(user);
     this.saveUsers();
 
     return { success: true, user: sanitizeUser(user), message: 'اطلاعات حساب کاربری با موفقیت به‌روزرسانی شد.' };
+  }
+
+  /**
+   * Email address for order notifications. Only an address the owner has verified (isEmailVerified === true,
+   * set by Google sign-in) is used; unverified addresses never receive order mail.
+   */
+  verifiedOrderEmail(phone: string | undefined, orderUser?: User | null): string | undefined {
+    const owner = (phone ? this.getUserByPhone(phone) : undefined) || orderUser || undefined;
+    if (!owner || owner.isEmailVerified !== true || !owner.email) return undefined;
+    return owner.email;
   }
 
   getOrCreateGoogleUser(googleUser: { email: string; name?: string; picture?: string }): User {
@@ -2820,6 +2855,7 @@ class FarmDataStore {
     const user = this.users.get(phone);
     if (!user) return false;
     user.password = hashPassword(pass.trim());
+    user.sessionVersion = (user.sessionVersion ?? 0) + 1;
     this.indexUser(user);
     this.saveUsers();
     return true;
@@ -2973,6 +3009,7 @@ class FarmDataStore {
     if (params.password && params.password.trim()) {
       user.password = hashPassword(params.password.trim());
       user.authProvider = 'PASSWORD';
+      user.sessionVersion = (user.sessionVersion ?? 0) + 1;
     }
     user.isPhoneVerified = true;
 
@@ -3738,7 +3775,7 @@ class FarmDataStore {
     };
     const rendered = this.renderEventSms('ORDER_PLACED', vars);
     if (rendered && rendered.isEnabled && rendered.message) {
-      const targetEmail = order.user?.email || this.getUserByPhone(phone)?.email;
+      const targetEmail = this.verifiedOrderEmail(phone, order.user);
       sendCustomSms(phone, rendered.message, targetEmail);
     }
   }
@@ -3842,7 +3879,7 @@ class FarmDataStore {
         eventId = 'ORDER_CANCELLED';
       }
 
-      const targetEmail = order.user?.email || (phone ? this.getUserByPhone(phone)?.email : undefined);
+      const targetEmail = this.verifiedOrderEmail(phone, order.user);
       if (eventId) {
         const rendered = this.renderEventSms(eventId, vars);
         if (rendered && rendered.isEnabled && rendered.message) {

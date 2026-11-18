@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
+import { parseWith } from '@/lib/admin-api';
+import {
+  legacyUserSubscriptionSchema,
+  siteContentPatchSchema,
+  subscriptionSettingsPatchSchema,
+} from '@/lib/settings-validation';
 import { changeOrderStatus, listAdminOrders, serializeAdminOrder } from '@/lib/admin-orders';
 import { PATCH as patchAdminProduct } from '@/app/api/admin/products/route';
 
@@ -176,8 +182,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'updateUserSubscription') {
-      const { identifier, tier, expiryDate } = payload;
-      const updated = farmStore.updateUserSubscription(identifier, tier, expiryDate);
+      // Same rules as PATCH /api/admin/users: tier FREE | PLUS | PRO, months 1 to 24. Expiry is computed by setUserTier.
+      const parsed = parseWith(legacyUserSubscriptionSchema, payload ?? {});
+      if ('response' in parsed) return parsed.response;
+      const { identifier, tier, months } = parsed.data;
+      const cleanId = identifier.trim();
+      const target = farmStore
+        .getAllUsers()
+        .find(
+          (u) =>
+            u.id === cleanId ||
+            (u.phone && normalizePhoneNumber(u.phone) === normalizePhoneNumber(cleanId)) ||
+            (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+        );
+      if (!target) {
+        return NextResponse.json({ success: false, message: 'کاربر مورد نظر یافت نشد.' }, { status: 404 });
+      }
+      const updated = farmStore.setUserTier(target.id, tier, tier === 'FREE' ? 0 : months ?? 1);
       return NextResponse.json({ success: true, user: updated ? sanitizeUser(updated) : null });
     }
 
@@ -190,7 +211,11 @@ export async function POST(req: NextRequest) {
     if (action === 'updateSubscriptionSettings') {
       const { settings: newSettings } = payload || {};
       if (newSettings && typeof newSettings === 'object') {
-        const updated = farmStore.updateSubscriptionSettings(newSettings);
+        const parsed = parseWith(subscriptionSettingsPatchSchema, newSettings);
+        if ('response' in parsed) return parsed.response;
+        const updated = farmStore.updateSubscriptionSettings(
+          parsed.data as Parameters<typeof farmStore.updateSubscriptionSettings>[0]
+        );
         return NextResponse.json({ success: true, settings: updated });
       }
       return NextResponse.json({ success: false, message: 'تنظیمات نامعتبر است.' }, { status: 400 });
@@ -199,7 +224,10 @@ export async function POST(req: NextRequest) {
     if (action === 'updateSiteContent') {
       const { content: newContent } = payload || {};
       if (newContent && typeof newContent === 'object') {
-        const updated = farmStore.updateSiteContent(newContent);
+        // Whitelisted keys, length limits and URL scheme policy (see settings-validation.ts)
+        const parsed = parseWith(siteContentPatchSchema, newContent);
+        if ('response' in parsed) return parsed.response;
+        const updated = farmStore.updateSiteContent(parsed.data as Parameters<typeof farmStore.updateSiteContent>[0]);
         return NextResponse.json({ success: true, content: updated });
       }
       return NextResponse.json({ success: false, message: 'محتوای ارسالی نامعتبر است.' }, { status: 400 });

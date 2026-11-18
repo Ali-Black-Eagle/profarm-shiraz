@@ -151,17 +151,35 @@ export async function POST(req: NextRequest) {
     const rawIdentifier = identifier || username || phone;
     const userIdentifier = typeof rawIdentifier === 'string' ? rawIdentifier.trim() : '';
 
-    // Per-IP cap across all accounts (credential stuffing). Keys are only as trustworthy as getSecureClientIp.
-    const clientIp = getSecureClientIp(req);
-    const ipCheck = await checkLimit('ip', clientIp);
-    if (!ipCheck.allowed) {
+    // Length bounds are checked before any map lookup or password hashing
+    if (userIdentifier.length > 100) {
       return NextResponse.json(
-        {
-          success: false,
-          message: `تعداد تلاش‌های ناموفق ورود از این آدرس IP بیش از حد مجاز است. لطفاً ${ipCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
-        },
-        { status: 429 }
+        { success: false, message: 'شناسه ورود نامعتبر است.' },
+        { status: 400 }
       );
+    }
+    if (typeof password === 'string' && password.length > 128) {
+      return NextResponse.json(
+        { success: false, message: 'رمز عبور وارد شده بیش از حد طولانی است.' },
+        { status: 400 }
+      );
+    }
+
+    // Per-IP cap across all accounts (credential stuffing). When the IP is 'unknown' (no trusted proxy
+    // header) this limiter is skipped; the per-account and global-per-identifier limits still apply.
+    const clientIp = getSecureClientIp(req);
+    const ipKnown = clientIp !== 'unknown';
+    if (ipKnown) {
+      const ipCheck = await checkLimit('ip', clientIp);
+      if (!ipCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `تعداد تلاش‌های ناموفق ورود از این آدرس IP بیش از حد مجاز است. لطفاً ${ipCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // 1. Password Login Mode (with brute-force limits)
@@ -180,23 +198,28 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Lockout key combines IP and identifier so one IP cannot lock the account for everyone
+      // Lockout key combines IP and identifier so one IP cannot lock the account for everyone.
+      // Only used when the IP is known; with 'unknown' the account-wide identifier limit above applies.
       const pairKey = `${clientIp}:${accountKey}`;
-      const pairCheck = await checkLimit('pair', pairKey);
-      if (!pairCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `تعداد تلاش‌های ناموفق ورود بیش از حد مجاز است. لطفاً ${pairCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
-          },
-          { status: 429 }
-        );
+      if (ipKnown) {
+        const pairCheck = await checkLimit('pair', pairKey);
+        if (!pairCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد تلاش‌های ناموفق ورود بیش از حد مجاز است. لطفاً ${pairCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
+            },
+            { status: 429 }
+          );
+        }
       }
 
       const user = farmStore.verifyUserPassword(userIdentifier, password);
       if (!user) {
-        await recordFailure('pair', pairKey);
-        await recordFailure('ip', clientIp);
+        if (ipKnown) {
+          await recordFailure('pair', pairKey);
+          await recordFailure('ip', clientIp);
+        }
         await recordFailure('identifier', accountKey);
         return NextResponse.json(
           { success: false, message: 'شماره تلفن/ایمیل یا رمز عبور وارد شده نادرست است.' },
@@ -205,7 +228,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Success! Clear failed attempts for this account
-      await clearLimit('pair', pairKey);
+      if (ipKnown) await clearLimit('pair', pairKey);
       await clearLimit('identifier', accountKey);
 
       const safeUser = sanitizeUser(user);
@@ -217,6 +240,7 @@ export async function POST(req: NextRequest) {
 
       setSessionCookie(res, {
         userId: user.id,
+        sv: user.sessionVersion ?? 0,
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,
@@ -238,15 +262,17 @@ export async function POST(req: NextRequest) {
       const phone = normalizePhoneNumber(userIdentifier);
 
       // Same verify limiters as POST /api/auth/otp: per IP and per phone
-      const verifyIpCheck = await checkDistributedRateLimit(`otp_verify_ip:${clientIp}`, 20, 300);
-      if (!verifyIpCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyIpCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
-          },
-          { status: 429 }
-        );
+      if (ipKnown) {
+        const verifyIpCheck = await checkDistributedRateLimit(`otp_verify_ip:${clientIp}`, 20, 300);
+        if (!verifyIpCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد تلاش‌های تایید کد بیش از حد مجاز است. لطفاً ${verifyIpCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+            },
+            { status: 429 }
+          );
+        }
       }
       const verifyPhoneCheck = await checkDistributedRateLimit(`otp_verify_phone:${phone}`, 10, 900);
       if (!verifyPhoneCheck.allowed) {
@@ -287,6 +313,7 @@ export async function POST(req: NextRequest) {
 
       setSessionCookie(res, {
         userId: user.id,
+        sv: user.sessionVersion ?? 0,
         phone: user.phone || '',
         name: user.name || 'کاربر گرامی',
         role: user.role,
@@ -306,15 +333,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const ipRateCheck = await checkDistributedRateLimit(`otp_ip:${clientIp}`, 10, 600);
-      if (!ipRateCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `تعداد درخواست‌های پیامک از طرف شبکه شما بیش از حد مجاز است. لطفاً ${ipRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
-          },
-          { status: 429 }
-        );
+      if (ipKnown) {
+        const ipRateCheck = await checkDistributedRateLimit(`otp_ip:${clientIp}`, 10, 600);
+        if (!ipRateCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `تعداد درخواست‌های پیامک از طرف شبکه شما بیش از حد مجاز است. لطفاً ${ipRateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش فرمایید.`,
+            },
+            { status: 429 }
+          );
+        }
       }
 
       const sendResult = await sendOtp(normalizePhoneNumber(userIdentifier));

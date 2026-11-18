@@ -37,6 +37,8 @@ export interface User {
   eggDiscountUsed?: number; // Count of eggs discounted in current month
   addresses?: Address[];
   createdAt?: string;
+  /** Bumped on password change; sessions with a lower `sv` are rejected. */
+  sessionVersion?: number;
 }
 
 export interface EmailMessageLog {

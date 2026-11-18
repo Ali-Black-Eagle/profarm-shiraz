@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
 
     setSessionCookie(res, {
       userId: safeUser.id,
+      sv: safeUser.sessionVersion ?? 0,
       phone: safeUser.phone || '',
       name: safeUser.name || 'کاربر گوگل',
       role: 'USER', // Strictly USER

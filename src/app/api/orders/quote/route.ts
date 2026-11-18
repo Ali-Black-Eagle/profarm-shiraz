@@ -18,7 +18,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const ip = getSecureClientIp(req);
-    const rate = await checkDistributedRateLimit(`order_quote:${ip}`, 60, 300);
+    // Unknown IP (no trusted proxy header): per-IP bucket skipped, a global cap applies instead
+    const rate =
+      ip !== 'unknown'
+        ? await checkDistributedRateLimit(`order_quote:${ip}`, 60, 300)
+        : await checkDistributedRateLimit('order_quote_global', 600, 300);
     if (!rate.allowed) {
       const retryAfterSeconds = Math.max(1, Math.ceil(Number(rate.retryAfterSeconds) || 10));
       return NextResponse.json(

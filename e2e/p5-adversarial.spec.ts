@@ -6,8 +6,8 @@
  * account (09170000000) and never send wrong passwords for it. Test customers use 0912500XXXX numbers.
  *
  * Requests go through Playwright's APIRequestContext. Every call uses a fresh context, so the cookie
- * jar stays empty and the Cookie header is exactly what the test sends. Per-request X-Forwarded-For
- * values are random (dev trusts that header), except the brute-force tests, which use fixed IPs.
+ * jar stays empty and the Cookie header is exactly what the test sends. Per-request X-Real-IP (the app reads only X-Real-IP, set by nginx; X-Forwarded-For is never trusted)
+ * values are random (dev trusts X-Real-IP), except the brute-force tests, which use fixed IPs.
  */
 import { test, expect, request, type Browser } from '@playwright/test';
 import fs from 'fs';
@@ -37,7 +37,7 @@ async function send(method: string, path: string, o: Opts = {}): Promise<Res> {
     const headers: Record<string, string> = { ...(o.headers ?? {}) };
     if (o.origin !== null) headers['Origin'] = o.origin ?? BASE;
     if (o.cookie) headers['Cookie'] = `${COOKIE}=${o.cookie}`;
-    headers['X-Forwarded-For'] = o.ip ?? randomIp();
+    headers['X-Real-IP'] = o.ip ?? randomIp();
     let data: string | undefined;
     if (o.body !== undefined) {
       headers['Content-Type'] = 'application/json';
