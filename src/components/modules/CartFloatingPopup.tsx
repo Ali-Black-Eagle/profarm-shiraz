@@ -117,7 +117,7 @@ export const CartFloatingPopup: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer group"
+            className="flex items-center justify-center gap-1 min-h-11 min-w-11 px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer group"
             title="کوچک کردن پنجره سبد خرید"
             aria-label="کوچک کردن سبد خرید"
           >
@@ -171,7 +171,7 @@ export const CartFloatingPopup: React.FC = () => {
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                       disabled={item.quantity >= maxStock}
-                      className="w-10 h-10 rounded flex items-center justify-center text-gray-700 hover:bg-farm-primary hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
+                      className="min-w-11 min-h-11 rounded flex items-center justify-center text-gray-700 hover:bg-farm-primary hover:text-white transition-colors disabled:opacity-25 cursor-pointer"
                       title="افزایش تعداد"
                       aria-label={`افزایش تعداد ${item.product.title}`}
                     >
@@ -185,7 +185,7 @@ export const CartFloatingPopup: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                      className="w-10 h-10 rounded flex items-center justify-center text-gray-700 hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
+                      className="min-w-11 min-h-11 rounded flex items-center justify-center text-gray-700 hover:bg-rose-700 hover:text-white transition-colors cursor-pointer"
                       title={item.quantity === 1 ? 'حذف محصول' : 'کاهش تعداد'}
                       aria-label={`کاهش تعداد ${item.product.title}`}
                     >

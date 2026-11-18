@@ -668,6 +668,7 @@ export default function AdminProductsPage() {
                 {/* Status Switcher & Action Buttons */}
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-farm-bg-warm">
                   <select
+                    aria-label={`وضعیت محصول ${prod.title}`}
                     value={currentStatus}
                     onChange={(e) => handleQuickStatusChange(prod.id, e.target.value as ProductStatus)}
                     className="flex-1 px-2.5 py-1.5 rounded-xl border border-farm-border bg-farm-bg text-xs font-bold text-farm-primary"
@@ -680,7 +681,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenEditModal(prod)}
-                    className="p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
+                    className="max-sm:min-w-11 max-sm:min-h-11 max-sm:flex max-sm:items-center max-sm:justify-center p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
                     title="ویرایش"
                   >
                     <Edit className="w-4 h-4" />
@@ -689,7 +690,7 @@ export default function AdminProductsPage() {
                   <button
                     type="button"
                     onClick={() => handleClone(prod)}
-                    className="p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
+                    className="max-sm:min-w-11 max-sm:min-h-11 max-sm:flex max-sm:items-center max-sm:justify-center p-2 rounded-xl bg-gray-100 hover:bg-farm-primary hover:text-white text-gray-700 transition-colors"
                     title="تکثیر"
                   >
                     <Copy className="w-4 h-4" />
@@ -774,7 +775,8 @@ export default function AdminProductsPage() {
                       <td className="py-4 px-5">
                         <div className="inline-flex items-center gap-1.5">
                           <select
-                            value={currentStatus}
+                            aria-label={`وضعیت محصول ${prod.title}`}
+                    value={currentStatus}
                             onChange={(e) => handleQuickStatusChange(prod.id, e.target.value as ProductStatus)}
                             className={`text-xs font-bold px-2.5 py-1 rounded-xl border appearance-none cursor-pointer focus:outline-none transition-colors ${
                               currentStatus === 'AVAILABLE'
@@ -865,8 +867,8 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Title */}
                 <div className="sm:col-span-2">
-                  <label className="block text-gray-700 font-bold mb-1.5">نام و عنوان محصول:</label>
-                  <input
+                  <label htmlFor="prod-1" className="block text-gray-700 font-bold mb-1.5">نام و عنوان محصول:</label>
+                  <input id="prod-1"
                     type="text"
                     required
                     placeholder="مثال: تخم‌بلدرچین ارگانیک کامفیروز (بسته ۲۰ عددی)"
@@ -885,10 +887,10 @@ export default function AdminProductsPage() {
                 {/* Pack size */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">نوع پکیج و مشخصات بسته:</label>
+                    <label htmlFor="prod-2" className="text-gray-700 font-bold">نوع پکیج و مشخصات بسته:</label>
                     <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
-                  <input
+                  <input id="prod-2"
                     type="text"
                     placeholder="مثال: بسته ۳۰ عددی یا ۱ کیلوگرمی (اختیاری)"
                     value={packSize}
@@ -912,6 +914,7 @@ export default function AdminProductsPage() {
                   </div>
                   <select
                     value={category}
+                    aria-label="دسته‌بندی محصول"
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-gray-900 font-medium"
                   >
@@ -927,8 +930,8 @@ export default function AdminProductsPage() {
 
                 {/* Price */}
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1.5">قیمت فروش به مشتری (تومان):</label>
-                  <input
+                  <label htmlFor="prod-3" className="block text-gray-700 font-bold mb-1.5">قیمت فروش به مشتری (تومان):</label>
+                  <input id="prod-3"
                     type="number"
                     required
                     value={price}
@@ -940,14 +943,14 @@ export default function AdminProductsPage() {
                 {/* Cost Price */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">بهای خرید از مزرعه (تومان):</label>
+                    <label htmlFor="prod-4" className="text-gray-700 font-bold">بهای خرید از مزرعه (تومان):</label>
                     {costPrice !== '' && Number(costPrice) > 0 && price > Number(costPrice) && (
                       <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                         حاشیه سود: {toPersianDigits(Math.round(((price - Number(costPrice)) / price) * 100))}٪
                       </span>
                     )}
                   </div>
-                  <input
+                  <input id="prod-4"
                     type="number"
                     placeholder="اختیاری - برای گزارش سود ناخالص"
                     value={costPrice}
@@ -958,8 +961,8 @@ export default function AdminProductsPage() {
 
                 {/* Stock */}
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1.5">موجودی انبار پروفارم (تعداد بسته):</label>
-                  <input
+                  <label htmlFor="prod-5" className="block text-gray-700 font-bold mb-1.5">موجودی انبار پروفارم (تعداد بسته):</label>
+                  <input id="prod-5"
                     type="number"
                     required
                     value={stock}
@@ -1023,10 +1026,10 @@ export default function AdminProductsPage() {
                 {/* Weight */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">وزن تقریبی بسته (کیلوگرم):</label>
+                    <label htmlFor="prod-6" className="text-gray-700 font-bold">وزن تقریبی بسته (کیلوگرم):</label>
                     <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
-                  <input
+                  <input id="prod-6"
                     type="number"
                     step="0.01"
                     min="0"
@@ -1043,10 +1046,10 @@ export default function AdminProductsPage() {
                 {/* Dimensions */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">ابعاد کارتن (طول×عرض×ارتفاع):</label>
+                    <label htmlFor="prod-7" className="text-gray-700 font-bold">ابعاد کارتن (طول×عرض×ارتفاع):</label>
                     <span className="text-xs text-gray-600 font-normal">اختیاری</span>
                   </div>
-                  <input
+                  <input id="prod-7"
                     type="text"
                     placeholder="در صورت خالی بودن، کلاً در سایت نمایش داده نمی‌شود"
                     value={dimensions}
@@ -1192,8 +1195,8 @@ export default function AdminProductsPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">شرح و معرفی کامل محصول:</label>
-                <textarea
+                <label htmlFor="prod-8" className="block text-gray-700 font-bold mb-1.5">شرح و معرفی کامل محصول:</label>
+                <textarea id="prod-8"
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -1297,14 +1300,14 @@ export default function AdminProductsPage() {
 
               {/* SECTION: Key Highlights (نکات کلیدی و مزایا) */}
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5 text-xs flex items-center justify-between">
+                <label htmlFor="prod-9" className="block text-gray-700 font-bold mb-1.5 text-xs flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
                     <span>نکات کلیدی و مزایای ویژه محصول (هر مورد در یک خط):</span>
                   </span>
                   <span className="text-gray-600 font-normal">نمایش به صورت تیک‌های سبز در بالای صفحه محصول</span>
                 </label>
-                <textarea
+                <textarea id="prod-9"
                   rows={3}
                   value={highlightsText}
                   onChange={(e) => setHighlightsText(e.target.value)}
@@ -1316,8 +1319,8 @@ export default function AdminProductsPage() {
               {/* SECTION: Origin, Shelf Life, and Storage */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl bg-amber-50/40 border border-amber-200/60">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">محل و مبدأ دقیق تولید:</label>
-                  <input
+                  <label htmlFor="prod-10" className="block text-xs font-bold text-gray-700 mb-1">محل و مبدأ دقیق تولید:</label>
+                  <input id="prod-10"
                     type="text"
                     value={originLocation}
                     onChange={(e) => setOriginLocation(e.target.value)}
@@ -1326,8 +1329,8 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">مدت زمان ماندگاری و انقضا:</label>
-                  <input
+                  <label htmlFor="prod-11" className="block text-xs font-bold text-gray-700 mb-1">مدت زمان ماندگاری و انقضا:</label>
+                  <input id="prod-11"
                     type="text"
                     value={shelfLife}
                     onChange={(e) => setShelfLife(e.target.value)}
@@ -1336,8 +1339,8 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 mb-1">دستورالعمل نگهداری بهینه:</label>
-                  <input
+                  <label htmlFor="prod-12" className="block text-xs font-bold text-gray-700 mb-1">دستورالعمل نگهداری بهینه:</label>
+                  <input id="prod-12"
                     type="text"
                     value={storageInstructions}
                     onChange={(e) => setStorageInstructions(e.target.value)}
@@ -1355,8 +1358,8 @@ export default function AdminProductsPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">کالری (Kcal):</label>
-                    <input
+                    <label htmlFor="prod-13" className="block text-xs font-bold text-gray-600 mb-1">کالری (Kcal):</label>
+                    <input id="prod-13"
                       type="text"
                       value={calories}
                       onChange={(e) => setCalories(e.target.value)}
@@ -1365,8 +1368,8 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">پروتئین (گرم):</label>
-                    <input
+                    <label htmlFor="prod-14" className="block text-xs font-bold text-gray-600 mb-1">پروتئین (گرم):</label>
+                    <input id="prod-14"
                       type="text"
                       value={protein}
                       onChange={(e) => setProtein(e.target.value)}
@@ -1375,8 +1378,8 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">چربی کل (گرم):</label>
-                    <input
+                    <label htmlFor="prod-15" className="block text-xs font-bold text-gray-600 mb-1">چربی کل (گرم):</label>
+                    <input id="prod-15"
                       type="text"
                       value={fat}
                       onChange={(e) => setFat(e.target.value)}
@@ -1385,8 +1388,8 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">کربوهیدرات (گرم):</label>
-                    <input
+                    <label htmlFor="prod-16" className="block text-xs font-bold text-gray-600 mb-1">کربوهیدرات (گرم):</label>
+                    <input id="prod-16"
                       type="text"
                       value={carbs}
                       onChange={(e) => setCarbs(e.target.value)}
@@ -1506,7 +1509,7 @@ export default function AdminProductsPage() {
                   {/* URL Slug */}
                   <div className="sm:col-span-2">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                      <label htmlFor="prod-17" className="text-xs font-bold text-gray-700 flex items-center gap-1">
                         <span>نامک آدرس صفحه (URL Slug)</span>
                         <span className="text-xs text-gray-600 font-normal">(انگلیسی یا فارسی استاندارد)</span>
                       </label>
@@ -1515,7 +1518,7 @@ export default function AdminProductsPage() {
                       </span>
                     </div>
                     <div className="relative flex items-center">
-                      <input
+                      <input id="prod-17"
                         type="text"
                         placeholder="مانند: organic-honey یا عسل-گون-شیراز (خودکار تولید می‌شود)"
                         value={slug}
@@ -1532,14 +1535,14 @@ export default function AdminProductsPage() {
                   {/* SEO Title */}
                   <div className="sm:col-span-2">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-gray-700">
+                      <label htmlFor="prod-18" className="text-xs font-bold text-gray-700">
                         عنوان سئو در گوگل (Meta Title)
                       </label>
                       <span className={`text-xs font-mono ${(seoTitle.length > 65 || (seoTitle.length > 0 && seoTitle.length < 30)) ? 'text-amber-600' : 'text-gray-600'}`}>
                         {seoTitle.length} / ۶۰ کاراکتر {seoTitle.length === 0 ? '(استفاده از خودکار)' : ''}
                       </span>
                     </div>
-                    <input
+                    <input id="prod-18"
                       type="text"
                       placeholder={title ? generateProductSeoTitle({ title, category, originLocation }) : 'عنوان سئو (اختیاری - در صورت خالی بودن خودکار پر می‌شود)'}
                       value={seoTitle}
@@ -1551,14 +1554,14 @@ export default function AdminProductsPage() {
                   {/* SEO Meta Description */}
                   <div className="sm:col-span-2">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-gray-700">
+                      <label htmlFor="prod-19" className="text-xs font-bold text-gray-700">
                         توضیحات متا در نتایج گوگل (Meta Description)
                       </label>
                       <span className={`text-xs font-mono ${(seoDescription.length > 165 || (seoDescription.length > 0 && seoDescription.length < 100)) ? 'text-amber-600' : 'text-gray-600'}`}>
                         {seoDescription.length} / ۱۵۵ کاراکتر {seoDescription.length === 0 ? '(استفاده از خودکار)' : ''}
                       </span>
                     </div>
-                    <textarea
+                    <textarea id="prod-19"
                       rows={2}
                       placeholder={title ? generateProductSeoDescription({ title, category, description, originLocation }) : 'توضیحات کوتاه برای نمایش در موتورهای جستجو...'}
                       value={seoDescription}
@@ -1569,10 +1572,10 @@ export default function AdminProductsPage() {
 
                   {/* SEO Keywords */}
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                    <label htmlFor="prod-20" className="block text-xs font-bold text-gray-700 mb-1">
                       کلمات کلیدی جستجو (با کاما یا ویرگول جدا کنید)
                     </label>
-                    <input
+                    <input id="prod-20"
                       type="text"
                       placeholder={title ? generateProductSeoKeywords({ title, category, originLocation }).join('، ') : 'ارگانیک شیراز، ارسال سریع، محصولات طبیعی فارس'}
                       value={seoKeywordsText}
@@ -1644,11 +1647,11 @@ export default function AdminProductsPage() {
 
             {/* Add New Category Form */}
             <form onSubmit={handleAddCategory} className="space-y-3 bg-farm-bg p-4 rounded-2xl border border-farm-border">
-              <label className="block text-xs font-bold text-farm-primary">
+              <label htmlFor="prod-21" className="block text-xs font-bold text-farm-primary">
                 ایجاد دسته‌بندی جدید:
               </label>
               <div className="flex items-center gap-2">
-                <input
+                <input id="prod-21"
                   type="text"
                   placeholder="مثال: گیاهان دارویی و دمنوش، ترشیجات محلی..."
                   value={newCategoryInput}

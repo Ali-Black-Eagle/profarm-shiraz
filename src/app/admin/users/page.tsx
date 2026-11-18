@@ -625,10 +625,10 @@ export default function AdminUsersPage() {
 
               {/* User Role */}
               <div className="space-y-1.5">
-                <label className="block text-gray-800 font-black text-xs">
+                <label htmlFor="user-1" className="block text-gray-800 font-black text-xs">
                   نقش دسترسی در سامانه:
                 </label>
-                <select
+                <select id="user-1"
                   value={userRole}
                   disabled={isRoleLocked}
                   onChange={(e) => setUserRole(e.target.value as UserRole)}

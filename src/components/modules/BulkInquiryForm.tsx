@@ -85,12 +85,12 @@ export default function BulkInquiryForm() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
+                <label htmlFor="bulk-1" className="block text-gray-700 font-semibold mb-1.5">
                   نام و نام خانوادگی متقاضی:
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
+                  <input id="bulk-1"
                     type="text"
                     required
                     placeholder="مثال: مهندس رادمهر"
@@ -102,12 +102,12 @@ export default function BulkInquiryForm() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
+                <label htmlFor="bulk-2" className="block text-gray-700 font-semibold mb-1.5">
                   شماره تماس مستقیم / همراه:
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
+                  <input id="bulk-2"
                     type="tel"
                     required
                     placeholder="0912xxxxxxx"
@@ -120,12 +120,12 @@ export default function BulkInquiryForm() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
+                <label htmlFor="bulk-3" className="block text-gray-700 font-semibold mb-1.5">
                   نام مجموعه، فروشگاه یا رستوران:
                 </label>
                 <div className="relative">
                   <Building className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
+                  <input id="bulk-3"
                     type="text"
                     placeholder="مثال: هایپرمارکت پالادیوم تهران / رستوران صوفی"
                     value={companyName}
@@ -136,10 +136,10 @@ export default function BulkInquiryForm() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">شهر مقصد ارسال:</label>
+                <label htmlFor="bulk-4" className="block text-gray-700 font-semibold mb-1.5">شهر مقصد ارسال:</label>
                 <div className="relative">
                   <MapPin className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
+                  <input id="bulk-4"
                     type="text"
                     required
                     placeholder="مثال: تهران، اصفهان، بوشهر، بندرعباس..."
@@ -151,10 +151,10 @@ export default function BulkInquiryForm() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1.5">
+                <label htmlFor="bulk-5" className="block text-gray-700 font-semibold mb-1.5">
                   اقلام مورد نیاز و حجم تقریبی سفارش:
                 </label>
-                <textarea
+                <textarea id="bulk-5"
                   rows={4}
                   required
                   placeholder="مثال: ۵۰ کارتن تخم‌مرغ کامفیروز و ۱۰۰ شیشه عسل وحشی دشت ارژن..."

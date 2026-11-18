@@ -360,7 +360,7 @@ export default function AdminOrdersPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجو با شماره موبایل (مثلاً ۰۹۱۷...)، نام مشتری یا کد سفارش (مثلاً PRF-1405)..."
+              aria-label="جستجوی سفارش" placeholder="جستجو با شماره موبایل (مثلاً ۰۹۱۷...)، نام مشتری یا کد سفارش (مثلاً PRF-1405)..."
               className="w-full pr-11 pl-10 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-xs sm:text-sm font-medium focus:bg-white focus:border-farm-primary focus:ring-2 focus:ring-farm-primary/20 outline-none transition-all placeholder:text-gray-400"
             />
             {searchQuery && (
@@ -696,8 +696,8 @@ export default function AdminOrdersPage() {
         <form onSubmit={handleCreateManualOrder} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1">نام و نام خانوادگی مشتری:</label>
-                  <input
+                  <label htmlFor="ord-1" className="block text-gray-700 font-semibold mb-1">نام و نام خانوادگی مشتری:</label>
+                  <input id="ord-1"
                     type="text"
                     required
                     placeholder="مثال: آقای کریمی"
@@ -708,8 +708,8 @@ export default function AdminOrdersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1">شماره همراه مشتری (ارسال پیامک):</label>
-                  <input
+                  <label htmlFor="ord-2" className="block text-gray-700 font-semibold mb-1">شماره همراه مشتری (ارسال پیامک):</label>
+                  <input id="ord-2"
                     type="tel"
                     required
                     placeholder="0917xxxxxxx"
@@ -721,8 +721,8 @@ export default function AdminOrdersPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-gray-700 font-semibold mb-1">نشانی دقیق در شیراز:</label>
-                  <input
+                  <label htmlFor="ord-3" className="block text-gray-700 font-semibold mb-1">نشانی دقیق در شیراز:</label>
+                  <input id="ord-3"
                     type="text"
                     required
                     placeholder="مثال: شیراز، معالی‌آباد، کوچه ۱۰، پلاک ۱۵"
@@ -733,8 +733,8 @@ export default function AdminOrdersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1">واحد / طبقه:</label>
-                  <input
+                  <label htmlFor="ord-4" className="block text-gray-700 font-semibold mb-1">واحد / طبقه:</label>
+                  <input id="ord-4"
                     type="text"
                     placeholder="واحد ۲"
                     value={unit}

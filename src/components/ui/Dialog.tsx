@@ -113,6 +113,8 @@ export const Dialog: React.FC<DialogProps> = ({
   return (
     <dialog
       ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
       dir="rtl"
       aria-labelledby={title ? titleId : undefined}
       aria-describedby={description ? descriptionId : undefined}

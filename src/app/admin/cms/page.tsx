@@ -405,8 +405,8 @@ export default function AdminCmsPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-gray-600 mb-1 font-medium">متن پیام اطلاعیه:</label>
-                    <input
+                    <label htmlFor="cms-1" className="block text-gray-600 mb-1 font-medium">متن پیام اطلاعیه:</label>
+                    <input id="cms-1"
                       type="text"
                       value={content.topBannerText}
                       onChange={(e) => handleContentChange('topBannerText', e.target.value)}
@@ -414,8 +414,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">متن اقدام/لینک:</label>
-                    <input
+                    <label htmlFor="cms-2" className="block text-gray-600 mb-1 font-medium">متن اقدام/لینک:</label>
+                    <input id="cms-2"
                       type="text"
                       value={content.topBannerLinkText}
                       onChange={(e) => handleContentChange('topBannerLinkText', e.target.value)}
@@ -426,8 +426,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">بج کوچک بالای هیرو:</label>
-                <input
+                <label htmlFor="cms-3" className="block text-gray-700 font-bold mb-1.5">بج کوچک بالای هیرو:</label>
+                <input id="cms-3"
                   type="text"
                   value={content.heroBadgeText}
                   onChange={(e) => handleContentChange('heroBadgeText', e.target.value)}
@@ -436,8 +436,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">عنوان اصلی هیرو (بخش اول):</label>
-                <input
+                <label htmlFor="cms-4" className="block text-gray-700 font-bold mb-1.5">عنوان اصلی هیرو (بخش اول):</label>
+                <input id="cms-4"
                   type="text"
                   value={content.heroTitlePart1}
                   onChange={(e) => handleContentChange('heroTitlePart1', e.target.value)}
@@ -446,8 +446,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1.5">عبارت هایلایت طلایی عنوان:</label>
-                <input
+                <label htmlFor="cms-5" className="block text-gray-700 font-bold mb-1.5">عبارت هایلایت طلایی عنوان:</label>
+                <input id="cms-5"
                   type="text"
                   value={content.heroTitleHighlight}
                   onChange={(e) => handleContentChange('heroTitleHighlight', e.target.value)}
@@ -456,8 +456,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1.5">توضیحات و زیرعنوان معرفی مزارع شیراز:</label>
-                <textarea
+                <label htmlFor="cms-6" className="block text-gray-700 font-bold mb-1.5">توضیحات و زیرعنوان معرفی مزارع شیراز:</label>
+                <textarea id="cms-6"
                   rows={3}
                   value={content.heroSubtitle}
                   onChange={(e) => handleContentChange('heroSubtitle', e.target.value)}
@@ -466,8 +466,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">متن دکمه اصلی (ویترین محصولات):</label>
-                <input
+                <label htmlFor="cms-7" className="block text-gray-700 font-bold mb-1.5">متن دکمه اصلی (ویترین محصولات):</label>
+                <input id="cms-7"
                   type="text"
                   value={content.heroCtaProductsText}
                   onChange={(e) => handleContentChange('heroCtaProductsText', e.target.value)}
@@ -476,8 +476,8 @@ export default function AdminCmsPage() {
               </div>
 
               <div>
-                <label className="block text-gray-700 font-bold mb-1.5">متن دکمه ثانویه (باشگاه اشتراک پرو):</label>
-                <input
+                <label htmlFor="cms-8" className="block text-gray-700 font-bold mb-1.5">متن دکمه ثانویه (باشگاه اشتراک پرو):</label>
+                <input id="cms-8"
                   type="text"
                   value={content.heroCtaProText}
                   onChange={(e) => handleContentChange('heroCtaProText', e.target.value)}
@@ -490,8 +490,8 @@ export default function AdminCmsPage() {
                 <span className="font-bold text-gray-800">آمارهای کلیدی هیرو (شمارنده‌های جلب اعتماد):</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-1.5">
-                    <label className="block text-gray-600 font-medium">آمار ۱ (عدد / برچسب):</label>
-                    <input
+                    <label htmlFor="cms-9" className="block text-gray-600 font-medium">آمار ۱ (عدد / برچسب):</label>
+                    <input id="cms-9"
                       type="text"
                       placeholder="۴۵۰+"
                       value={content.heroStat1Number}
@@ -508,8 +508,8 @@ export default function AdminCmsPage() {
                   </div>
 
                   <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-1.5">
-                    <label className="block text-gray-600 font-medium">آمار ۲ (عدد / برچسب):</label>
-                    <input
+                    <label htmlFor="cms-10" className="block text-gray-600 font-medium">آمار ۲ (عدد / برچسب):</label>
+                    <input id="cms-10"
                       type="text"
                       placeholder="۱۰۰٪"
                       value={content.heroStat2Number}
@@ -526,8 +526,8 @@ export default function AdminCmsPage() {
                   </div>
 
                   <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-1.5">
-                    <label className="block text-gray-600 font-medium">آمار ۳ (عدد / برچسب):</label>
-                    <input
+                    <label htmlFor="cms-11" className="block text-gray-600 font-medium">آمار ۳ (عدد / برچسب):</label>
+                    <input id="cms-11"
                       type="text"
                       placeholder="۶ روز"
                       value={content.heroStat3Number}
@@ -657,12 +657,12 @@ export default function AdminCmsPage() {
                 {/* Form Fields & Presets */}
                 <div className="md:col-span-7 space-y-3 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1">
+                    <label htmlFor="cms-12" className="block text-gray-700 font-semibold mb-1">
                       آدرس مستقیم تصویر اینترنتی (URL):
                     </label>
                     <div className="relative">
                       <LinkIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input
+                      <input id="cms-12"
                         type="text"
                         dir="ltr"
                         placeholder="https://..."
@@ -675,10 +675,10 @@ export default function AdminCmsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-gray-700 font-semibold mb-1">
+                      <label htmlFor="cms-13" className="block text-gray-700 font-semibold mb-1">
                         برچسب زرد روی تصویر:
                       </label>
-                      <input
+                      <input id="cms-13"
                         type="text"
                         value={content.heroImageTag || ''}
                         onChange={(e) => handleContentChange('heroImageTag', e.target.value)}
@@ -687,10 +687,10 @@ export default function AdminCmsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-700 font-semibold mb-1">
+                      <label htmlFor="cms-14" className="block text-gray-700 font-semibold mb-1">
                         متن زیرنویس روی تصویر:
                       </label>
-                      <input
+                      <input id="cms-14"
                         type="text"
                         value={content.heroImageCaption || ''}
                         onChange={(e) => handleContentChange('heroImageCaption', e.target.value)}
@@ -778,12 +778,12 @@ export default function AdminCmsPage() {
 
                 <div className="md:col-span-7 space-y-3 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1">
+                    <label htmlFor="cms-15" className="block text-gray-700 font-semibold mb-1">
                       آدرس مستقیم تصویر (URL):
                     </label>
                     <div className="relative">
                       <LinkIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input
+                      <input id="cms-15"
                         type="text"
                         dir="ltr"
                         placeholder="https://..."
@@ -872,12 +872,12 @@ export default function AdminCmsPage() {
 
                 <div className="md:col-span-7 space-y-3 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-1">
+                    <label htmlFor="cms-16" className="block text-gray-700 font-semibold mb-1">
                       آدرس مستقیم تصویر (URL):
                     </label>
                     <div className="relative">
                       <LinkIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input
+                      <input id="cms-16"
                         type="text"
                         dir="ltr"
                         placeholder="https://..."
@@ -1016,8 +1016,8 @@ export default function AdminCmsPage() {
                 <span className="font-bold text-amber-950">بخش داستان و اصالت مزارع بومی:</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1">تیتر بخش داستان:</label>
-                    <input
+                    <label htmlFor="cms-17" className="block text-gray-700 font-medium mb-1">تیتر بخش داستان:</label>
+                    <input id="cms-17"
                       type="text"
                       value={content.storyTitle}
                       onChange={(e) => handleContentChange('storyTitle', e.target.value)}
@@ -1025,8 +1025,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1">مناطق و مزارع تحت پوشش:</label>
-                    <input
+                    <label htmlFor="cms-18" className="block text-gray-700 font-medium mb-1">مناطق و مزارع تحت پوشش:</label>
+                    <input id="cms-18"
                       type="text"
                       value={content.storyLocation}
                       onChange={(e) => handleContentChange('storyLocation', e.target.value)}
@@ -1034,8 +1034,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-gray-700 font-medium mb-1">متن تفصیلی داستان مزارع:</label>
-                    <textarea
+                    <label htmlFor="cms-19" className="block text-gray-700 font-medium mb-1">متن تفصیلی داستان مزارع:</label>
+                    <textarea id="cms-19"
                       rows={3}
                       value={content.storyDescription}
                       onChange={(e) => handleContentChange('storyDescription', e.target.value)}
@@ -1063,8 +1063,8 @@ export default function AdminCmsPage() {
               <div className="p-4 rounded-2xl bg-farm-bg border border-gray-200 space-y-3">
                 <span className="font-bold text-gray-800">بخش ویترین محصولات صفحه اصلی:</span>
                 <div>
-                  <label className="block text-gray-600 mb-1">بج کوچک ویترین:</label>
-                  <input
+                  <label htmlFor="cms-20" className="block text-gray-600 mb-1">بج کوچک ویترین:</label>
+                  <input id="cms-20"
                     type="text"
                     value={content.productsBadgeText}
                     onChange={(e) => handleContentChange('productsBadgeText', e.target.value)}
@@ -1072,8 +1072,8 @@ export default function AdminCmsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-600 mb-1">تیتر ویترین محصولات:</label>
-                  <input
+                  <label htmlFor="cms-21" className="block text-gray-600 mb-1">تیتر ویترین محصولات:</label>
+                  <input id="cms-21"
                     type="text"
                     value={content.productsSectionTitle}
                     onChange={(e) => handleContentChange('productsSectionTitle', e.target.value)}
@@ -1081,8 +1081,8 @@ export default function AdminCmsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-600 mb-1">زیرتیتر توضیحات ویترین:</label>
-                  <input
+                  <label htmlFor="cms-22" className="block text-gray-600 mb-1">زیرتیتر توضیحات ویترین:</label>
+                  <input id="cms-22"
                     type="text"
                     value={content.productsSectionSubtitle}
                     onChange={(e) => handleContentChange('productsSectionSubtitle', e.target.value)}
@@ -1095,8 +1095,8 @@ export default function AdminCmsPage() {
               <div className="p-4 rounded-2xl bg-farm-bg border border-gray-200 space-y-3">
                 <span className="font-bold text-gray-800">بخش خرید عمده سراسر کشور:</span>
                 <div>
-                  <label className="block text-gray-600 mb-1">بج خرید عمده:</label>
-                  <input
+                  <label htmlFor="cms-23" className="block text-gray-600 mb-1">بج خرید عمده:</label>
+                  <input id="cms-23"
                     type="text"
                     value={content.bulkBadgeText}
                     onChange={(e) => handleContentChange('bulkBadgeText', e.target.value)}
@@ -1104,8 +1104,8 @@ export default function AdminCmsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-600 mb-1">تیتر بخش عمده:</label>
-                  <input
+                  <label htmlFor="cms-24" className="block text-gray-600 mb-1">تیتر بخش عمده:</label>
+                  <input id="cms-24"
                     type="text"
                     value={content.bulkSectionTitle}
                     onChange={(e) => handleContentChange('bulkSectionTitle', e.target.value)}
@@ -1113,8 +1113,8 @@ export default function AdminCmsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-600 mb-1">متن دکمه استعلام عمده:</label>
-                  <input
+                  <label htmlFor="cms-25" className="block text-gray-600 mb-1">متن دکمه استعلام عمده:</label>
+                  <input id="cms-25"
                     type="text"
                     value={content.bulkCtaText}
                     onChange={(e) => handleContentChange('bulkCtaText', e.target.value)}
@@ -1128,8 +1128,8 @@ export default function AdminCmsPage() {
                 <span className="font-bold text-gray-800">اطلاعات تماس و پاورقی (Footer):</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">شماره تلفن تماس و پشتیبانی:</label>
-                    <input
+                    <label htmlFor="cms-26" className="block text-gray-600 mb-1 font-medium">شماره تلفن تماس و پشتیبانی:</label>
+                    <input id="cms-26"
                       type="text"
                       value={content.supportPhone}
                       onChange={(e) => handleContentChange('supportPhone', e.target.value)}
@@ -1138,8 +1138,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">ساعات پاسخگویی:</label>
-                    <input
+                    <label htmlFor="cms-27" className="block text-gray-600 mb-1 font-medium">ساعات پاسخگویی:</label>
+                    <input id="cms-27"
                       type="text"
                       value={content.supportHours}
                       onChange={(e) => handleContentChange('supportHours', e.target.value)}
@@ -1147,8 +1147,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">نشانی دفتر مرکزی شیراز:</label>
-                    <input
+                    <label htmlFor="cms-28" className="block text-gray-600 mb-1 font-medium">نشانی دفتر مرکزی شیراز:</label>
+                    <input id="cms-28"
                       type="text"
                       value={content.supportAddress}
                       onChange={(e) => handleContentChange('supportAddress', e.target.value)}
@@ -1156,8 +1156,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <label className="block text-gray-600 mb-1 font-medium">متن خلاصه معرفی مزارع در فوتر:</label>
-                    <textarea
+                    <label htmlFor="cms-29" className="block text-gray-600 mb-1 font-medium">متن خلاصه معرفی مزارع در فوتر:</label>
+                    <textarea id="cms-29"
                       rows={2}
                       value={content.footerAboutText}
                       onChange={(e) => handleContentChange('footerAboutText', e.target.value)}
@@ -1175,8 +1175,8 @@ export default function AdminCmsPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">اینستاگرام (Instagram):</label>
-                    <input
+                    <label htmlFor="cms-30" className="block text-gray-600 mb-1 font-medium">اینستاگرام (Instagram):</label>
+                    <input id="cms-30"
                       type="text"
                       dir="ltr"
                       placeholder="https://instagram.com/..."
@@ -1186,8 +1186,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">تلگرام (Telegram):</label>
-                    <input
+                    <label htmlFor="cms-31" className="block text-gray-600 mb-1 font-medium">تلگرام (Telegram):</label>
+                    <input id="cms-31"
                       type="text"
                       dir="ltr"
                       placeholder="https://t.me/..."
@@ -1197,8 +1197,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">ایتا (Eitaa):</label>
-                    <input
+                    <label htmlFor="cms-32" className="block text-gray-600 mb-1 font-medium">ایتا (Eitaa):</label>
+                    <input id="cms-32"
                       type="text"
                       dir="ltr"
                       placeholder="https://eitaa.com/..."
@@ -1208,8 +1208,8 @@ export default function AdminCmsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1 font-medium">واتساپ (WhatsApp):</label>
-                    <input
+                    <label htmlFor="cms-33" className="block text-gray-600 mb-1 font-medium">واتساپ (WhatsApp):</label>
+                    <input id="cms-33"
                       type="text"
                       dir="ltr"
                       placeholder="https://wa.me/..."

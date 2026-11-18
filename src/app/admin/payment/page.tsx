@@ -518,7 +518,8 @@ export default function AdminPaymentSettingsPage() {
                     zarinpal: { ...settings.zarinpal, enabled: !settings.zarinpal.enabled },
                   })
                 }
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                role="switch" aria-checked={settings.zarinpal.enabled} aria-label="فعال بودن درگاه زرین‌پال"
+                className={`relative before:absolute before:-inset-2.5 before:content-[''] inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
                   settings.zarinpal.enabled ? 'bg-emerald-600' : 'bg-gray-300'
                 }`}
               >
@@ -592,7 +593,7 @@ export default function AdminPaymentSettingsPage() {
                       zarinpal: { ...settings.zarinpal, merchantId: e.target.value.trim() },
                     })
                   }
-                  placeholder="مثال: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  aria-label="کد پذیرنده زرین‌پال" placeholder="مثال: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                   dir="ltr"
                   className={`w-full px-4 py-3 rounded-2xl border text-sm font-mono transition-all outline-hidden ${
                     isMerchantValidFormat
@@ -689,10 +690,10 @@ export default function AdminPaymentSettingsPage() {
 
             {/* Default Description */}
             <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50/50 space-y-2">
-              <label className="text-xs font-black text-gray-800">
+              <label htmlFor="pay-1" className="text-xs font-black text-gray-800">
                 شرح پیش‌فرض تراکنش بانکی:
               </label>
-              <input
+              <input id="pay-1"
                 type="text"
                 value={settings.zarinpal.defaultDescription}
                 onChange={(e) =>
@@ -701,7 +702,7 @@ export default function AdminPaymentSettingsPage() {
                     zarinpal: { ...settings.zarinpal, defaultDescription: e.target.value },
                   })
                 }
-                placeholder="سفارش محصولات ارگانیک شیراز"
+                aria-label="توضیح پیش‌فرض تراکنش" placeholder="سفارش محصولات ارگانیک شیراز"
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-xs text-gray-900 outline-hidden focus:border-farm-primary"
               />
               <p className="text-xs text-gray-500">
@@ -818,7 +819,8 @@ export default function AdminPaymentSettingsPage() {
                     snapppay: { ...settings.snapppay, enabled: !settings.snapppay.enabled },
                   })
                 }
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                role="switch" aria-checked={settings.snapppay.enabled} aria-label="فعال بودن درگاه اسنپ‌پی"
+                className={`relative before:absolute before:-inset-2.5 before:content-[''] inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
                   settings.snapppay.enabled ? 'bg-[#00D170]' : 'bg-gray-300'
                 }`}
               >
@@ -837,12 +839,12 @@ export default function AdminPaymentSettingsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Client ID */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-800 flex items-center gap-1.5">
+              <label htmlFor="pay-2" className="text-xs font-black text-gray-800 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-[#00D170]" />
                 <span>شناسه کلاینت اسنپ‌پی (Client ID):</span>
                 <span className="text-rose-600">*</span>
               </label>
-              <input
+              <input id="pay-2"
                 type="text"
                 value={settings.snapppay.clientId}
                 onChange={(e) =>
@@ -903,10 +905,10 @@ export default function AdminPaymentSettingsPage() {
 
             {/* Base API URL */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-800">
+              <label htmlFor="pay-3" className="text-xs font-black text-gray-800">
                 آدرس وب‌سرویس اسنپ‌پی (Base URL):
               </label>
-              <input
+              <input id="pay-3"
                 type="text"
                 value={settings.snapppay.baseUrl}
                 onChange={(e) =>
@@ -926,10 +928,10 @@ export default function AdminPaymentSettingsPage() {
 
             {/* Min Amount */}
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-800">
+              <label htmlFor="pay-4" className="text-xs font-black text-gray-800">
                 حداقل مبلغ فاکتور جهت امکان خرید اقساطی (تومان):
               </label>
-              <input
+              <input id="pay-4"
                 type="number"
                 value={settings.snapppay.minAmount}
                 onChange={(e) =>
@@ -1036,7 +1038,8 @@ export default function AdminPaymentSettingsPage() {
                       },
                     })
                   }
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                  role="switch" aria-checked={settings.general.allowCashOnDelivery} aria-label="پرداخت در محل (نقدی هنگام تحویل)"
+                  className={`relative before:absolute before:-inset-2.5 before:content-[''] inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
                     settings.general.allowCashOnDelivery ? 'bg-purple-600' : 'bg-gray-300'
                   }`}
                 >
@@ -1063,10 +1066,10 @@ export default function AdminPaymentSettingsPage() {
 
             {/* Payment Timeout */}
             <div className="p-5 rounded-2xl border border-gray-200 bg-gray-50/50 space-y-2">
-              <label className="text-xs font-black text-gray-800">
+              <label htmlFor="pay-5" className="text-xs font-black text-gray-800">
                 مهلت زمان تکمیل پرداخت و رزرو نوبت تحویل (دقیقه):
               </label>
-              <input
+              <input id="pay-5"
                 type="number"
                 value={settings.general.paymentTimeoutMinutes}
                 onChange={(e) =>
@@ -1089,10 +1092,10 @@ export default function AdminPaymentSettingsPage() {
 
             {/* Guide Message in Checkout */}
             <div className="lg:col-span-2 space-y-2">
-              <label className="text-xs font-black text-gray-800">
+              <label htmlFor="pay-6" className="text-xs font-black text-gray-800">
                 متن پیام اطمینان‌بخش و راهنمای پرداخت به مشتری (در سبد خرید و تسویه‌حساب):
               </label>
-              <textarea
+              <textarea id="pay-6"
                 rows={2}
                 value={settings.general.guideMessage || ''}
                 onChange={(e) =>

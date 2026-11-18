@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import Link from 'next/link';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
@@ -80,6 +81,8 @@ export default function ProductDetailClient({
   // Review Form Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isEligibilityModalOpen, setIsEligibilityModalOpen] = useState(false);
+  useEscapeKey(isEligibilityModalOpen, () => setIsEligibilityModalOpen(false));
+  useEscapeKey(isReviewModalOpen, () => setIsReviewModalOpen(false));
   const [ineligibilityReason, setIneligibilityReason] = useState<string>('');
 
   // Review Input Fields
@@ -1112,7 +1115,7 @@ export default function ProductDetailClient({
       {/* ================= MODAL: INELIGIBLE BUYER RULE NOTICE ================= */}
       {isEligibilityModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-farm-border shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="قوانین خرید عمده و شرایط ثبت دیدگاه" className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-farm-border shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
               <Lock className="w-6 h-6" />
             </div>
@@ -1149,7 +1152,7 @@ export default function ProductDetailClient({
       {/* ================= MODAL: SUBMIT VERIFIED REVIEW ================= */}
       {isReviewModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-farm-border shadow-2xl my-8">
+          <div role="dialog" aria-modal="true" aria-label="ثبت دیدگاه" className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 border border-farm-border shadow-2xl my-8">
             {reviewSubmittedSuccess ? (
               <div className="py-8 text-center space-y-3">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">

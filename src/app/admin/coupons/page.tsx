@@ -396,6 +396,7 @@ export default function AdminCouponsPage() {
         {/* Search & Status Filters */}
         <div className="flex items-center gap-3">
           <select
+            aria-label="فیلتر وضعیت کوپن"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-700 cursor-pointer"
@@ -409,7 +410,7 @@ export default function AdminCouponsPage() {
             <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="جستجوی کد، عنوان..."
+              aria-label="جستجوی کوپن" placeholder="جستجوی کد، عنوان..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-3 pr-9 py-2 rounded-xl border border-gray-200 text-xs bg-gray-50 focus:bg-white transition-all outline-none"
@@ -597,14 +598,14 @@ export default function AdminCouponsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => openEditModal(coupon)}
-                      className="p-2 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+                      className="max-sm:min-w-11 max-sm:min-h-11 max-sm:flex max-sm:items-center max-sm:justify-center p-2 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
                       title="ویرایش کد تخفیف"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => handleDeleteCoupon(coupon.id, coupon.code, e)}
-                      className="p-2 rounded-xl hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition-colors cursor-pointer"
+                      className="max-sm:min-w-11 max-sm:min-h-11 max-sm:flex max-sm:items-center max-sm:justify-center p-2 rounded-xl hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition-colors cursor-pointer"
                       title="حذف کد تخفیف"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -629,11 +630,11 @@ export default function AdminCouponsPage() {
         <form onSubmit={handleSubmitForm} className="space-y-5 text-xs">
               {/* Code & Random Generator */}
               <div>
-                <label className="block text-gray-700 font-bold mb-1">
+                <label htmlFor="coupon-1" className="block text-gray-700 font-bold mb-1">
                   کد تخفیف (لاتین و بدون فاصله): <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex gap-2">
-                  <input
+                  <input id="coupon-1"
                     type="text"
                     required
                     placeholder="مثال: SHIRAZ1403 یا FREESHIP"
@@ -657,10 +658,10 @@ export default function AdminCouponsPage() {
               {/* Title & Description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">
+                  <label htmlFor="coupon-2" className="block text-gray-700 font-bold mb-1">
                     عنوان کد تخفیف: <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <input id="coupon-2"
                     type="text"
                     required
                     placeholder="مثال: جشنواره عید فطر"
@@ -670,8 +671,8 @@ export default function AdminCouponsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">توضیح مختصر (اختیاری):</label>
-                  <input
+                  <label htmlFor="coupon-3" className="block text-gray-700 font-bold mb-1">توضیح مختصر (اختیاری):</label>
+                  <input id="coupon-3"
                     type="text"
                     placeholder="مثال: ویژه اولین خرید خریداران شیراز"
                     value={formDescription}
@@ -740,10 +741,10 @@ export default function AdminCouponsPage() {
               {/* Target Product Dropdown (if SPECIFIC_PRODUCT selected) */}
               {formTargetType === 'SPECIFIC_PRODUCT' && (
                 <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 space-y-2 animate-in fade-in">
-                  <label className="block text-purple-900 font-bold">
+                  <label htmlFor="coupon-4" className="block text-purple-900 font-bold">
                     انتخاب محصول هدف از انبار: <span className="text-rose-500">*</span>
                   </label>
-                  <select
+                  <select id="coupon-4"
                     value={formTargetProductId}
                     onChange={(e) => setFormTargetProductId(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-purple-300 bg-white text-xs font-bold text-gray-800 cursor-pointer outline-none"
@@ -795,11 +796,11 @@ export default function AdminCouponsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">
+                  <label htmlFor="coupon-5" className="block text-gray-700 font-bold mb-1">
                     مقدار تخفیف ({formDiscountType === 'PERCENTAGE' ? 'درصد مثلا ۱۵' : 'تومان مثلا ۵۰۰۰۰'}):{' '}
                     <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <input id="coupon-5"
                     type="number"
                     min="1"
                     max={formDiscountType === 'PERCENTAGE' ? 100 : undefined}
@@ -818,8 +819,8 @@ export default function AdminCouponsPage() {
               {/* Conditions: Min Order, Max Ceiling, Usage Limit */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">حداقل مبلغ سفارش (تومان):</label>
-                  <input
+                  <label htmlFor="coupon-6" className="block text-gray-700 font-bold mb-1">حداقل مبلغ سفارش (تومان):</label>
+                  <input id="coupon-6"
                     type="number"
                     min="0"
                     placeholder="۰ = بدون شرط"
@@ -833,8 +834,8 @@ export default function AdminCouponsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">سقف ریالی تخفیف درصدی:</label>
-                  <input
+                  <label htmlFor="coupon-7" className="block text-gray-700 font-bold mb-1">سقف ریالی تخفیف درصدی:</label>
+                  <input id="coupon-7"
                     type="number"
                     min="0"
                     disabled={formDiscountType === 'FIXED_AMOUNT'}
@@ -849,8 +850,8 @@ export default function AdminCouponsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">سقف تعداد دفعات استفاده:</label>
-                  <input
+                  <label htmlFor="coupon-8" className="block text-gray-700 font-bold mb-1">سقف تعداد دفعات استفاده:</label>
+                  <input id="coupon-8"
                     type="number"
                     min="1"
                     placeholder="خالی = نامحدود"
@@ -867,8 +868,8 @@ export default function AdminCouponsPage() {
               {/* Expiry Date & Active Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">تاریخ انقضا (شمسی):</label>
-                  <input
+                  <label htmlFor="coupon-9" className="block text-gray-700 font-bold mb-1">تاریخ انقضا (شمسی):</label>
+                  <input id="coupon-9"
                     type="text"
                     placeholder="مثال: ۱۴۰۴-۰۶-۳۱"
                     value={formExpiresAt}

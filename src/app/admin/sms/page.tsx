@@ -955,7 +955,7 @@ function AdminSmsPageContent() {
                     {/* Textarea Template */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-gray-700 font-bold text-xs">
+                        <label htmlFor="sms-1" className="text-gray-700 font-bold text-xs">
                           متن قالب پیامک (پشتیبانی کامل از زبان فارسی و اموجی):
                         </label>
                         <div className="text-xs font-bold text-gray-500">
@@ -965,12 +965,12 @@ function AdminSmsPageContent() {
                         </div>
                       </div>
 
-                      <textarea
+                      <textarea id="sms-1"
                         rows={5}
                         required
                         value={editingTemplateText}
                         onChange={(e) => setEditingTemplateText(e.target.value)}
-                        placeholder="متن پیامک رویداد را بنویسید..."
+                        aria-label="متن پیامک رویداد" placeholder="متن پیامک رویداد را بنویسید..."
                         className="w-full p-4 rounded-2xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-xs sm:text-sm text-gray-900 leading-relaxed font-medium"
                       />
                     </div>
@@ -1197,12 +1197,12 @@ function AdminSmsPageContent() {
                 {/* API Key (For Kavenegar, Faraz, Custom) */}
                 {gatewaySettings.provider !== 'MELIPAYAMAK' && (
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-2" className="block text-gray-700 font-bold mb-1.5">
                       کلید دسترسی وب‌سرویس (API Key / Token):
                     </label>
                     <div className="relative">
                       <Key className="w-4 h-4 text-gray-500 absolute right-3.5 top-3" />
-                      <input
+                      <input id="sms-2"
                         type="text"
                         required
                         placeholder="مثال: 6E35474B5365576C726F763567..."
@@ -1224,8 +1224,8 @@ function AdminSmsPageContent() {
                 {gatewaySettings.provider === 'MELIPAYAMAK' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-gray-700 font-bold mb-1.5">نام کاربری پنل ملی‌پیامک:</label>
-                      <input
+                      <label htmlFor="sms-3" className="block text-gray-700 font-bold mb-1.5">نام کاربری پنل ملی‌پیامک:</label>
+                      <input id="sms-3"
                         type="text"
                         required
                         value={gatewaySettings.username || ''}
@@ -1238,8 +1238,8 @@ function AdminSmsPageContent() {
                     </div>
 
                     <div>
-                      <label className="block text-gray-700 font-bold mb-1.5">رمز عبور پنل ملی‌پیامک:</label>
-                      <input
+                      <label htmlFor="sms-4" className="block text-gray-700 font-bold mb-1.5">رمز عبور پنل ملی‌پیامک:</label>
+                      <input id="sms-4"
                         type="password"
                         required
                         value={gatewaySettings.password || ''}
@@ -1256,10 +1256,10 @@ function AdminSmsPageContent() {
                 {/* Sender Line Number */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-5" className="block text-gray-700 font-bold mb-1.5">
                       شماره خط فرستنده (اختصاصی / خدماتی):
                     </label>
-                    <input
+                    <input id="sms-5"
                       type="text"
                       required
                       placeholder="مثال: 1000596446 یا 3000..."
@@ -1273,10 +1273,10 @@ function AdminSmsPageContent() {
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-6" className="block text-gray-700 font-bold mb-1.5">
                       کد الگو / پترن خدماتی (Pattern / Lookup Code):
                     </label>
-                    <input
+                    <input id="sms-6"
                       type="text"
                       placeholder="مثال: profarm-notif"
                       value={gatewaySettings.patternCode || ''}
@@ -1292,8 +1292,8 @@ function AdminSmsPageContent() {
                 {/* Custom API Endpoint if Custom Provider */}
                 {gatewaySettings.provider === 'CUSTOM' && (
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">آدرس وب‌سرویس (Endpoint URL):</label>
-                    <input
+                    <label htmlFor="sms-7" className="block text-gray-700 font-bold mb-1.5">آدرس وب‌سرویس (Endpoint URL):</label>
+                    <input id="sms-7"
                       type="url"
                       required
                       placeholder="https://api.yoursms.com/v1/send"
@@ -1334,8 +1334,8 @@ function AdminSmsPageContent() {
                 </p>
 
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold text-gray-700">شماره موبایل دریافت‌کننده تست:</label>
-                  <input
+                  <label htmlFor="sms-8" className="block text-xs font-bold text-gray-700">شماره موبایل دریافت‌کننده تست:</label>
+                  <input id="sms-8"
                     type="text"
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
@@ -1400,10 +1400,10 @@ function AdminSmsPageContent() {
 
               <form onSubmit={handleSendManualBroadcast} className="space-y-4 text-xs sm:text-sm">
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1.5">
+                  <label htmlFor="sms-9" className="block text-gray-700 font-bold mb-1.5">
                     عنوان کمپین پیامکی (جهت رهگیری در پنل):
                   </label>
-                  <input
+                  <input id="sms-9"
                     type="text"
                     required
                     placeholder="مثال: اعلام برداشت عسل کوهستان و نوبرانه گردوی سپیدان"
@@ -1494,10 +1494,10 @@ function AdminSmsPageContent() {
 
                 {targetSegment === 'CUSTOM' && (
                   <div className="space-y-1">
-                    <label className="block text-gray-700 font-bold text-xs">
+                    <label htmlFor="sms-10" className="block text-gray-700 font-bold text-xs">
                       شماره موبایل‌های دستی (با کاما یا خط جدید جدا کنید):
                     </label>
-                    <textarea
+                    <textarea id="sms-10"
                       rows={2}
                       value={customNumbersInput}
                       onChange={(e) => setCustomNumbersInput(e.target.value)}
@@ -1510,14 +1510,14 @@ function AdminSmsPageContent() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-gray-700 font-bold">متن پیامک ارسالی:</label>
+                    <label htmlFor="sms-11" className="text-gray-700 font-bold">متن پیامک ارسالی:</label>
                     <div className="text-xs font-bold text-gray-500">
                       <span>{toPersianDigits(broadcastCharCount)} کاراکتر</span>
                       <span className="mx-1">|</span>
                       <span className="text-farm-primary">{toPersianDigits(broadcastSmsPages)} پارت پیامک</span>
                     </div>
                   </div>
-                  <textarea
+                  <textarea id="sms-11"
                     rows={4}
                     required
                     value={broadcastMessage}
@@ -1809,10 +1809,10 @@ function AdminSmsPageContent() {
                     {/* Conditional Recipient Inputs */}
                     {emailTarget === 'USER' && (
                       <div>
-                        <label className="block text-gray-700 font-bold mb-1.5">
+                        <label htmlFor="sms-12" className="block text-gray-700 font-bold mb-1.5">
                           انتخاب کاربر مقصد:
                         </label>
-                        <select
+                        <select id="sms-12"
                           value={selectedUserEmail}
                           onChange={(e) => setSelectedUserEmail(e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary font-medium"
@@ -1830,10 +1830,10 @@ function AdminSmsPageContent() {
 
                     {emailTarget === 'CUSTOM' && (
                       <div>
-                        <label className="block text-gray-700 font-bold mb-1.5">
+                        <label htmlFor="sms-13" className="block text-gray-700 font-bold mb-1.5">
                           آدرس ایمیل گیرنده:
                         </label>
-                        <input
+                        <input id="sms-13"
                           type="email"
                           required
                           placeholder="client@example.com"
@@ -1846,10 +1846,10 @@ function AdminSmsPageContent() {
 
                     {/* Subject */}
                     <div>
-                      <label className="block text-gray-700 font-bold mb-1.5">
+                      <label htmlFor="sms-14" className="block text-gray-700 font-bold mb-1.5">
                         موضوع ایمیل:
                       </label>
-                      <input
+                      <input id="sms-14"
                         type="text"
                         required
                         placeholder="مثال: اطلاعیه تحویل سبد هفتگی ارگانیک مزارع شیراز"
@@ -1861,10 +1861,10 @@ function AdminSmsPageContent() {
 
                     {/* Content */}
                     <div>
-                      <label className="block text-gray-700 font-bold mb-1.5">
+                      <label htmlFor="sms-15" className="block text-gray-700 font-bold mb-1.5">
                         متن پیام ایمیل:
                       </label>
-                      <textarea
+                      <textarea id="sms-15"
                         rows={5}
                         required
                         placeholder="متن پیام خود را اینجا بنویسید. این متن در قالب زیبا و رسمی مزارع پروفارم شیراز جاسازی خواهد شد..."
@@ -2188,10 +2188,10 @@ function AdminSmsPageContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Host */}
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-16" className="block text-gray-700 font-bold mb-1.5">
                       هاست سرور SMTP (Server Host):
                     </label>
-                    <input
+                    <input id="sms-16"
                       type="text"
                       required
                       placeholder="smtp.gmail.com یا mail.profarm.ir"
@@ -2203,10 +2203,10 @@ function AdminSmsPageContent() {
 
                   {/* Port */}
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-17" className="block text-gray-700 font-bold mb-1.5">
                       پورت ارتباطی (Port):
                     </label>
-                    <input
+                    <input id="sms-17"
                       type="number"
                       required
                       placeholder="587 یا 465"
@@ -2221,10 +2221,10 @@ function AdminSmsPageContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Username */}
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-18" className="block text-gray-700 font-bold mb-1.5">
                       نام کاربری سرور / ایمیل ورود:
                     </label>
-                    <input
+                    <input id="sms-18"
                       type="text"
                       required
                       placeholder="your-email@gmail.com"
@@ -2302,10 +2302,10 @@ function AdminSmsPageContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* From Name */}
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-19" className="block text-gray-700 font-bold mb-1.5">
                       نام فرستنده نمایشی (Sender Name):
                     </label>
-                    <input
+                    <input id="sms-19"
                       type="text"
                       required
                       placeholder="مزارع ارگانیک پروفارم شیراز"
@@ -2318,14 +2318,14 @@ function AdminSmsPageContent() {
                   {/* From Email */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-gray-700 font-bold">
+                      <label htmlFor="sms-20" className="block text-gray-700 font-bold">
                         آدرس ایمیل فرستنده اصلی (From Email):
                       </label>
                       <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                         فرستنده کلیه پیام‌های مشتریان
                       </span>
                     </div>
-                    <input
+                    <input id="sms-20"
                       type="email"
                       placeholder="info@profarm-shiraz.ir یا ایمیل اختصاصی شما"
                       value={emailSettings.fromEmail}
@@ -2395,10 +2395,10 @@ function AdminSmsPageContent() {
 
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1.5">
+                    <label htmlFor="sms-21" className="block text-gray-700 font-bold mb-1.5">
                       آدرس ایمیل دریافت‌کننده تست:
                     </label>
-                    <input
+                    <input id="sms-21"
                       type="email"
                       placeholder="your-personal@email.com"
                       value={testEmailRecipient}

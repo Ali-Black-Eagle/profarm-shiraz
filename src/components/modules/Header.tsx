@@ -272,7 +272,7 @@ export const Header: React.FC<HeaderProps> = ({ siteContent }) => {
                 ref={menuButtonRef}
                 type="button"
                 onClick={() => (mobileMenuOpen ? closeMobileMenu() : setMobileMenuOpen(true))}
-                className="md:hidden min-w-[40px] min-h-[44px] flex items-center justify-center rounded-xl text-farm-primary hover:bg-farm-bg-warm transition-colors shrink-0 cursor-pointer"
+                className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-farm-primary hover:bg-farm-bg-warm transition-colors shrink-0 cursor-pointer"
                 aria-label="منوی اصلی"
                 aria-expanded={mobileMenuOpen}
                 aria-controls="mobile-nav-drawer"
@@ -459,7 +459,7 @@ export const Header: React.FC<HeaderProps> = ({ siteContent }) => {
                 ref={searchButtonRef}
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center justify-center w-10 h-10 min-[380px]:min-w-[44px] min-[380px]:min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs cursor-pointer shrink-0"
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs cursor-pointer shrink-0"
                 aria-label="جستجوی سریع محصولات"
                 title="جستجوی سریع محصولات"
               >
@@ -469,7 +469,7 @@ export const Header: React.FC<HeaderProps> = ({ siteContent }) => {
               {/* Cart Button */}
               <Link
                 href="/cart"
-                className="relative flex items-center justify-center w-10 h-10 min-[380px]:min-w-[44px] min-[380px]:min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs shrink-0"
+                className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl bg-white border border-farm-border text-farm-primary hover:bg-farm-bg transition-colors shadow-xs shrink-0"
                 aria-label={`سبد خرید (${toPersianDigits(cartCount)} قلم)`}
               >
                 <ShoppingBag className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5" />
@@ -608,7 +608,7 @@ export const Header: React.FC<HeaderProps> = ({ siteContent }) => {
                             logout();
                             closeMobileMenu();
                           }}
-                          className="min-h-[40px] flex items-center justify-center px-2 rounded-lg bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 text-center transition-colors cursor-pointer"
+                          className="min-h-[44px] flex items-center justify-center px-2 rounded-lg bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 text-center transition-colors cursor-pointer"
                         >
                           خروج از حساب
                         </button>

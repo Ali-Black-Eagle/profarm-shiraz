@@ -359,6 +359,7 @@ export default function AdminOverviewPage() {
                         <input
                           type="number"
                           min="1"
+                          aria-label={`افزودن موجودی ${prod.title}`}
                           value={currentInputVal === 0 ? '' : currentInputVal}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);

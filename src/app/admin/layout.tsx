@@ -254,7 +254,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Right side in RTL: Hamburger button */}
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="p-2 -mr-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer flex items-center justify-center"
+            className="min-w-11 min-h-11 flex items-center justify-center p-2 -mr-1 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer flex items-center justify-center"
             aria-label="باز کردن منوی کشویی مدیریت"
           >
             <Menu className="w-5 h-5 text-[#D4A373]" />
@@ -319,7 +319,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Close Drawer Button */}
             <button
               onClick={() => setIsMobileOpen(false)}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="min-w-11 min-h-11 flex items-center justify-center p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-gray-300 hover:text-white transition-all cursor-pointer"
               aria-label="بستن منو"
             >
               <X className="w-5 h-5" />

@@ -316,7 +316,7 @@ export default function DailyManifestPage() {
 
         <input
           type="text"
-          placeholder="جستجو در نام، شماره یا خیابان..."
+          aria-label="جستجوی مانیفست" placeholder="جستجو در نام، شماره یا خیابان..."
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           className="px-3.5 py-2 rounded-xl border border-farm-border bg-white text-sm sm:text-xs text-gray-800 w-full sm:w-64 focus:outline-none focus:border-farm-primary"

@@ -400,6 +400,7 @@ export default function AdminFinancePage() {
                   <button
                     key={mName}
                     onClick={() => setSelectedMonth(mName)}
+                    aria-pressed={isSelected}
                     className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
                       isSelected
                         ? 'bg-farm-primary text-white shadow-md ring-2 ring-emerald-500/30'
@@ -1085,7 +1086,7 @@ export default function AdminFinancePage() {
               <Search className="w-4 h-4 text-gray-500 absolute right-3 top-3" />
               <input
                 type="text"
-                placeholder="جستجو سفارش، نام، تلفن..."
+                aria-label="جستجوی سفارش" placeholder="جستجو سفارش، نام، تلفن..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pr-9 pl-4 py-2 rounded-xl border border-farm-border text-xs bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary w-56 sm:w-64"
@@ -1094,6 +1095,7 @@ export default function AdminFinancePage() {
 
             {/* Membership Tier Filter */}
             <select
+              aria-label="فیلتر سطح کاربری"
               value={tierFilter}
               onChange={(e) => setTierFilter(e.target.value as 'ALL' | SubscriptionTier)}
               className="px-3 py-2 rounded-xl border border-farm-border text-xs bg-farm-bg font-bold text-gray-800 focus:outline-none focus:border-farm-primary cursor-pointer"

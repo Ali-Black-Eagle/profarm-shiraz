@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { Order } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
 import { SITE_CONFIG, getOrderStatusMeta } from '@/lib/site-config';
@@ -12,6 +13,7 @@ interface UserInvoiceModalProps {
 }
 
 export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClose }) => {
+  useEscapeKey(true, onClose);
   if (!order) return null;
 
   const handlePrint = () => {
@@ -42,6 +44,9 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="فاکتور سفارش"
         className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto shadow-2xl border border-farm-border text-farm-primary print:p-0 print:border-none print:shadow-none print:max-h-none print:w-full"
         onClick={(e) => e.stopPropagation()}
       >
@@ -67,7 +72,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
               type="button"
               onClick={onClose}
               aria-label="بستن فاکتور"
-              className="p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors cursor-pointer"
+              className="min-w-11 min-h-11 flex items-center justify-center p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>

@@ -530,6 +530,7 @@ function LoginFormContent() {
               setErrorMessage(null);
               setOtpStep('PHONE');
             }}
+            aria-pressed={activeMethod === 'OTP'}
             className={`min-h-11 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeMethod === 'OTP'
                 ? 'bg-emerald-50 text-emerald-800 font-black border border-emerald-200'
@@ -546,6 +547,7 @@ function LoginFormContent() {
               setActiveMethod('PASSWORD');
               setErrorMessage(null);
             }}
+            aria-pressed={activeMethod === 'PASSWORD'}
             className={`min-h-11 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeMethod === 'PASSWORD'
                 ? 'bg-amber-50 text-amber-900 font-black border border-amber-200'
