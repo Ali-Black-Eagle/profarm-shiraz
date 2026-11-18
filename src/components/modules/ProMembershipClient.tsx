@@ -41,7 +41,8 @@ export default function ProMembershipClient({ subSettings, stats }: ProMembershi
   const userTier = isUserLoggedIn ? user?.tier || (user?.isProMember ? 'PRO' : 'FREE') : 'FREE';
 
   const handleSelectTier = (tier: 'PLUS' | 'PRO') => {
-    if (tier === 'PRO' && stats?.isProFull) {
+    // A current PRO member may renew even when the plan is full (renewal does not add a member).
+    if (tier === 'PRO' && stats?.isProFull && userTier !== 'PRO') {
       toast.warning('ظرفیت اشتراک طلایی پرو در این دوره تکمیل شده است.');
       return;
     }
@@ -336,11 +337,9 @@ export default function ProMembershipClient({ subSettings, stats }: ProMembershi
             <div className="pt-8 border-t border-amber-200/80 relative z-10">
               <button
                 onClick={() => handleSelectTier('PRO')}
-                disabled={userTier === 'PRO' || stats?.isProFull}
+                disabled={userTier !== 'PRO' && Boolean(stats?.isProFull)}
                 className={`w-full py-4 px-4 rounded-2xl text-xs font-black shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  userTier === 'PRO'
-                    ? 'bg-amber-200 text-amber-950 border border-amber-400 cursor-default shadow-none'
-                    : stats?.isProFull
+                  userTier !== 'PRO' && stats?.isProFull
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none'
                     : 'bg-gradient-to-r from-amber-600 via-amber-500 to-[#D4AF37] hover:brightness-110 text-white shadow-amber-600/35 active:scale-98'
                 }`}
@@ -348,7 +347,7 @@ export default function ProMembershipClient({ subSettings, stats }: ProMembershi
                 <Crown className="w-4 h-4 text-amber-100" />
                 <span>
                   {userTier === 'PRO'
-                    ? 'اشتراک پرو فعال است ✓'
+                    ? 'تمدید اشتراک پرو'
                     : stats?.isProFull
                     ? 'تکمیل ظرفیت این دوره'
                     : subSettings.proButtonText || `خرید اشتراک پرو (${formatToman(subSettings.proMonthlyPrice)})`}

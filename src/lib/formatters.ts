@@ -271,6 +271,15 @@ export function normalizePersianText(input: string): string {
     .toLowerCase();
 }
 
+/**
+ * Order numbers are stored with Latin digits (PRF-1405-XXXXXXXX-XXXXXX). Numbers typed or pasted with Persian or
+ * Arabic digits, spaces or bidi marks are normalized here before any lookup.
+ */
+export function normalizeOrderNumberInput(input: unknown): string {
+  if (typeof input !== 'string') return '';
+  return toEnglishDigits(input).replace(/[s‌‍‎‏‪-‮]/g, '').trim();
+}
+
 /** Whether a city name is Shiraz (Persian or English spelling). */
 export function isShirazCity(city?: string | null): boolean {
   if (!city || typeof city !== 'string') return false;

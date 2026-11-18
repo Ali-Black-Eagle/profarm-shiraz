@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { checkDistributedRateLimit } from '@/lib/sms';
-import { normalizePhoneNumber, getSecureClientIp } from '@/lib/formatters';
+import { normalizePhoneNumber, getSecureClientIp, isValidIranPhone, toEnglishDigits } from '@/lib/formatters';
 import { apiErrorResponse } from '@/lib/api-errors';
 
 const BULK_STATUSES = ['PENDING', 'REVIEWED', 'COMPLETED'];
@@ -34,42 +34,57 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const { name, phone, companyName, city, message } = body;
+    const { name, phone, companyName, city, message } = body as Record<string, unknown>;
 
-    if (!name || !phone || !city || !message) {
+    // Trim first: whitespace-only values count as empty. Persian messages are shown field by field in the form.
+    const cleanName = typeof name === 'string' ? name.trim() : '';
+    const cleanCity = typeof city === 'string' ? city.trim() : '';
+    const cleanMessage = typeof message === 'string' ? message.trim() : '';
+    const cleanCompany = typeof companyName === 'string' ? companyName.trim() : '';
+    if (!cleanName || !cleanCity || !cleanMessage) {
       return NextResponse.json(
         { success: false, message: 'لطفاً تمام فیلدهای الزامی را تکمیل نمایید.' },
         { status: 400 }
       );
     }
-
-    const cleanPhone = normalizePhoneNumber(String(phone));
-    if (!cleanPhone || cleanPhone.length < 10) {
+    if (cleanName.length > 100 || cleanCity.length > 80 || cleanMessage.length > 2000 || cleanCompany.length > 150) {
       return NextResponse.json(
-        { success: false, message: 'شماره تلفن وارد شده معتبر نیست.' },
+        { success: false, message: 'طول یکی از فیلدها بیش از حد مجاز است.' },
         { status: 400 }
       );
     }
 
-    // SECURITY: Rate limiting - Max 5 inquiries per 15 minutes per IP/Phone (spoof-resistant IP)
+    const rawPhone = typeof phone === 'string' ? toEnglishDigits(phone).trim() : '';
+    if (!rawPhone || !isValidIranPhone(rawPhone)) {
+      return NextResponse.json(
+        { success: false, message: 'شماره تلفن وارد شده معتبر نیست. نمونه صحیح: ۰۹۱۲۳۴۵۶۷۸۹' },
+        { status: 400 }
+      );
+    }
+    const cleanPhone = normalizePhoneNumber(rawPhone);
+
+    // SECURITY: rate limits by phone (5 per 15 minutes) AND by client IP (20 per 15 minutes), so rotating
+    // phone numbers cannot flood the wholesale desk. The IP is spoof-resistant (see getSecureClientIp).
     const ip = getSecureClientIp(req);
-    const rateCheck = await checkDistributedRateLimit(`inquiry:${cleanPhone || ip}`, 5, 900);
-    if (!rateCheck.allowed) {
+    const phoneCheck = await checkDistributedRateLimit(`inquiry:${cleanPhone}`, 5, 900);
+    const ipCheck = await checkDistributedRateLimit(`inquiry-ip:${ip}`, 20, 900);
+    const blocked = !phoneCheck.allowed ? phoneCheck : !ipCheck.allowed ? ipCheck : null;
+    if (blocked) {
       return NextResponse.json(
         {
           success: false,
-          message: `تعداد درخواست‌های استعلام شما بیش از حد مجاز است. لطفاً ${rateCheck.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
+          message: `تعداد درخواست‌های استعلام شما بیش از حد مجاز است. لطفاً ${blocked.retryAfterSeconds} ثانیه دیگر مجدداً تلاش نمایید.`,
         },
         { status: 429 }
       );
     }
 
     const inquiry = farmStore.createBulkInquiry({
-      name: escapeHtml(String(name).trim()).slice(0, 100),
+      name: escapeHtml(cleanName).slice(0, 100),
       phone: cleanPhone,
-      companyName: companyName ? escapeHtml(String(companyName).trim()).slice(0, 150) : undefined,
-      city: escapeHtml(String(city).trim()).slice(0, 80),
-      message: escapeHtml(String(message).trim()).slice(0, 2000),
+      companyName: cleanCompany ? escapeHtml(cleanCompany).slice(0, 150) : undefined,
+      city: escapeHtml(cleanCity).slice(0, 80),
+      message: escapeHtml(cleanMessage).slice(0, 2000),
     });
 
     return NextResponse.json({ success: true, inquiry });

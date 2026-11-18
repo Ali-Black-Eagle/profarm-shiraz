@@ -2,30 +2,34 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { AlertTriangle, MapPin, Package, ArrowLeft, ShieldAlert } from 'lucide-react';
-import { toPersianDigits, formatToman } from '@/lib/formatters';
+import { MapPin, Package, ArrowLeft, ShieldAlert, ShoppingCart } from 'lucide-react';
+import {
+  toPersianDigits,
+  formatToman,
+  isShirazAddress,
+  BULK_MIN_ITEMS,
+  BULK_MIN_SUBTOTAL,
+} from '@/lib/formatters';
 
 interface ShirazGuardAlertProps {
   city: string;
+  /** Province from the address form. Empty means Fars, as on the server. */
+  province?: string;
   isBulkOrder: boolean;
   totalItemsCount: number;
   totalPrice: number;
-  minBulkQuantity?: number;
-  minBulkPrice?: number;
-  onEnableBulkMode?: () => void;
 }
 
 export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
   city,
+  province = '',
   isBulkOrder,
   totalItemsCount,
   totalPrice,
-  minBulkQuantity = 10,
-  minBulkPrice = 5000000,
-  onEnableBulkMode,
 }) => {
-  const isShiraz =
-    city.trim() === 'شیراز' || city.trim() === 'شهر شیراز' || city.trim() === '';
+  // Same rule as the server quote (pricing.ts): the city is Shiraz AND the province is Fars (or not given).
+  // An empty city is left to the form validation and is not judged here.
+  const isShiraz = !city.trim() || isShirazAddress(city, province);
 
   // If inside Shiraz, everything is regular and fine
   if (isShiraz) {
@@ -44,9 +48,8 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
     );
   }
 
-  // Outside Shiraz: check if bulk requirements are met
-  const meetsBulkCriteria =
-    totalItemsCount >= minBulkQuantity || totalPrice >= minBulkPrice;
+  // Outside Shiraz: the cart must meet the bulk rule (the same rule the server applies)
+  const meetsBulkCriteria = totalItemsCount >= BULK_MIN_ITEMS || totalPrice >= BULK_MIN_SUBTOTAL;
 
   if (isBulkOrder && meetsBulkCriteria) {
     return (
@@ -65,7 +68,7 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
     );
   }
 
-  // Outside Shiraz and NOT meeting bulk criteria -> BLOCK CHECKOUT
+  // Outside Shiraz and NOT meeting the bulk rule: checkout is blocked
   return (
     <div className="p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 text-rose-950 space-y-4 shadow-sm animate-in fade-in">
       <div className="flex items-start gap-3">
@@ -78,7 +81,7 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
           </h4>
           <p className="text-xs text-rose-800 mt-1 leading-relaxed">
             فروشگاه خرده‌فروشی پروفارم به دلیل حفظ کیفیت و طراوت محصولات ارگانیک، در حال حاضر صرفاً
-            مختص نشانی‌های واقع در شهر <strong>شیراز</strong> است. آدرس ثبت‌شده شما در شهر «{city}»
+            مختص نشانی‌های واقع در شهر <strong>شیراز</strong> (استان فارس) است. آدرس ثبت‌شده شما در شهر «{city}»
             قرار دارد.
           </p>
         </div>
@@ -88,10 +91,12 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
         <p className="font-bold text-rose-900">شرایط ثبت سفارش برای سایر شهرستان‌ها:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-600">
           <li>
-            انتخاب گزینه <strong>«خرید عمده»</strong> و ثبت حداقل {toPersianDigits(minBulkQuantity)}{' '}
-            بسته محصول
+            سبد خرید شما باید حداقل {toPersianDigits(BULK_MIN_ITEMS)} بسته (از هر محصولی) یا مبلغ{' '}
+            {formatToman(BULK_MIN_SUBTOTAL)} داشته باشد.
           </li>
-          <li>یا حداقل مبلغ سفارش به میزان {formatToman(minBulkPrice)}</li>
+          <li>
+            برای هماهنگی خرید عمده و استعلام قیمت، فرم استعلام عمده را تکمیل کنید.
+          </li>
         </ul>
         <p className="text-xs text-gray-500 pt-1">
           سبد خرید فعلی شما: {toPersianDigits(totalItemsCount)} بسته (مبلغ:{' '}
@@ -100,18 +105,16 @@ export const ShirazGuardAlert: React.FC<ShirazGuardAlertProps> = ({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 pt-1">
-        {onEnableBulkMode && (
-          <button
-            type="button"
-            onClick={onEnableBulkMode}
-            className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-farm-primary text-white hover:bg-farm-primary-dark transition-colors text-center"
-          >
-            تبدیل به سفارش عمده (تکمیل حداقل بسته)
-          </button>
-        )}
+        <Link
+          href="/cart"
+          className="flex-1 min-h-11 py-2.5 px-4 rounded-xl text-xs font-bold bg-farm-primary text-white hover:bg-farm-primary-dark transition-colors text-center flex items-center justify-center gap-1.5"
+        >
+          <ShoppingCart className="w-4 h-4" />
+          <span>بازگشت به سبد خرید</span>
+        </Link>
         <Link
           href="/bulk"
-          className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-white border border-rose-300 text-rose-800 hover:bg-rose-100 transition-colors text-center flex items-center justify-center gap-1.5"
+          className="flex-1 min-h-11 py-2.5 px-4 rounded-xl text-xs font-bold bg-white border border-rose-300 text-rose-800 hover:bg-rose-100 transition-colors text-center flex items-center justify-center gap-1.5"
         >
           <span>فرم استعلام و هماهنگی خرید عمده</span>
           <ArrowLeft className="w-4 h-4" />

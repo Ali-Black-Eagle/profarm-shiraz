@@ -263,7 +263,7 @@ export default function CartPage() {
               <span className="text-sm font-bold text-farm-primary">سفارش عمده و ارسال خارج از شیراز</span>
             </div>
             <p className="text-xs text-gray-700 leading-relaxed">
-              خرده‌فروشی مختص شهر شیراز است. برای ارسال به سایر شهرها، سفارش باید {SITE_CONFIG.policies.bulkThresholdLabel} یا حداقل ۵ میلیون تومان باشد.
+              خرده‌فروشی مختص شهر شیراز است. برای ارسال به سایر شهرها، سبد خرید شما باید {SITE_CONFIG.policies.bulkThresholdLabel} داشته باشد.
             </p>
             <div
               className={`p-2.5 rounded-xl text-xs font-medium ${
@@ -395,7 +395,7 @@ export default function CartPage() {
                   </span>
                 </div>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  تحویل روزهای منتخب هفته و تخفیف تخم‌مرغ تا سقف ماهانه طرح
+                  تحویل ۶ روز در هفته (شنبه تا پنج‌شنبه) و تخفیف تخم‌مرغ تا سقف ماهانه طرح
                 </p>
               </div>
             ) : (
@@ -405,7 +405,7 @@ export default function CartPage() {
                   <span>کاربر عادی: تحویل فقط یکشنبه و چهارشنبه</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-farm-primary font-bold">
-                  <span>ارسال ۶ روزه و تخفیف‌ها:</span>
+                  <span>تحویل ۶ روزه (شنبه تا پنج‌شنبه) و تخفیف‌ها:</span>
                   <Link href="/pro" className="underline hover:text-farm-primary-dark min-h-11 inline-flex items-center">
                     طرح‌های پلاس و پرو
                   </Link>

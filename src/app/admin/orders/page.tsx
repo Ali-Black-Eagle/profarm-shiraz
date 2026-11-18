@@ -644,7 +644,7 @@ export default function AdminOrdersPage() {
 
                   <td className="py-4 px-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-farm-bg-warm text-farm-primary font-bold text-xs whitespace-nowrap">
-                      ۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)
+                      ساعت ۱۵ تا ۲۱
                     </span>
                   </td>
 

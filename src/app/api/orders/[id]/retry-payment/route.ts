@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore } from '@/lib/db-store';
 import { getSessionFromRequest } from '@/lib/session';
 import { apiErrorResponse } from '@/lib/api-errors';
+import { normalizeOrderNumberInput } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { withOrderLock } from '@/lib/order-lock';
 import { initOnlinePayment, OnlinePaymentMethod } from '@/lib/payment-init';
@@ -17,7 +18,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = normalizeOrderNumberInput(rawId) || rawId;
     const session = getSessionFromRequest(req);
     if (!session) {
       return NextResponse.json({ success: false, message: 'لطفاً ابتدا وارد حساب کاربری خود شوید.' }, { status: 401 });

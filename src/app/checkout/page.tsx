@@ -114,7 +114,7 @@ function toSlotOption(s: ApiSlot): SlotOption {
     remainingCapacity: s.remainingCapacity,
     isAvailable: s.isAvailable && !s.isClosed,
     isAllowedForTier: s.isAllowedForTier,
-    tierRestrictionNote: s.isAllowedForTier ? undefined : 'این روز ویژه اعضای طرح پرو است',
+    tierRestrictionNote: s.isAllowedForTier ? undefined : 'ویژه اعضای پلاس و پرو',
   };
 }
 
@@ -951,6 +951,7 @@ function CheckoutContent() {
 
                 <ShirazGuardAlert
                   city={city}
+                  province={province}
                   isBulkOrder={isBulk}
                   totalItemsCount={totalCount}
                   totalPrice={itemsSubtotal}
@@ -979,7 +980,7 @@ function CheckoutContent() {
                       setSlotId(slot.id);
                       setFieldErrors((prev) => ({ ...prev, slot: '' }));
                     }}
-                    isProMember={slotsTier === 'PRO'}
+                    isMember={slotsTier === 'PRO' || slotsTier === 'PLUS'}
                   />
                 )}
                 {fieldErrors.slot && <p className="text-xs text-rose-700 font-bold">{fieldErrors.slot}</p>}

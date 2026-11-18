@@ -17,6 +17,8 @@ export interface User {
   name?: string | null;
   email?: string | null;
   password?: string | null;
+  /** Set only by GET /api/auth/me: whether the account has a password (the hash itself is never sent). */
+  hasPassword?: boolean;
   authProvider?: 'PHONE_OTP' | 'PASSWORD' | 'GOOGLE';
   isPhoneVerified?: boolean;
   /** true only when the email was verified by the identity provider (Google) */

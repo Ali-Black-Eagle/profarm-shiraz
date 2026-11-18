@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     authenticated: true,
-    user: safeUser,
+    // hasPassword tells the settings page whether a current password must be entered. The hash is never sent.
+    user: { ...safeUser, hasPassword: Boolean(fullUser.password) },
     usedEggQuotaThisMonth,
   });
 }

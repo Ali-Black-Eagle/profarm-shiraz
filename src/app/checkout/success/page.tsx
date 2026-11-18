@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { Order } from '@/types';
-import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { formatToman, toPersianDigits, normalizeOrderNumberInput } from '@/lib/formatters';
+import { CopyOrderNumber } from '@/components/modules/CopyOrderNumber';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import {
   CheckCircle2,
@@ -29,7 +30,7 @@ const PAID_STATUSES = new Set(['PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED']);
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
-  const orderNumber = searchParams.get('orderNumber')?.trim() || '';
+  const orderNumber = normalizeOrderNumberInput(searchParams.get('orderNumber')) || '';
   const refIdParam = searchParams.get('refId')?.trim() || '';
   const gateway = searchParams.get('gateway') || 'zarinpal';
 
@@ -284,9 +285,7 @@ function CheckoutSuccessContent() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-farm-bg-warm max-w-2xl mx-auto text-xs">
           <div className="bg-farm-bg p-3 rounded-2xl border border-farm-border">
             <span className="text-gray-600 block mb-1">شماره فاکتور:</span>
-            <span className="font-black text-farm-primary text-sm font-mono">
-              {toPersianDigits(order.orderNumber)}
-            </span>
+            <CopyOrderNumber value={order.orderNumber} className="font-black text-farm-primary text-sm" />
           </div>
           <div className="bg-farm-bg p-3 rounded-2xl border border-farm-border">
             <span className="text-gray-600 block mb-1">کد پیگیری بانکی:</span>

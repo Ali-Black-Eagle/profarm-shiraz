@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { Order, Address, OrderItem } from '@/types';
 import { formatToman, toPersianDigits, toEnglishDigits, isValidIranPhone, normalizePhoneNumber } from '@/lib/formatters';
+import { CopyOrderNumber } from '@/components/modules/CopyOrderNumber';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import { UserInvoiceModal } from '@/components/modules/UserInvoiceModal';
 import { useConfirm } from '@/components/ui/ToastProvider';
@@ -132,6 +133,8 @@ function AccountContent() {
   const [usernameInput, setUsernameInput] = useState('');
   const [smsInput, setSmsInput] = useState(true);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  // Accounts created by OTP have no password yet: the first password is set without the current one.
+  const hasPassword = user?.hasPassword === true;
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -425,7 +428,7 @@ function AccountContent() {
       setSettingsError('کلمه عبور جدید باید حداقل ۸ کاراکتر باشد.');
       return;
     }
-    if (newPasswordInput && !currentPasswordInput) {
+    if (newPasswordInput && hasPassword && !currentPasswordInput) {
       setSettingsError('برای تغییر کلمه عبور، کلمه عبور فعلی را وارد کنید.');
       return;
     }
@@ -636,9 +639,7 @@ function AccountContent() {
                       <li key={order.id} className="rounded-2xl border border-farm-border p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="space-y-1 min-w-0">
-                            <p className="font-mono font-black text-sm text-farm-primary" dir="ltr">
-                              {order.orderNumber}
-                            </p>
+                            <CopyOrderNumber value={order.orderNumber} className="text-sm text-farm-primary" />
                             <p className="text-xs text-gray-500">
                               {formatDate(order.createdAt)} · {formatToman(order.totalAmount)}
                             </p>
@@ -802,7 +803,7 @@ function AccountContent() {
                       {plan ? (
                         <ul className="text-xs text-gray-700 space-y-1">
                           <li>قیمت ماهانه: {formatToman(plan.monthlyPrice)}</li>
-                          <li>تحویل {toPersianDigits(plan.deliveryDaysPerWeek)} روز در هفته</li>
+                          <li>تحویل {toPersianDigits(plan.deliveryDaysPerWeek)} روز در هفته (شنبه تا پنج‌شنبه)</li>
                           <li>
                             {toPersianDigits(plan.eggDiscountPercent)}٪ تخفیف تخم‌مرغ تا {toPersianDigits(plan.eggQuota)} عدد
                           </li>
@@ -858,12 +859,18 @@ function AccountContent() {
                 <legend className="text-sm font-black text-farm-primary flex items-center gap-2">
                   <Settings className="w-4 h-4" aria-hidden="true" /> تغییر کلمه عبور
                 </legend>
-                <p className="text-xs text-gray-500">برای تغییر کلمه عبور، کلمه عبور فعلی را وارد کنید. کلمه عبور جدید حداقل ۸ کاراکتر است.</p>
+                <p className="text-xs text-gray-500">
+                  {hasPassword
+                    ? 'برای تغییر کلمه عبور، کلمه عبور فعلی را وارد کنید. کلمه عبور جدید حداقل ۸ کاراکتر است.'
+                    : 'این حساب هنوز کلمه عبور ندارد. با ثبت کلمه عبور، ورود با شماره موبایل و کلمه عبور نیز فعال می‌شود (حداقل ۸ کاراکتر).'}
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <label htmlFor="acc-current-pass" className="block font-bold text-gray-700 mb-1.5">کلمه عبور فعلی</label>
-                    <input id="acc-current-pass" type="password" autoComplete="current-password" dir="ltr" value={currentPasswordInput} onChange={(e) => setCurrentPasswordInput(e.target.value)} className={`${inputClass} text-left`} />
-                  </div>
+                  {hasPassword && (
+                    <div>
+                      <label htmlFor="acc-current-pass" className="block font-bold text-gray-700 mb-1.5">کلمه عبور فعلی</label>
+                      <input id="acc-current-pass" type="password" autoComplete="current-password" dir="ltr" value={currentPasswordInput} onChange={(e) => setCurrentPasswordInput(e.target.value)} className={`${inputClass} text-left`} />
+                    </div>
+                  )}
                   <div>
                     <label htmlFor="acc-new-pass" className="block font-bold text-gray-700 mb-1.5">کلمه عبور جدید</label>
                     <input id="acc-new-pass" type="password" autoComplete="new-password" minLength={8} dir="ltr" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} className={`${inputClass} text-left`} />

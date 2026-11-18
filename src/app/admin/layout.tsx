@@ -231,8 +231,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
 
             <Link
+              href="/account"
+              className="block w-full min-h-11 py-3 px-4 rounded-xl border border-farm-border text-farm-primary font-bold text-xs hover:bg-farm-bg transition-colors text-center"
+            >
+              مشاهده حساب کاربری من
+            </Link>
+
+            <Link
               href="/"
-              className="block w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-xs hover:bg-gray-50 transition-colors"
+              className="block w-full min-h-11 py-3 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-xs hover:bg-gray-50 transition-colors text-center"
             >
               بازگشت به صفحه اصلی فروشگاه عمومی
             </Link>

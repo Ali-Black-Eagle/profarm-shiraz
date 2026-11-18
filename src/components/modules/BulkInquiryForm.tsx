@@ -14,11 +14,28 @@ export default function BulkInquiryForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<'name' | 'phone' | 'city' | 'message', string>>>({});
+
+  /** Persian, field-level checks. The browser's own bubbles are disabled (noValidate), so these are the only messages. */
+  const validate = () => {
+    const errs: Partial<Record<'name' | 'phone' | 'city' | 'message', string>> = {};
+    if (!name.trim()) errs.name = 'لطفاً نام و نام خانوادگی متقاضی را وارد نمایید.';
+    const digits = phone.trim().replace(/[\s-]/g, '').replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+    if (!digits) errs.phone = 'لطفاً شماره تماس را وارد نمایید.';
+    else if (!/^09\d{9}$/.test(digits)) {
+      errs.phone = 'شماره تماس معتبر نیست. نمونه صحیح: ۰۹۱۲۳۴۵۶۷۸۹';
+    }
+    if (!city.trim()) errs.city = 'لطفاً شهر مقصد ارسال را وارد نمایید.';
+    if (!message.trim()) errs.message = 'لطفاً اقلام مورد نیاز و حجم تقریبی سفارش را شرح دهید.';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setSubmitError(null);
+    if (!validate()) return;
+    setIsLoading(true);
 
     try {
       const res = await fetch('/api/bulk-inquiries', {
@@ -83,7 +100,7 @@ export default function BulkInquiryForm() {
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form noValidate onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label htmlFor="bulk-1" className="block text-gray-700 font-semibold mb-1.5">
                   نام و نام خانوادگی متقاضی:
@@ -93,12 +110,20 @@ export default function BulkInquiryForm() {
                   <input id="bulk-1"
                     type="text"
                     required
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    aria-describedby={fieldErrors.name ? 'bulk-1-error' : undefined}
                     placeholder="مثال: مهندس رادمهر"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setFieldErrors((p) => ({ ...p, name: undefined }));
+                    }}
                     className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                   />
                 </div>
+                {fieldErrors.name && (
+                  <p id="bulk-1-error" role="alert" className="mt-1 text-xs font-bold text-rose-700">{fieldErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -110,13 +135,21 @@ export default function BulkInquiryForm() {
                   <input id="bulk-2"
                     type="tel"
                     required
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    aria-describedby={fieldErrors.phone ? 'bulk-2-error' : undefined}
                     placeholder="0912xxxxxxx"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((p) => ({ ...p, phone: undefined }));
+                    }}
                     className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary text-left"
                     dir="ltr"
                   />
                 </div>
+                {fieldErrors.phone && (
+                  <p id="bulk-2-error" role="alert" className="mt-1 text-xs font-bold text-rose-700">{fieldErrors.phone}</p>
+                )}
               </div>
 
               <div>
@@ -142,12 +175,20 @@ export default function BulkInquiryForm() {
                   <input id="bulk-4"
                     type="text"
                     required
+                    aria-invalid={Boolean(fieldErrors.city)}
+                    aria-describedby={fieldErrors.city ? 'bulk-4-error' : undefined}
                     placeholder="مثال: تهران، اصفهان، بوشهر، بندرعباس..."
                     value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    onChange={(e) => {
+                      setCity(e.target.value);
+                      setFieldErrors((p) => ({ ...p, city: undefined }));
+                    }}
                     className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                   />
                 </div>
+                {fieldErrors.city && (
+                  <p id="bulk-4-error" role="alert" className="mt-1 text-xs font-bold text-rose-700">{fieldErrors.city}</p>
+                )}
               </div>
 
               <div>
@@ -157,11 +198,19 @@ export default function BulkInquiryForm() {
                 <textarea id="bulk-5"
                   rows={4}
                   required
+                  aria-invalid={Boolean(fieldErrors.message)}
+                  aria-describedby={fieldErrors.message ? 'bulk-5-error' : undefined}
                   placeholder="مثال: ۵۰ کارتن تخم‌مرغ کامفیروز و ۱۰۰ شیشه عسل وحشی دشت ارژن..."
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setFieldErrors((p) => ({ ...p, message: undefined }));
+                  }}
                   className="w-full p-3 rounded-xl border border-farm-border bg-farm-bg focus:bg-white focus:outline-none focus:border-farm-primary"
                 />
+                {fieldErrors.message && (
+                  <p id="bulk-5-error" role="alert" className="mt-1 text-xs font-bold text-rose-700">{fieldErrors.message}</p>
+                )}
               </div>
 
               {submitError && (

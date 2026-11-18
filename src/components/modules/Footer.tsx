@@ -171,7 +171,7 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
                 <strong className="text-white">کاربران عادی:</strong> تحویل یکشنبه‌ها و چهارشنبه‌ها
               </p>
               <p>
-                <strong className="text-white">مشترکین پرو:</strong> تحویل همه روزه (شنبه تا پنج‌شنبه)
+                <strong className="text-white">اعضای پلاس و پرو:</strong> تحویل شنبه تا پنج‌شنبه
               </p>
               <p className="text-xs text-amber-200/90 pt-1">
                 * توزیع خرده‌فروشی صرفاً در محدوده شهر شیراز انجام می‌پذیرد.

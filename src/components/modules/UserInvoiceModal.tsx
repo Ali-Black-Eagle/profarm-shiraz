@@ -4,6 +4,7 @@ import React from 'react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { Order } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { CopyOrderNumber } from '@/components/modules/CopyOrderNumber';
 import { SITE_CONFIG, getOrderStatusMeta } from '@/lib/site-config';
 import { Printer, X, ShieldCheck, Truck, MapPin } from 'lucide-react';
 
@@ -95,7 +96,7 @@ export const UserInvoiceModal: React.FC<UserInvoiceModalProps> = ({ order, onClo
             <div className="text-left sm:text-right text-xs space-y-1.5 bg-farm-bg p-3.5 rounded-2xl border border-farm-border">
               <div>
                 <span className="text-gray-600">شماره فاکتور: </span>
-                <strong className="font-mono text-farm-primary text-sm">{order.orderNumber}</strong>
+                <CopyOrderNumber value={order.orderNumber} className="text-farm-primary text-sm" />
               </div>
               {order.createdAt && (
                 <div>

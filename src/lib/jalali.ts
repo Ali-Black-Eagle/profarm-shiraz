@@ -18,10 +18,10 @@ export const MAX_BOOKING_DAYS_AHEAD = 30;
 
 /** Delivery windows. Shiraz currently has a single window: 15:00 to 21:00. */
 export const SLOT_WINDOWS = {
-  '15-21': 'بازه ۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)',
+  '15-21': 'ساعت ۱۵ تا ۲۱',
 } as const;
 export const DEFAULT_SLOT_WINDOW = '15-21';
-export const SLOT_TIME_LABEL = '۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)';
+export const SLOT_TIME_LABEL = 'ساعت ۱۵ تا ۲۱';
 
 export const PERSIAN_WEEKDAYS = [
   'یکشنبه', // 0: Sunday
@@ -275,33 +275,36 @@ export function parseTehranDateValue(value: unknown, end: boolean): number | nul
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** Whether a delivery day is allowed for a tier (Friday is always closed). */
+/**
+ * Whether a delivery day is allowed for a tier (Friday is always closed).
+ * Owner decision: FREE customers may order on Sunday and Wednesday only; PLUS and PRO members may order
+ * on all six working days (Saturday to Thursday). `tierOrIsMember` accepts a tier, or `true` for any paid member.
+ */
 export function isDayAllowedForUser(
   dayOfWeekIndex: number,
-  tierOrIsPro: SubscriptionTier | boolean = false
+  tierOrIsMember: SubscriptionTier | boolean = false
 ): boolean {
   // Friday (5) is always closed (holiday/farm maintenance)
   if (dayOfWeekIndex === 5) return false;
 
-  const isPro =
-    typeof tierOrIsPro === 'boolean'
-      ? tierOrIsPro
-      : tierOrIsPro === 'PRO';
+  const isMember =
+    typeof tierOrIsMember === 'boolean'
+      ? tierOrIsMember
+      : tierOrIsMember === 'PLUS' || tierOrIsMember === 'PRO';
 
-  if (isPro) {
-    // Pro users can choose Saturday, Sunday, Monday, Tuesday, Wednesday, Thursday
+  if (isMember) {
+    // PLUS and PRO: Saturday to Thursday
     return [6, 0, 1, 2, 3, 4].includes(dayOfWeekIndex);
-  } else {
-    // Regular and Plus users can choose Sunday (0) and Wednesday (3)
-    return [0, 3].includes(dayOfWeekIndex);
   }
+  // FREE: Sunday (0) and Wednesday (3) only
+  return [0, 3].includes(dayOfWeekIndex);
 }
 
 export interface SlotOption {
   id: string;
   dateStr: string;
   jalali: FormattedJalaliDate;
-  timeWindow: string; // "۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)"
+  timeWindow: string; // "ساعت ۱۵ تا ۲۱"
   timeWindowId: string;
   maxCapacity: number;
   currentBookings: number;
@@ -323,7 +326,7 @@ export interface SlotCapacityOverride {
  * capacityOverrides is keyed by civil date (YYYY-MM-DD). Without an override a day has no bookings.
  */
 export function generateDeliverySlots(
-  tierOrIsPro: SubscriptionTier | boolean = false,
+  tierOrIsMember: SubscriptionTier | boolean = false,
   daysAhead = 12,
   capacityOverrides?: Record<string, SlotCapacityOverride>,
   filterDisallowedDays = false,
@@ -339,7 +342,7 @@ export function generateDeliverySlots(
     // Friday is holiday
     if (dayOfWeekIndex === 5) continue;
 
-    const isAllowedForTier = isDayAllowedForUser(dayOfWeekIndex, tierOrIsPro);
+    const isAllowedForTier = isDayAllowedForUser(dayOfWeekIndex, tierOrIsMember);
     if (filterDisallowedDays && !isAllowedForTier) {
       continue;
     }
@@ -363,9 +366,7 @@ export function generateDeliverySlots(
       remainingCapacity,
       isAvailable,
       isAllowedForTier,
-      tierRestrictionNote: !isAllowedForTier
-        ? 'مخصوص مشترکین «پروفارم پرو» (ارسال روزانه)'
-        : undefined,
+      tierRestrictionNote: !isAllowedForTier ? 'ویژه اعضای پلاس و پرو' : undefined,
     });
   }
 

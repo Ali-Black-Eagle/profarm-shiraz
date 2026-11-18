@@ -35,7 +35,7 @@ export const SITE_CONFIG = {
 
     /** Wholesale / bulk threshold standardized across all pages */
     bulkMinPacks: 10,
-    bulkThresholdLabel: 'حداقل ۱۰ بسته از یک محصول',
+    bulkThresholdLabel: 'حداقل ۱۰ بسته (از هر محصولی) یا مبلغ ۵ میلیون تومان',
     bulkDeliveryScope: 'ارسال به سراسر کشور (فارس، تهران، اصفهان، بوشهر و کلیه استان‌ها)',
     retailDeliveryScope: 'تحویل اختصاصی با پیک یخچالی در مناطق شهری شیراز (ساعت ۱۵:۰۰ الی ۲۱:۰۰)',
   },

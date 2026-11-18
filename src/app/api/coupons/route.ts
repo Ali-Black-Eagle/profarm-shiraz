@@ -40,7 +40,8 @@ export async function GET(request: Request) {
       }
 
       const result = farmStore.validateAndApplyCoupon(codeToValidate, cartItems, shipping, subtotal);
-      return NextResponse.json(result);
+      // success reports whether the code applies (same as isValid); clients may check either.
+      return NextResponse.json({ ...result, success: result.isValid === true });
     }
 
     // Listing all coupons requires ADMIN privileges
@@ -76,7 +77,7 @@ function validateCouponForCart(request: Request, body: any) {
   const slotId = typeof body.slotId === 'string' ? body.slotId : null;
 
   if (!code) {
-    return { success: true, isValid: false, valid: false, message: 'لطفاً کد تخفیف را وارد نمایید.', discountAmount: 0 };
+    return { success: false, isValid: false, valid: false, message: 'لطفاً کد تخفیف را وارد نمایید.', discountAmount: 0 };
   }
 
   const quote = quoteCart({ user, items, couponCode: code, slotId, city, province, requireSlot: false });
@@ -86,8 +87,9 @@ function validateCouponForCart(request: Request, body: any) {
     ? quote.couponMessage ?? ''
     : quote.couponError ?? (quote.lines.length === 0 ? 'سبد خرید خالی است.' : 'کد تخفیف وارد شده معتبر نمی‌باشد.');
 
+  // success: false when the code does not apply (expired, used up, wrong product or cart), with the reason in message.
   return {
-    success: true,
+    success: valid,
     isValid: valid,
     valid,
     message,

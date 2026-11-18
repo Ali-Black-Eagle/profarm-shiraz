@@ -19,14 +19,15 @@ interface DeliverySlotPickerProps {
   slots: SlotOption[];
   selectedSlotId: string | null;
   onSelectSlot: (slot: SlotOption) => void;
-  isProMember: boolean;
+  /** true for PLUS and PRO members (Saturday to Thursday); FREE customers see Sunday and Wednesday only. */
+  isMember: boolean;
 }
 
 export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
   slots,
   selectedSlotId,
   onSelectSlot,
-  isProMember,
+  isMember,
 }) => {
   // Group slots by unique date
   const dateGroups = useMemo(() => {
@@ -99,15 +100,15 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
         {/* Tier Indicator Pill */}
         <div
           className={`self-start sm:self-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold ${
-            isProMember
+            isMember
               ? 'bg-amber-100 text-amber-900 border border-amber-300'
               : 'bg-emerald-50 text-emerald-900 border border-emerald-200'
           }`}
         >
-          {isProMember ? (
+          {isMember ? (
             <>
               <Crown className="w-4 h-4 text-amber-600" />
-              <span>کاربر ویژه (پلاس / پرو): تحویل همه روزه (شنبه تا پنج‌شنبه)</span>
+              <span>عضو پلاس یا پرو: تحویل شنبه تا پنج‌شنبه</span>
             </>
           ) : (
             <>
@@ -119,7 +120,7 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
       </div>
 
       {/* Notice for Regular users */}
-      {!isProMember && (
+      {!isMember && (
         <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
@@ -209,7 +210,7 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
 
                 {!isAllowed ? (
                   <span className="mt-1 text-xs text-amber-700 font-bold px-1 rounded bg-amber-100/80">
-                    ویژه پلاس
+                    ویژه اعضای پلاس و پرو
                   </span>
                 ) : isDayFull ? (
                   <span className="mt-1 text-xs text-rose-700 font-bold px-1 rounded bg-rose-100">
@@ -226,7 +227,7 @@ export const DeliverySlotPicker: React.FC<DeliverySlotPickerProps> = ({
       {activeGroup && (
         <div className="pt-2">
           <label className="block text-xs font-bold text-gray-700 mb-3">
-            ۲. ساعت تحویل سفارش در {activeGroup.dateStr} (بازه ۳ عصر الی ۹ شب):
+            ۲. ساعت تحویل سفارش در {activeGroup.dateStr} (ساعت ۱۵ تا ۲۱):
           </label>
 
           <div className="grid grid-cols-1 gap-4">

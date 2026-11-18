@@ -207,8 +207,10 @@ export function quoteCart(input: QuoteInput): CartQuote {
       quote.errors.push('یکی از کالاهای سبد خرید در فروشگاه یافت نشد. لطفاً سبد خرید را بررسی فرمایید.');
       continue;
     }
-    const qty = Number(raw.quantity);
-    if (!Number.isSafeInteger(qty) || qty < 1 || qty > 1000) {
+    // Quantities must be JSON numbers that are integers (no "2", true or 1.5). Every caller (quote, coupon,
+    // order) goes through here, so the rule holds for all of them.
+    const qty: unknown = raw.quantity;
+    if (typeof qty !== 'number' || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000) {
       quote.errors.push(`تعداد انتخابی برای محصول «${prod.title}» نامعتبر است (باید بین ۱ تا ۱۰۰۰ باشد).`);
       continue;
     }

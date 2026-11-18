@@ -38,7 +38,7 @@ export default function TermsPage() {
           </p>
           <p>
             سفارش‌های خارج از شهر شیراز فقط به صورت{' '}
-            <strong className="text-gray-900">خرید عمده ({SITE_CONFIG.policies.bulkThresholdLabel})</strong>{' '}
+            <strong className="text-gray-900">خرید عمده: {SITE_CONFIG.policies.bulkThresholdLabel}</strong>{' '}
             پذیرفته و از طریق باربری مطمئن به سراسر کشور ارسال می‌گردند.
           </p>
         </section>

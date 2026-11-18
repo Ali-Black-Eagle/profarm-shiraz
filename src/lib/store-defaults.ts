@@ -120,7 +120,7 @@ export const DEFAULT_SUBSCRIPTION_SETTINGS: SubscriptionSettings = {
   ],
 
   baseShippingFee: 49000,
-  freeTierDeliveryDaysText: 'شنبه، دوشنبه و چهارشنبه',
+  freeTierDeliveryDaysText: 'یکشنبه و چهارشنبه',
   freeBadgeText: 'طرح پایه',
   freeFeatures: [
     'تحویل: یکشنبه و چهارشنبه',

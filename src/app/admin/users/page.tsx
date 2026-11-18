@@ -435,12 +435,12 @@ export default function AdminUsersPage() {
                         {isPro ? (
                           <div className="space-y-0.5 text-gray-700 font-medium">
                             <span className="text-amber-800 font-bold block">✓ ارسال ۶ روزه هفتگی</span>
-                            <span className="text-xs text-gray-500 block">۱۰٪ تخفیف + ارسال رایگان بالای ۶۰۰ ت</span>
+                            <span className="text-xs text-gray-500 block">۱۰٪ تخم‌مرغ تا ۶۰۰ عدد، ۵٪ سایر کالاها، ۲۰٪ تخفیف ارسال</span>
                           </div>
                         ) : isPlus ? (
                           <div className="space-y-0.5 text-gray-700 font-medium">
-                            <span className="text-emerald-800 font-bold block">✓ ۵٪ تخفیف دائم سبد</span>
-                            <span className="text-xs text-gray-500 block">سوپرآفرهای ماهانه اعضا</span>
+                            <span className="text-emerald-800 font-bold block">✓ ارسال ۶ روزه هفتگی</span>
+                            <span className="text-xs text-gray-500 block">۵٪ تخفیف تخم‌مرغ تا ۲۰۰ عدد</span>
                           </div>
                         ) : (
                           <span className="text-gray-600 text-xs">ارسال ۲ روزه (یکشنبه و چهارشنبه)</span>

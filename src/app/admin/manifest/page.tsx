@@ -323,7 +323,7 @@ export default function DailyManifestPage() {
           </h1>
           <p className="text-xs text-gray-500">
             برگه مانیفست روزانه و برنامه تحویل رانندگان پیک شیراز | بازه زمانی انحصاری:{' '}
-            <strong className="text-farm-primary">۳ ظهر الی ۲۱ شب (۱۵:۰۰ الی ۲۱:۰۰)</strong>
+            <strong className="text-farm-primary">ساعت ۱۵ تا ۲۱</strong>
           </p>
         </div>
 
@@ -388,7 +388,7 @@ export default function DailyManifestPage() {
         <div className="flex flex-wrap items-center gap-2 text-gray-700">
           <Clock className="w-4 h-4 text-farm-primary shrink-0" />
           <span>
-            بازه استاندارد تحویل پیک شیراز: <strong>۱۵:۰۰ الی ۲۱:۰۰ (۳ ظهر الی ۹ شب)</strong> | تعداد کل
+            بازه استاندارد تحویل پیک شیراز: <strong>ساعت ۱۵ تا ۲۱</strong> | تعداد کل
             مرسولات آماده توزیع: <strong>{toPersianDigits(filteredOrders.length)} آدرس</strong>
           </span>
           {selectedDateFilter && (
@@ -533,7 +533,7 @@ export default function DailyManifestPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-1 text-xs">
-                  <span className="text-gray-600">زمان تحویل: ۳ ظهر الی ۹ شب</span>
+                  <span className="text-gray-600">زمان تحویل: ساعت ۱۵ تا ۲۱</span>
                   <span className="px-2.5 py-1 rounded-lg bg-farm-primary/10 text-farm-primary font-bold text-xs">
                     مبلغ: {formatToman(order.totalAmount)}
                   </span>

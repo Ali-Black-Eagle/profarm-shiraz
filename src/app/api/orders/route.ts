@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { Order, OrderItem, Product } from '@/types';
 import { getSessionFromRequest } from '@/lib/session';
-import { normalizePhoneNumber } from '@/lib/formatters';
+import { normalizeOrderNumberInput, normalizePhoneNumber } from '@/lib/formatters';
 import { checkDistributedRateLimit } from '@/lib/sms';
 import { requireAdmin } from '@/lib/admin-auth';
 import { apiErrorResponse } from '@/lib/api-errors';
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
-  const orderNumberParam = searchParams.get('orderNumber')?.trim();
+  const orderNumberParam = normalizeOrderNumberInput(searchParams.get('orderNumber')) || undefined;
 
   const allOrders = farmStore.getOrders();
 

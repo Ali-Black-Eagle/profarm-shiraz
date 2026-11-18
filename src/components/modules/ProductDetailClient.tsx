@@ -1436,7 +1436,7 @@ export default function ProductDetailClient({
                       ? cartItem.quantity >= (product.stock || 1)
                       : selectedQty >= (product.stock || 1)
                   }
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  className="min-h-11 min-w-11 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-farm-primary hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                   aria-label="افزایش تعداد"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -1448,7 +1448,7 @@ export default function ProductDetailClient({
                   type="button"
                   onClick={handleDecreaseQty}
                   disabled={!cartItem && selectedQty <= 1}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
+                  className="min-h-11 min-w-11 rounded-lg bg-white flex items-center justify-center text-farm-primary hover:bg-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
                   aria-label="کاهش تعداد"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -1458,7 +1458,7 @@ export default function ProductDetailClient({
               {cartItem ? (
                 <Link
                   href="/cart"
-                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                  className="min-h-11 py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                   <span>رفتن به سبد خرید</span>
@@ -1467,7 +1467,7 @@ export default function ProductDetailClient({
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+                  className="min-h-11 py-2 px-3.5 sm:py-2.5 sm:px-6 rounded-xl bg-farm-primary text-white text-xs font-bold hover:bg-farm-primary-dark transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#D4A373]" />
                   <span>

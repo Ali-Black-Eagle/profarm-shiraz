@@ -3,6 +3,7 @@ import { farmStore, sanitizeUser } from '@/lib/db-store';
 import { requireAdmin } from '@/lib/admin-auth';
 import { normalizePhoneNumber } from '@/lib/formatters';
 import { changeOrderStatus, listAdminOrders, serializeAdminOrder } from '@/lib/admin-orders';
+import { PATCH as patchAdminProduct } from '@/app/api/admin/products/route';
 
 /** A civil date written as YYYY-MM-DD that exists (no 2026-02-30). */
 function isValidIsoDate(value: unknown): value is string {
@@ -114,9 +115,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'updateProduct') {
+      // Legacy action: forwarded to PATCH /api/admin/products so it gets the same zod whitelist and checks
+      // (negative price or stock, unknown category, slug clashes) and the same 400 responses.
       const { id, updates } = payload || {};
-      const updated = farmStore.updateProduct(id, updates);
-      return NextResponse.json({ success: true, product: updated });
+      if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+        return NextResponse.json({ success: false, message: 'اطلاعات ویرایش کالا نامعتبر است.' }, { status: 400 });
+      }
+      const headers = new Headers(req.headers);
+      headers.delete('content-length');
+      headers.set('content-type', 'application/json');
+      const forwarded = new NextRequest(req.url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ ...updates, id: typeof id === 'string' ? id : '' }),
+      });
+      return patchAdminProduct(forwarded);
     }
 
     if (action === 'toggleProUser') {

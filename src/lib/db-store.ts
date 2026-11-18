@@ -1232,7 +1232,7 @@ class FarmDataStore {
                       id: validDeliverySlotId,
                       date: ord.deliverySlot.date || 'تحویل شیراز',
                       dayOfWeek: ord.deliverySlot.dayOfWeek || 'یکشنبه',
-                      timeWindow: ord.deliverySlot.timeWindow || '۱۵:۰۰ الی ۲۱:۰۰',
+                      timeWindow: ord.deliverySlot.timeWindow || 'ساعت ۱۵ تا ۲۱',
                       maxCapacity: ord.deliverySlot.maxCapacity || 30,
                       currentBookings: ord.deliverySlot.currentBookings || 1,
                     },
@@ -3249,9 +3249,9 @@ class FarmDataStore {
       return {
         ok: false,
         error:
-          tier === 'PRO'
-            ? 'روز تحویل انتخابی مجاز نمی‌باشد.'
-            : 'روز تحویل انتخابی با سطح اشتراک شما مطابقت ندارد. اعضای عادی فقط روزهای یکشنبه و چهارشنبه مجاز به دریافت سفارش هستند.',
+          tier === 'FREE'
+            ? 'روز تحویل انتخابی با سطح اشتراک شما مطابقت ندارد. اعضای عادی فقط روزهای یکشنبه و چهارشنبه مجاز به دریافت سفارش هستند؛ برای تحویل شنبه تا پنج‌شنبه عضو پلاس یا پرو شوید.'
+            : 'روز تحویل انتخابی مجاز نمی‌باشد. جمعه‌ها تعطیل است.',
       };
     }
     const setting = this.getDailyCapacitySetting(parsed.isoDate);

@@ -3,6 +3,14 @@
 import React, { useMemo, useState } from 'react';
 import { Coupon, CouponTargetType, CouponDiscountType, Product } from '@/types';
 import { formatToman, toPersianDigits } from '@/lib/formatters';
+import { parseTehranDateValue } from '@/lib/jalali';
+
+/** A coupon is expired when its expiry day (Tehran calendar, end of day) has passed, whatever its active switch says. */
+function isCouponExpired(coupon: Coupon): boolean {
+  if (!coupon.expiresAt) return false;
+  const end = parseTehranDateValue(coupon.expiresAt, true);
+  return end !== null && end < Date.now();
+}
 import { Dialog } from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/ToastProvider';
 import { adminRequest, AdminStatus, useAdminFetch } from '@/components/admin/admin-client';
@@ -475,6 +483,11 @@ export default function AdminCouponsPage() {
                       </span>
                     )}
 
+                    {isCouponExpired(coupon) && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        منقضی شده
+                      </span>
+                    )}
                     <button
                       onClick={(e) => handleToggleStatus(coupon.id, e)}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
