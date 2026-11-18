@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 
 const CHECKOUT_DRAFT_KEY = 'profarm_checkout_draft';
+/** Pause after the last city keystroke before the quote is requested again. */
+const CITY_QUOTE_DEBOUNCE_MS = 800;
 type PaymentMethod = 'zarinpal' | 'snapppay' | 'cod';
 const METHOD_ORDER: PaymentMethod[] = ['zarinpal', 'snapppay', 'cod'];
 
@@ -290,21 +292,34 @@ function CheckoutContent() {
   }, [slots, slotId, isSubscription]);
 
   // ---------- Quote: the only source of amounts on this page ----------
+  // The city is priced only after a pause of CITY_QUOTE_DEBOUNCE_MS or when its field loses focus, not on every
+  // keystroke. Until then submit stays disabled (cityQuotePending), so the total shown is never for another city.
+  const [quotedCity, setQuotedCity] = useState<string>(() => city.trim());
+  useEffect(() => {
+    const timer = setTimeout(() => setQuotedCity(city.trim()), CITY_QUOTE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [city]);
+  const cityQuotePending = city.trim() !== quotedCity;
+
   const quoteRequest: QuoteRequest | null = useMemo(() => {
     if (!mounted) return null;
     if (isSubscription) return { isSubscription: true, subscriptionPlan };
     if (lines.length === 0) return null;
-    const trimmedCity = city.trim();
     return {
       items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
       couponCode: appliedCouponCode,
       slotId,
-      city: trimmedCity ? trimmedCity : undefined,
+      city: quotedCity ? quotedCity : undefined,
       province: province || undefined,
     };
-  }, [mounted, isSubscription, subscriptionPlan, lines, appliedCouponCode, slotId, city, province]);
+  }, [mounted, isSubscription, subscriptionPlan, lines, appliedCouponCode, slotId, quotedCity, province]);
 
-  const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest);
+  const {
+    quote,
+    loading: quoteLoading,
+    error: quoteError,
+    rateLimitedSeconds,
+  } = useQuote(quoteRequest);
 
   const plan = plans && (isSubscription ? plans[subscriptionPlan] : undefined);
   const totalCount = getTotalItemsCount();
@@ -644,9 +659,12 @@ function CheckoutContent() {
   const couponDiscount = quote?.couponDiscount ?? 0;
   const shippingDiscount = quote?.shippingDiscount ?? 0;
   const totalSavings = (quote?.tierDiscount ?? 0) + shippingDiscount + couponDiscount;
+  // While the city is still being typed, or the server rate limits quotes, the shown total may be stale.
+  const quoteStale = cityQuotePending || rateLimitedSeconds !== null;
   const isSubmitDisabled =
     isLoading ||
     quoteLoading ||
+    quoteStale ||
     !quote ||
     !quote.ok ||
     !effectiveMethod ||
@@ -846,6 +864,7 @@ function CheckoutContent() {
                         setCity(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, city: '' }));
                       }}
+                      onBlur={() => setQuotedCity(city.trim())}
                       placeholder={province === 'فارس' ? 'شیراز' : 'نام شهر مقصد (سفارش عمده)'}
                       className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-base sm:text-sm ${
                         fieldErrors.city ? 'border-rose-400 bg-rose-50/30' : 'border-farm-border bg-farm-bg'
@@ -1074,6 +1093,13 @@ function CheckoutContent() {
               {quoteError && (
                 <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
                   {quoteError}
+                </div>
+              )}
+
+              {rateLimitedSeconds !== null && (
+                <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+                  بروزرسانی مبلغ کمی کند شده است. مبلغ قبلی نمایش داده می‌شود و حدود {toPersianDigits(rateLimitedSeconds)} ثانیه دیگر
+                  دوباره محاسبه می‌شود. ثبت سفارش تا آن زمان فعال نمی‌شود.
                 </div>
               )}
 

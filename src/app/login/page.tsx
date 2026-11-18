@@ -36,29 +36,30 @@ import {
 type AuthMode = 'LOGIN' | 'REGISTER';
 type MethodType = 'OTP' | 'PASSWORD';
 
-function getSafeRedirectUrl(target: string | null): string {
-  if (!target) return '/account';
-  const clean = target.trim();
-  // Open Redirect Defense: Allow only relative paths starting with single '/'
-  if (
-    clean.startsWith('/') &&
-    !clean.startsWith('//') &&
-    !clean.includes('\\') &&
-    !clean.includes(':')
-  ) {
-    return clean;
-  }
-  return '/account';
+/**
+ * Open Redirect Defense: only same-origin relative paths. One leading '/', no protocol-relative '//',
+ * no ':' (schemes), no backslash (browsers read '/\' as '//') and no control characters.
+ */
+function safeRedirectTarget(raw: string | null): string | null {
+  if (!raw) return null;
+  const clean = raw.trim();
+  if (!clean.startsWith('/') || clean.startsWith('//')) return null;
+  if (clean.includes(':') || clean.includes('\\') || /[\u0000-\u001F\u007F]/.test(clean)) return null;
+  return clean;
 }
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, refreshProfile } = useAuth();
+  const { login, logout, refreshProfile } = useAuth();
 
   // URL Parameters
   const redirectParam = searchParams.get('redirect');
+  const reasonParam = searchParams.get('reason');
   const modeParam = searchParams.get('mode');
+
+  /** Set when a signed-in customer was sent here because the admin panel needs an admin account. */
+  const [accessDenied, setAccessDenied] = useState(false);
 
   // Primary mode: 'LOGIN' (ورود) or 'REGISTER' (ساخت حساب کاربری)
   const [authMode, setAuthMode] = useState<AuthMode>(() =>
@@ -107,7 +108,9 @@ function LoginFormContent() {
     }
   }, [modeParam]);
 
-  // Already signed in (the server confirms the cookie): go to the requested page or the account
+  // Already signed in (the server confirms the cookie): go to the requested page or the account.
+  // A signed-in non-admin sent here for /admin is NOT redirected: the proxy would send them straight back
+  // (redirect loop), so the page explains the situation instead.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -115,12 +118,13 @@ function LoginFormContent() {
       if (cancelled) return;
       const current = useAuth.getState();
       if (!current.isAuthenticated || !current.user) return;
-      const target =
-        redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
-          ? getSafeRedirectUrl(redirectParam)
-          : current.user.role === 'ADMIN'
-          ? '/admin'
-          : '/account';
+      const safeTarget = safeRedirectTarget(redirectParam);
+      const wantsAdmin = reasonParam === 'admin_required' || (safeTarget?.startsWith('/admin') ?? false);
+      if (wantsAdmin && current.user.role !== 'ADMIN') {
+        setAccessDenied(true);
+        return;
+      }
+      const target = safeTarget ?? (current.user.role === 'ADMIN' ? '/admin' : '/account');
       router.replace(target);
     })();
     return () => {
@@ -128,6 +132,11 @@ function LoginFormContent() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSignOutFromNotice = () => {
+    logout();
+    setAccessDenied(false);
+  };
 
   // Countdown timer logic
   useEffect(() => {
@@ -160,22 +169,12 @@ function LoginFormContent() {
     setSuccessMessage(`خوش آمدید، ${user.name || 'کاربر گرامی'}! در حال ورود به حساب...`);
 
     setTimeout(() => {
+      const target = safeRedirectTarget(redirectParam);
       if (user.role === 'ADMIN') {
-        if (
-          redirectParam &&
-          redirectParam.startsWith('/admin') &&
-          !redirectParam.startsWith('//')
-        ) {
-          router.push(redirectParam);
-        } else {
-          router.push('/admin');
-        }
+        router.push(target && target.startsWith('/admin') ? target : '/admin');
       } else {
-        if (!redirectParam || redirectParam.startsWith('/admin') || redirectParam.startsWith('//')) {
-          router.push('/account');
-        } else {
-          router.push(getSafeRedirectUrl(redirectParam));
-        }
+        // Customers never land on the admin panel; they go to the requested page or the account.
+        router.push(target && !target.startsWith('/admin') ? target : '/account');
       }
     }, 600);
   };
@@ -558,6 +557,36 @@ function LoginFormContent() {
             <span>با کلمه عبور</span>
           </button>
         </div>
+
+        {/* Access notice: signed in as a customer, but the admin panel was requested */}
+        {accessDenied && (
+          <div role="alert" className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" aria-hidden="true" />
+              <div className="space-y-1">
+                <p className="font-black text-sm">دسترسی به پنل مدیریت ندارید</p>
+                <p className="leading-relaxed font-medium">
+                  حساب فعلی شما دسترسی مدیر ندارد. برای ورود به پنل مدیریت، با حساب مدیر وارد شوید یا از حساب خود خارج شوید.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/account"
+                className="min-h-11 inline-flex items-center px-4 rounded-xl bg-white border border-amber-300 font-bold text-farm-primary hover:bg-amber-100 transition-colors"
+              >
+                رفتن به حساب کاربری
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOutFromNotice}
+                className="min-h-11 px-4 rounded-xl bg-amber-800 text-white font-bold hover:bg-amber-900 transition-colors cursor-pointer"
+              >
+                خروج از حساب
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Alerts */}
         {errorMessage && (

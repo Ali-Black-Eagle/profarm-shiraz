@@ -3,6 +3,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
+import { useCart } from '@/hooks/useCart';
+
+const CHECKOUT_DRAFT_KEY = 'profarm_checkout_draft';
+
+/**
+ * Removes what belonged to the signed-in customer on this browser: the cart (with its applied coupon) and the
+ * checkout draft. Each step is guarded, because storage may be unavailable.
+ */
+function clearCustomerBrowserState() {
+  try {
+    useCart.getState().clearCart();
+  } catch {
+    // cart store unavailable
+  }
+  try {
+    if (typeof window !== 'undefined') window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+  } catch {
+    // sessionStorage unavailable
+  }
+}
 
 /**
  * Session state for the browser. The HttpOnly session cookie is the source of truth: refreshProfile asks the
@@ -21,7 +41,7 @@ interface AuthStore {
 
 export const useAuth = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       profileLoaded: false,
@@ -36,6 +56,7 @@ export const useAuth = create<AuthStore>()(
         } catch {
           // ignore
         }
+        clearCustomerBrowserState();
         set({ user: null, isAuthenticated: false, profileLoaded: true });
       },
 
@@ -43,7 +64,11 @@ export const useAuth = create<AuthStore>()(
         try {
           const res = await fetch('/api/auth/me', { cache: 'no-store' });
           if (res.status === 401) {
+            // Only a session that ended while signed in clears the cart. Guests get a 401 on every page load
+            // (StorefrontSync), and their cart must stay.
+            const wasSignedIn = get().isAuthenticated || get().user !== null;
             set({ user: null, isAuthenticated: false, profileLoaded: true });
+            if (wasSignedIn) clearCustomerBrowserState();
             return;
           }
           if (!res.ok) return;

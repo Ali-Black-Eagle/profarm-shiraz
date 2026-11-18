@@ -23,12 +23,17 @@ interface CartStore {
   catalog: Record<string, Product>;
   /** Memory: lines joined with the catalog (lines whose product is not known yet are left out). */
   items: CartItem[];
+  /** Memory: true once a catalog refresh has finished, successfully or not (never left pending). */
   catalogLoaded: boolean;
+  /** Memory: true when the last catalog refresh failed. The last known catalog is kept on screen. */
+  catalogError: boolean;
   /** Memory: coupon code the customer applied (the server validates it on every quote). */
   appliedCouponCode: string | null;
   /** Memory: set when a refresh removed or clamped something, shown on the cart page. */
   notice: string | null;
   addItem: (product: Product, quantity?: number) => void;
+  /** Adds a line by product id only (e.g. reorder). Price and stock come from the next refreshCatalog. */
+  addLine: (productId: string, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -61,6 +66,7 @@ export const useCart = create<CartStore>()(
       catalog: {},
       items: [],
       catalogLoaded: false,
+      catalogError: false,
       appliedCouponCode: null,
       notice: null,
 
@@ -74,6 +80,18 @@ export const useCart = create<CartStore>()(
           ? get().lines.map((l) => (l.productId === product.id ? { ...l, quantity: newQty } : l))
           : [...get().lines, { productId: product.id, quantity: newQty }];
         set({ lines, catalog, items: deriveItems(lines, catalog) });
+      },
+
+      addLine: (productId: string, quantity = 1) => {
+        if (!productId) return;
+        const add = Math.min(1000, Math.max(1, Math.floor(quantity) || 1));
+        const existing = get().lines.find((l) => l.productId === productId);
+        const lines = existing
+          ? get().lines.map((l) =>
+              l.productId === productId ? { ...l, quantity: Math.min(1000, l.quantity + add) } : l
+            )
+          : [...get().lines, { productId, quantity: add }];
+        set({ lines, items: deriveItems(lines, get().catalog) });
       },
 
       removeItem: (productId: string) => {
@@ -106,11 +124,19 @@ export const useCart = create<CartStore>()(
       clearNotice: () => set({ notice: null }),
 
       refreshCatalog: async () => {
+        // catalogLoaded is set on every exit path (finally), so a failed request never leaves the cart spinning.
+        // On failure the last known catalog stays in memory and catalogError tells the cart page to offer a retry.
         try {
           const res = await fetch('/api/products', { cache: 'no-store' });
-          if (!res.ok) return;
+          if (!res.ok) {
+            set({ catalogError: true });
+            return;
+          }
           const data = (await res.json()) as { success?: boolean; products?: Product[] };
-          if (!data.success || !Array.isArray(data.products)) return;
+          if (!data.success || !Array.isArray(data.products)) {
+            set({ catalogError: true });
+            return;
+          }
 
           const catalog: Record<string, Product> = {};
           for (const p of data.products) catalog[p.id] = p;
@@ -140,11 +166,14 @@ export const useCart = create<CartStore>()(
             catalog,
             lines,
             items: deriveItems(lines, catalog),
-            catalogLoaded: true,
+            catalogError: false,
             notice: parts.length ? parts.join(' ') : get().notice,
           });
         } catch {
           // Network errors keep the last known catalog; the quote still prices the cart on the server.
+          set({ catalogError: true });
+        } finally {
+          set({ catalogLoaded: true });
         }
       },
 

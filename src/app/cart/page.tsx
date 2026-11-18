@@ -34,9 +34,30 @@ export default function CartPage() {
   const confirm = useConfirm();
   const [mounted, setMounted] = React.useState(false);
   const [plans, setPlans] = React.useState<PlanPrices>({});
-  const { items, lines, updateQuantity, removeItem, clearCart, catalogLoaded, notice, clearNotice, appliedCouponCode } =
-    useCart();
+  const {
+    items,
+    lines,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    catalogLoaded,
+    catalogError,
+    refreshCatalog,
+    notice,
+    clearNotice,
+    appliedCouponCode,
+  } = useCart();
   const { user } = useAuth();
+  const [retryingCatalog, setRetryingCatalog] = React.useState(false);
+
+  const retryCatalog = async () => {
+    setRetryingCatalog(true);
+    try {
+      await refreshCatalog();
+    } finally {
+      setRetryingCatalog(false);
+    }
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -59,7 +80,9 @@ export default function CartPage() {
         : null,
     [lines, appliedCouponCode]
   );
-  const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest);
+  const { quote, loading: quoteLoading, error: quoteError, rateLimitedSeconds } = useQuote(quoteRequest);
+  // Catalog failed and some lines have no product data: show a retry notice instead of a spinner or an empty list.
+  const catalogMissing = catalogLoaded && catalogError && items.length < lines.length;
 
   const totalCount = lines.reduce((sum, l) => sum + l.quantity, 0);
   const userTier = user?.tier || (user?.isProMember ? 'PRO' : 'FREE');
@@ -135,6 +158,28 @@ export default function CartPage() {
           <span>خالی کردن سبد</span>
         </button>
       </div>
+
+      {catalogMissing && (
+        <div
+          role="alert"
+          className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" aria-hidden="true" />
+            <span className="leading-relaxed">
+              اطلاعات کالاهای سبد خرید در حال حاضر دریافت نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش نمایید.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={retryCatalog}
+            disabled={retryingCatalog}
+            className="min-h-11 px-4 rounded-xl bg-farm-primary text-white font-bold hover:bg-farm-primary-dark transition-colors disabled:opacity-60 cursor-pointer"
+          >
+            {retryingCatalog ? 'در حال تلاش...' : 'تلاش دوباره'}
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div role="status" className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-start justify-between gap-3">
@@ -249,6 +294,13 @@ export default function CartPage() {
             {quoteError && (
               <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
                 {quoteError}
+              </div>
+            )}
+
+            {rateLimitedSeconds !== null && (
+              <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+                بروزرسانی مبلغ کمی کند شده است. مبلغ قبلی نمایش داده می‌شود و حدود {toPersianDigits(rateLimitedSeconds)} ثانیه دیگر
+                دوباره محاسبه می‌شود.
               </div>
             )}
 

@@ -20,9 +20,14 @@ export async function POST(req: NextRequest) {
     const ip = getSecureClientIp(req);
     const rate = await checkDistributedRateLimit(`order_quote:${ip}`, 60, 300);
     if (!rate.allowed) {
+      const retryAfterSeconds = Math.max(1, Math.ceil(Number(rate.retryAfterSeconds) || 10));
       return NextResponse.json(
-        { success: false, message: `تعداد درخواست‌ها بیش از حد مجاز است. لطفاً ${rate.retryAfterSeconds} ثانیه دیگر تلاش نمایید.` },
-        { status: 429 }
+        {
+          success: false,
+          retryAfterSeconds,
+          message: `تعداد درخواست‌ها بیش از حد مجاز است. لطفاً ${retryAfterSeconds} ثانیه دیگر تلاش نمایید.`,
+        },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
       );
     }
 
@@ -40,8 +45,16 @@ export async function POST(req: NextRequest) {
         : body.deliverySlot && typeof body.deliverySlot === 'object' && typeof body.deliverySlot.id === 'string'
         ? body.deliverySlot.id
         : null;
+    // Same address rules as POST /api/orders and /api/coupons: top-level fields, or an `address` object.
+    const address = body.address && typeof body.address === 'object' ? body.address : {};
+    const pick = (key: 'city' | 'province') => {
+      const fromAddress = (address as Record<string, unknown>)[key];
+      const value = typeof fromAddress === 'string' ? fromAddress : body[key];
+      return value === undefined || value === null ? undefined : String(value);
+    };
     // city undefined = no address yet (preview): the Shiraz rule is then not evaluated
-    const city = body.city === undefined || body.city === null ? undefined : String(body.city);
+    const city = pick('city');
+    const province = pick('province');
 
     const quote = quoteCart({
       user,
@@ -49,6 +62,7 @@ export async function POST(req: NextRequest) {
       couponCode: typeof body.couponCode === 'string' ? body.couponCode : null,
       slotId,
       city,
+      province,
       requireSlot: false,
       isSubscription: body.isSubscription === true,
       subscriptionPlan: body.subscriptionPlan,

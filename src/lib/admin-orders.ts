@@ -4,7 +4,7 @@
  */
 import 'server-only';
 import { farmStore, sanitizeUser } from './db-store';
-import { canTransition, getAllowedNextStatuses } from './order-utils';
+import { canTransition, getAllowedNextStatuses, isCodOrder } from './order-utils';
 import { withOrderLock } from './order-lock';
 import { normalizePhoneNumber, toEnglishDigits } from './formatters';
 import { normalizeSearchText } from './public-api';
@@ -17,6 +17,47 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'DELIVERED',
   'CANCELLED',
 ];
+
+/** Statuses of orders that are paid, confirmed or already with the courier. */
+const DELIVERABLE_STATUSES: OrderStatus[] = ['PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+
+/** Payment method values that mean cash or card on delivery (the stored values differ by source). */
+const COD_PAYMENT_METHODS = ['cod', 'cash', 'card-on-delivery'];
+
+/**
+ * Orders the driver takes out today: confirmed orders in DELIVERABLE_STATUSES, plus cash-on-delivery orders that
+ * are still PENDING_PAYMENT (nothing is charged online, so they wait for the admin, but the driver still delivers them).
+ */
+export function isDeliverableOrder(order: Order): boolean {
+  if (DELIVERABLE_STATUSES.includes(order.status)) return true;
+  if (order.status !== 'PENDING_PAYMENT') return false;
+  const method = String(order.paymentMethod || '').toLowerCase();
+  return isCodOrder(order) || COD_PAYMENT_METHODS.includes(method);
+}
+
+/** Status filter: 'ALL', 'DELIVERABLE', one status, or a comma-separated list of statuses. */
+export type OrderStatusFilter = 'ALL' | 'DELIVERABLE' | OrderStatus[];
+
+/** Parses the status query value. Returns null when a name is not a known status. */
+export function parseOrderStatusFilter(raw: string | null | undefined): OrderStatusFilter | null {
+  const value = (raw || '').trim();
+  if (!value || value === 'ALL') return 'ALL';
+  if (value === 'DELIVERABLE') return 'DELIVERABLE';
+  const parts = value.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  const statuses: OrderStatus[] = [];
+  for (const part of parts) {
+    if (!ORDER_STATUSES.includes(part as OrderStatus)) return null;
+    if (!statuses.includes(part as OrderStatus)) statuses.push(part as OrderStatus);
+  }
+  return statuses;
+}
+
+function matchesStatusFilter(order: Order, filter: OrderStatusFilter): boolean {
+  if (filter === 'ALL') return true;
+  if (filter === 'DELIVERABLE') return isDeliverableOrder(order);
+  return filter.includes(order.status);
+}
 
 /** Order as the admin sees it: every stored field plus the statuses it may move to right now. */
 export function serializeAdminOrder(order: Order) {
@@ -54,7 +95,7 @@ export async function changeOrderStatus(orderId: string, status: OrderStatus): P
 }
 
 export interface AdminOrderFilters {
-  /** One status, or undefined / 'ALL' for every status. */
+  /** 'ALL' (default), 'DELIVERABLE', one status, or a comma-separated list of statuses. */
   status?: string;
   /** Delivery day (YYYY-MM-DD, Asia/Tehran civil date). Subscriptions have no slot and are excluded. */
   date?: string;
@@ -75,7 +116,8 @@ function orderCreatedMs(order: Order): number {
 
 /** Filtered list, newest first. Filters are applied to the stored orders (no client-side trust). */
 export function listAdminOrders(filters: AdminOrderFilters = {}): Order[] {
-  const status = filters.status && filters.status !== 'ALL' ? filters.status : null;
+  // An unknown status name matches nothing rather than everything (the API rejects it before this point).
+  const statusFilter = parseOrderStatusFilter(filters.status) ?? [];
   const rawQuery = (filters.q || '').trim();
   const digitsQuery = toEnglishDigits(rawQuery).replace(/\s+/g, '');
   const textQuery = normalizeSearchText(rawQuery);
@@ -84,7 +126,7 @@ export function listAdminOrders(filters: AdminOrderFilters = {}): Order[] {
   return farmStore
     .getOrders()
     .filter((order) => {
-      if (status && order.status !== status) return false;
+      if (!matchesStatusFilter(order, statusFilter)) return false;
       if (filters.date) {
         if (order.isSubscription || slotIsoDate(order) !== filters.date) return false;
       }

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { adminQuery, adminRequest, AdminStatus, buildCsv, downloadCsv, tehranIsoDate, useAdminFetch } from '@/components/admin/admin-client';
 import { Order, OrderStatus, DailyCapacityItem } from '@/types';
 
 /** Order as the admin API returns it (the stored order plus the statuses it may move to now). */
 type AdminOrder = Order & { allowedNextStatuses?: OrderStatus[] };
 import { formatToman, toPersianDigits } from '@/lib/formatters';
-import { isDigitalOrder } from '@/lib/order-utils';
+import { isCodOrder, isDigitalOrder } from '@/lib/order-utils';
 import { getOrderStatusMeta } from '@/lib/site-config';
 import { useToast, useConfirm } from '@/components/ui/ToastProvider';
 import {
@@ -50,6 +50,85 @@ export function getShirazZoneForAddress(address: string): string {
   return 'سایر نواحی';
 }
 
+/** Orders per request, and the most pages read for one manifest (the list is truncated after that). */
+const MANIFEST_PAGE_SIZE = 100;
+const MANIFEST_MAX_PAGES = 20;
+
+interface ManifestLoad {
+  orders: AdminOrder[];
+  truncated: boolean;
+}
+
+/**
+ * Loads every deliverable order for the day (or for all days when date is null), page by page, up to
+ * MANIFEST_MAX_PAGES pages. A stale answer (the date changed meanwhile) is ignored.
+ */
+function useManifestOrders(date: string | null) {
+  const [load, setLoad] = useState<ManifestLoad | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  const seq = useRef(0);
+
+  useEffect(() => {
+    const id = ++seq.current;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const orders: AdminOrder[] = [];
+      let page = 1;
+      let totalPages = 1;
+      let truncated = false;
+      while (page <= totalPages) {
+        const result = await adminRequest<{ orders: AdminOrder[]; pagination?: { totalPages?: number } }>(
+          adminQuery('/api/admin/orders', {
+            status: 'DELIVERABLE',
+            date,
+            pageSize: MANIFEST_PAGE_SIZE,
+            page,
+          })
+        );
+        if (id !== seq.current) return;
+        if (!result.ok) {
+          setError(result.message);
+          setLoading(false);
+          return;
+        }
+        orders.push(...(result.data.orders ?? []));
+        totalPages = Math.max(1, result.data.pagination?.totalPages ?? 1);
+        if (page >= MANIFEST_MAX_PAGES && page < totalPages) {
+          truncated = true;
+          break;
+        }
+        page += 1;
+      }
+      if (id !== seq.current) return;
+      setLoad({ orders, truncated });
+      setLoading(false);
+    })();
+  }, [date, reloadTick]);
+
+  const reload = async () => setReloadTick((t) => t + 1);
+
+  /** Local-only update (optimistic change or rollback), like useAdminFetch.setData. */
+  const setData = (updater: (prev: { orders: AdminOrder[] } | null) => { orders: AdminOrder[] } | null) => {
+    setLoad((prev) => {
+      const next = updater(prev ? { orders: prev.orders } : null);
+      if (!next) return prev;
+      return { orders: next.orders, truncated: prev?.truncated ?? false };
+    });
+  };
+
+  return {
+    data: load ? { orders: load.orders } : null,
+    truncated: load?.truncated ?? false,
+    loading,
+    error,
+    reload,
+    setData,
+  };
+}
+
 export default function DailyManifestPage() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -58,10 +137,8 @@ export default function DailyManifestPage() {
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
   const capacitiesState = useAdminFetch<{ dailyCapacities: DailyCapacityItem[] }>('/api/admin?type=dailyCapacities');
   const capacities = useMemo(() => capacitiesState.data?.dailyCapacities ?? [], [capacitiesState.data]);
-  // The date filter goes to the server (deliverySlot.isoDate). Without a date the first 100 orders are loaded.
-  const ordersState = useAdminFetch<{ orders: AdminOrder[] }>(
-    adminQuery('/api/admin/orders', { status: 'ALL', date: selectedDateFilter, pageSize: 100 })
-  );
+  // The server returns the driver set (DELIVERABLE). Every page is read, so no order is missing from the manifest.
+  const ordersState = useManifestOrders(selectedDateFilter);
   const [editingDateIso, setEditingDateIso] = useState<string | null>(null);
   const [editingCapacityInput, setEditingCapacityInput] = useState<number>(30);
   const [isCapacityOpen, setIsCapacityOpen] = useState<boolean>(false);
@@ -85,13 +162,17 @@ export default function DailyManifestPage() {
   };
 
   const filterManifestOrders = (all: AdminOrder[]): AdminOrder[] => {
-    // Only physical Shiraz orders in active/deliverable statuses belong in the driver manifest.
+    // Only physical Shiraz orders that the driver takes out belong in the manifest: confirmed orders, and
+    // cash-on-delivery orders that are still PENDING_PAYMENT (nothing is charged online for them).
     // Digital and subscription orders are excluded by their structured fields.
     return all.filter(
       (o) =>
         !isDigitalOrder(o) &&
         o.address?.isShiraz !== false &&
-        (o.status === 'PROCESSING' || o.status === 'OUT_FOR_DELIVERY' || o.status === 'DELIVERED')
+        (o.status === 'PROCESSING' ||
+          o.status === 'OUT_FOR_DELIVERY' ||
+          o.status === 'DELIVERED' ||
+          (o.status === 'PENDING_PAYMENT' && isCodOrder(o)))
     );
   };
 
@@ -276,6 +357,13 @@ export default function DailyManifestPage() {
           void capacitiesState.reload();
         }}
       />
+
+      {ordersState.truncated && (
+        <div role="alert" className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-900 font-bold leading-relaxed">
+          فهرست کامل نیست: بیش از {toPersianDigits(MANIFEST_PAGE_SIZE * MANIFEST_MAX_PAGES)} سفارش برای این فیلتر وجود دارد. برای
+          دیدن بقیه، یک تاریخ تحویل مشخص انتخاب کنید.
+        </div>
+      )}
 
       {statusFeedback && (
         <div

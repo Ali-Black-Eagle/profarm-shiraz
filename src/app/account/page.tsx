@@ -93,7 +93,7 @@ function AccountContent() {
   const searchParams = useSearchParams();
   const confirm = useConfirm();
   const { user, isAuthenticated, profileLoaded, logout, refreshProfile } = useAuth();
-  const { addItem } = useCart();
+  const { addLine, refreshCatalog } = useCart();
 
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -250,11 +250,21 @@ function AccountContent() {
     router.push('/');
   };
 
-  const handleReorder = (order: Order) => {
+  const handleReorder = async (order: Order) => {
+    // Only ids and quantities are copied from the old order. Price and stock come from the current catalog,
+    // and refreshCatalog clamps each quantity to the stock that is available now.
     order.items.forEach((item: OrderItem) => {
-      if (item.product) addItem(item.product, item.quantity);
+      const productId = item.productId || item.product?.id;
+      if (productId) addLine(productId, item.quantity);
     });
-    setMessage({ kind: 'ok', text: `اقلام سفارش ${order.orderNumber} به سبد خرید اضافه شد.` });
+    await refreshCatalog();
+    const catalogFailed = useCart.getState().catalogError;
+    setMessage({
+      kind: catalogFailed ? 'err' : 'ok',
+      text: catalogFailed
+        ? `اقلام سفارش ${order.orderNumber} اضافه شد، اما قیمت و موجودی فعلی دریافت نشد. سبد خرید را بررسی کنید.`
+        : `اقلام سفارش ${order.orderNumber} به سبد خرید اضافه شد. قیمت و موجودی بر اساس وضعیت فعلی فروشگاه بررسی شد.`,
+    });
   };
 
   const handlePayAgain = async (order: Order) => {

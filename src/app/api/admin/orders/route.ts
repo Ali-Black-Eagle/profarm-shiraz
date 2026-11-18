@@ -8,6 +8,7 @@ import {
   countOrdersByStatus,
   listAdminOrders,
   ORDER_STATUSES,
+  parseOrderStatusFilter,
   serializeAdminOrder,
 } from '@/lib/admin-orders';
 import type { OrderStatus } from '@/types';
@@ -22,8 +23,9 @@ const patchSchema = z.object({
 });
 
 /**
- * GET ?status=ALL|PENDING_PAYMENT|..., &date=YYYY-MM-DD (delivery day), &q= (order number, phone or name),
- * &page=, &pageSize= (default 20, max 100). Every order carries allowedNextStatuses.
+ * GET ?status=ALL|DELIVERABLE|PENDING_PAYMENT|...|PROCESSING,OUT_FOR_DELIVERY, &date=YYYY-MM-DD (delivery day),
+ * &q= (order number, phone or name), &page=, &pageSize= (default 20, max 100). Every order carries allowedNextStatuses.
+ * DELIVERABLE is the driver set: PROCESSING, OUT_FOR_DELIVERY, DELIVERED, and cash-on-delivery PENDING_PAYMENT orders.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -31,18 +33,18 @@ export async function GET(req: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || 'ALL';
+    const statusFilter = parseOrderStatusFilter(searchParams.get('status'));
     const date = searchParams.get('date') || undefined;
     const q = searchParams.get('q') || undefined;
 
-    if (status !== 'ALL' && !ORDER_STATUSES.includes(status as OrderStatus)) {
+    if (statusFilter === null) {
       return jsonError(400, 'وضعیت فیلتر سفارش نامعتبر است.');
     }
     if (date !== undefined && !isIsoDate(date)) {
       return jsonError(400, 'تاریخ فیلتر باید به صورت YYYY-MM-DD و معتبر باشد.');
     }
 
-    const list = listAdminOrders({ status, date, q });
+    const list = listAdminOrders({ status: searchParams.get('status') || 'ALL', date, q });
     const { page, pageSize } = pageParams(searchParams, { pageSize: 20, maxPageSize: 100 });
     const { items, pagination } = paginate(list, page, pageSize);
     return jsonOk({
