@@ -1,6 +1,6 @@
 # Profarm Shiraz: Organic Food E-commerce Platform
 
-**Live site: [profarm-shiraz.ir](https://profarm-shiraz.ir)** (Persian, right-to-left)
+**Live site: [profarm-shiraz.netlify.app](https://profarm-shiraz.netlify.app)** (Persian, right-to-left)
 
 A full e-commerce platform for an organic farm-to-door food business in Shiraz, Iran. I built it end to end: storefront, checkout and payments, subscriptions, delivery scheduling, a full admin panel, and a native Android app for the admin team.
 
