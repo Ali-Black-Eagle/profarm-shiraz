@@ -75,7 +75,7 @@ export function isSessionRevoked(identifier?: string | null): boolean {
 const KNOWN_WEAK_SECRETS = new Set([
   'profarm_shiraz_super_secret_jwt_key_2026',
   'replace_with_a_secure_random_32_char_secret_key', // .env.example placeholder
-  'your_strong_random_secret_jwt_key_here_min_32_characters', // ARCHITECTURE.md placeholder
+  'your_strong_random_secret_jwt_key_here_min_32_characters', // docs/ARCHITECTURE.md placeholder
 ]);
 
 export function getSessionSecret(): string {

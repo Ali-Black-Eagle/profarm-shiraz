@@ -8,7 +8,7 @@
  * Tests run in file order on one worker (playwright.config.ts: workers 1). They share state through `S`, so a
  * failed step can cascade into the next ones; the report calls out where that happens.
  *
- * Assertions follow the business rules in the brief and in ARCHITECTURE.md. Where the live configuration
+ * Assertions follow the business rules in the brief and in docs/ARCHITECTURE.md. Where the live configuration
  * (GET /api/subscriptions) disagrees with those rules, the test is written against the rule and is expected to
  * fail, so the finding stays visible.
  */
