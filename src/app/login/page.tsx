@@ -1,5 +1,6 @@
 'use client';
 
+import { OTP_LENGTH } from '@/lib/otp-config';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -75,7 +76,7 @@ function LoginFormContent() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '']);
+  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [passwordIdentifier, setPasswordIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -228,7 +229,7 @@ function LoginFormContent() {
       setOtpStep('CODE');
       setTimerSeconds(120);
       setCanResend(false);
-      setOtpDigits(['', '', '', '', '']);
+      setOtpDigits(Array(OTP_LENGTH).fill(''));
 
       setTimeout(() => {
         inputRefs.current[0]?.focus();
@@ -253,18 +254,18 @@ function LoginFormContent() {
     }
 
     if (englishDigits.length > 1) {
-      const digits = englishDigits.slice(0, 5).split('');
+      const digits = englishDigits.slice(0, OTP_LENGTH).split('');
       const newArr = [...otpDigits];
-      const baseIndex = digits.length === 5 ? 0 : startIndex;
+      const baseIndex = digits.length === OTP_LENGTH ? 0 : startIndex;
       digits.forEach((d, i) => {
-        if (baseIndex + i < 5) newArr[baseIndex + i] = d;
+        if (baseIndex + i < OTP_LENGTH) newArr[baseIndex + i] = d;
       });
       setOtpDigits(newArr);
-      const nextIdx = Math.min(baseIndex + digits.length, 4);
+      const nextIdx = Math.min(baseIndex + digits.length, OTP_LENGTH - 1);
       inputRefs.current[nextIdx]?.focus();
 
       const full = newArr.join('');
-      if (full.length === 5 && !newArr.includes('')) {
+      if (full.length === OTP_LENGTH && !newArr.includes('')) {
         submitVerifyOtp(full);
       }
       return;
@@ -275,12 +276,12 @@ function LoginFormContent() {
     newDigits[startIndex] = singleDigit;
     setOtpDigits(newDigits);
 
-    if (singleDigit && startIndex < 4) {
+    if (singleDigit && startIndex < OTP_LENGTH - 1) {
       inputRefs.current[startIndex + 1]?.focus();
     }
 
     const fullCode = newDigits.join('');
-    if (fullCode.length === 5 && !newDigits.includes('')) {
+    if (fullCode.length === OTP_LENGTH && !newDigits.includes('')) {
       submitVerifyOtp(fullCode);
     }
   };
@@ -340,8 +341,8 @@ function LoginFormContent() {
   const handleManualVerifySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const code = otpDigits.join('');
-    if (code.length !== 5) {
-      setErrorMessage('لطفاً کد تایید ۵ رقمی را به طور کامل وارد نمایید.');
+    if (code.length !== OTP_LENGTH) {
+      setErrorMessage('لطفاً کد تایید ۶ رقمی را به طور کامل وارد نمایید.');
       return;
     }
     submitVerifyOtp(code);
@@ -703,7 +704,7 @@ function LoginFormContent() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label htmlFor="login-phone" className="text-gray-700 font-bold">شماره تلفن همراه:</label>
-                    <span className="text-xs text-gray-600">کد ۵ رقمی ارسال می‌شود</span>
+                    <span className="text-xs text-gray-600">کد ۶ رقمی ارسال می‌شود</span>
                   </div>
                   <div className="relative">
                     <input
@@ -738,7 +739,7 @@ function LoginFormContent() {
                 <div className="space-y-3">
                   <div className="text-center space-y-1">
                     <label className="text-gray-800 font-bold block">
-                      کد تایید ۵ رقمی پیامک‌شده را وارد نمایید:
+                      کد تایید ۶ رقمی پیامک‌شده را وارد نمایید:
                     </label>
                     <p className="text-xs text-gray-500">
                       ارسال‌شده به شماره{' '}
@@ -758,13 +759,13 @@ function LoginFormContent() {
                         type="text"
                         inputMode="numeric"
                         autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                        aria-label={`رقم ${toPersianDigits(idx + 1)} از ۵ کد تایید`}
-                        maxLength={5}
+                        aria-label={`رقم ${toPersianDigits(idx + 1)} از ۶ کد تایید`}
+                        maxLength={OTP_LENGTH}
                         value={digit}
                         onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
                         onPaste={(e) => handleOtpPaste(idx, e)}
                         onKeyDown={(e) => handleKeyDown(idx, e)}
-                        className="w-12 h-14 rounded-2xl border-2 border-farm-border bg-[#FAF8F5] text-center font-mono font-black text-2xl text-farm-primary focus:border-farm-primary focus:bg-white focus:ring-4 focus:ring-farm-primary/10 focus:outline-none transition-all shadow-xs"
+                        className="w-11 h-14 rounded-2xl border-2 border-farm-border bg-[#FAF8F5] text-center font-mono font-black text-2xl text-farm-primary focus:border-farm-primary focus:bg-white focus:ring-4 focus:ring-farm-primary/10 focus:outline-none transition-all shadow-xs"
                       />
                     ))}
                   </div>

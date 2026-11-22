@@ -68,7 +68,7 @@ async function login(phone: string, ip: string) {
   const s = await send('POST', '/api/auth/otp', { body: { action: 'send', phone }, ip });
   expect(s.status, `OTP send for ${phone}: ${s.text}`).toBe(200);
   const code = s.json?.debugCode;
-  expect(code, 'debugCode is exposed only by the dev MOCK SMS provider').toMatch(/^\d{5}$/);
+  expect(code, 'debugCode is exposed only by the dev MOCK SMS provider').toMatch(/^\d{6}$/);
   const v = await send('POST', '/api/auth/otp', { body: { action: 'verify', phone, code }, ip });
   expect(v.status, `OTP verify for ${phone}: ${v.text}`).toBe(200);
   const cookie = sessionFrom(v);
@@ -358,7 +358,7 @@ test.describe('P5 adversarial: local dev build', () => {
     let success = 0;
     let saw429 = false;
     for (let i = 0; i < 12; i++) {
-      const guess = String((Number(real) + 1 + i) % 100000).padStart(5, '0');
+      const guess = String((Number(real) + 1 + i) % 1000000).padStart(6, '0');
       const v = await send('POST', '/api/auth/otp', { body: { action: 'verify', phone, code: guess }, ip });
       if (v.status === 200) success++;
       if (v.status === 429) saw429 = true;

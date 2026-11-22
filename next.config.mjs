@@ -72,7 +72,7 @@ const nextConfig = {
       },
       {
         key: 'X-XSS-Protection',
-        value: '1; mode=block',
+        value: '0', // the legacy XSS auditor is retired and can itself be abused; CSP is the protection
       },
       {
         key: 'Content-Security-Policy',

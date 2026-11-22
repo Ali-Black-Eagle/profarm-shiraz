@@ -161,7 +161,7 @@ async function registerViaOtp(page: Page, phone: string, name: string) {
   await page.locator('form', { has: page.locator('#login-phone') }).locator('button[type="submit"]').click();
   const sent = await (await sendResponse).json();
   expect(sent.success, `OTP send failed: ${sent.message ?? ''}`).toBe(true);
-  expect(sent.debugCode, 'mock SMS should expose the code in JSON').toMatch(/^\d{5}$/);
+  expect(sent.debugCode, 'mock SMS should expose the code in JSON').toMatch(/^\d{6}$/);
 
   const verifyResponse = page.waitForResponse(
     (r) => r.url().endsWith('/api/auth/otp') && (r.request().postData() ?? '').includes('"verify"')

@@ -18,6 +18,7 @@ import {
   normalizePhoneNumber,
 } from '@/lib/formatters';
 import { SITE_CONFIG } from '@/lib/site-config';
+import { OTP_LENGTH } from '@/lib/otp-config';
 import { Button } from '@/components/ui/Button';
 import type { Address } from '@/types';
 import {
@@ -367,7 +368,7 @@ function CheckoutContent() {
       setOtpStep('SENT');
       setOtpTimer(120);
       setOtpCode('');
-      setOtpSuccessMsg('کد تایید ۵ رقمی ارسال شد. لطفاً آن را وارد فرمایید.');
+      setOtpSuccessMsg('کد تایید ۶ رقمی ارسال شد. لطفاً آن را وارد فرمایید.');
     } catch (err: unknown) {
       setOtpErrorMsg(err instanceof Error ? err.message : 'خطا در برقراری ارتباط با سامانه پیامکی');
     } finally {
@@ -379,8 +380,8 @@ function CheckoutContent() {
     setOtpErrorMsg(null);
     setOtpSuccessMsg(null);
     const cleanCode = toEnglishDigits(otpCode).replace(/\D/g, '');
-    if (cleanCode.length !== 5) {
-      setOtpErrorMsg('لطفاً کد تایید ۵ رقمی را به صورت کامل وارد فرمایید.');
+    if (cleanCode.length !== OTP_LENGTH) {
+      setOtpErrorMsg('لطفاً کد تایید ۶ رقمی را به صورت کامل وارد فرمایید.');
       return;
     }
     setIsVerifyingOtp(true);
@@ -476,7 +477,7 @@ function CheckoutContent() {
         <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-3">
           <div className="flex items-center justify-between text-xs gap-2">
             <label htmlFor="checkout-otp-input" className="font-bold text-amber-950">
-              کد تایید ۵ رقمی پیامک‌شده:
+              کد تایید ۶ رقمی پیامک‌شده:
             </label>
             <span className="text-amber-800 font-mono text-xs">
               {otpTimer > 0 ? `اعتبار: ${toPersianDigits(otpTimer)} ثانیه` : 'کد منقضی شده؛ ارسال مجدد را بزنید'}
@@ -488,8 +489,8 @@ function CheckoutContent() {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={5}
-              placeholder="•••••"
+              maxLength={OTP_LENGTH}
+              placeholder="••••••"
               value={otpCode}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -497,14 +498,14 @@ function CheckoutContent() {
                   void handleVerifyCheckoutOtp();
                 }
               }}
-              onChange={(e) => setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, 5))}
+              onChange={(e) => setOtpCode(toEnglishDigits(e.target.value).replace(/\D/g, '').slice(0, OTP_LENGTH))}
               className="w-32 min-h-11 text-center tracking-[0.4em] px-3 py-2 rounded-xl border-2 border-amber-300 bg-white font-mono font-black text-lg text-farm-primary focus:outline-none focus:border-farm-primary"
               dir="ltr"
             />
             <button
               type="button"
               onClick={() => void handleVerifyCheckoutOtp()}
-              disabled={isVerifyingOtp || toEnglishDigits(otpCode).replace(/\D/g, '').length !== 5}
+              disabled={isVerifyingOtp || toEnglishDigits(otpCode).replace(/\D/g, '').length !== OTP_LENGTH}
               className="flex-1 min-h-11 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
             >
               {isVerifyingOtp ? 'در حال بررسی...' : 'تایید و ثبت شماره در حساب'}

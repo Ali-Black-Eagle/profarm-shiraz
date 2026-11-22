@@ -409,13 +409,13 @@ async function signInWithOtp(page: Page, phone: string) {
     page.getByRole('button', { name: 'دریافت کد تایید ورود' }).click(),
   ]);
   const sent = (await sendRes.json()) as { debugCode?: string };
-  expect(sent.debugCode, 'mock SMS returns the OTP code in dev').toMatch(/^\d{5}$/);
+  expect(sent.debugCode, 'mock SMS returns the OTP code in dev').toMatch(/^\d{6}$/);
   const code = sent.debugCode!;
 
-  // The login form submits by itself once all five digits are in (distributeOtpDigits -> submitVerifyOtp),
+  // The login form submits by itself once all six digits are in (distributeOtpDigits -> submitVerifyOtp),
   // so the code goes in as one paste-like fill on the first box and the verify response is awaited.
   const boxes = page.locator('input[aria-label*="کد تایید"]');
-  await expect(boxes).toHaveCount(5);
+  await expect(boxes).toHaveCount(6);
   const [verifyRes] = await Promise.all([
     page.waitForResponse((r) => r.url().endsWith('/api/auth/otp') && r.request().postDataJSON()?.action === 'verify'),
     boxes.nth(0).fill(code),

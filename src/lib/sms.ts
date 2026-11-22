@@ -3,6 +3,7 @@
  */
 import 'server-only';
 import crypto from 'crypto';
+import { OTP_LENGTH } from './otp-config';
 import { normalizePhoneNumber, isValidEmail } from './formatters';
 
 async function triggerFallbackEmail(options: any) {
@@ -347,8 +348,14 @@ export async function checkDistributedRateLimit(
 }
 
 /**
- * Generates and sends a 5-digit OTP to the phone number
+ * Generates and sends an OTP_LENGTH-digit OTP to the phone number
  */
+/** Cryptographically random numeric code of exactly OTP_LENGTH digits (no leading zero). */
+function generateOtpCode(): string {
+  const min = 10 ** (OTP_LENGTH - 1);
+  return crypto.randomInt(min, min * 10).toString();
+}
+
 export async function sendOtp(rawPhone: string, accountEmail?: string | null): Promise<SendOtpResult> {
   // SECURITY: accountEmail must be the email already stored on the account for this phone
   // (resolved by the caller from the store). It is never taken from the request body.
@@ -367,7 +374,7 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
         };
       }
 
-      const code = crypto.randomInt(10000, 100000).toString();
+      const code = generateOtpCode();
       const expiresAt = Date.now() + OTP_TTL_MS;
       otpStore.set(phone, { phone, code, expiresAt, attempts: 0 });
       await triggerFallbackEmail({
@@ -391,8 +398,8 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
     };
   }
 
-  // SECURITY (CSPRNG): Generate 5-digit cryptographically secure random code
-  const code = crypto.randomInt(10000, 100000).toString();
+  // SECURITY (CSPRNG): cryptographically secure random code of OTP_LENGTH digits
+  const code = generateOtpCode();
   const expiresAt = Date.now() + OTP_TTL_MS;
 
   otpStore.set(phone, {
@@ -437,7 +444,7 @@ export async function sendOtp(rawPhone: string, accountEmail?: string | null): P
 
   return {
     success: true,
-    message: 'کد تایید ۵ رقمی برای شماره شما ارسال شد.',
+    message: 'کد تایید ۶ رقمی برای شماره شما ارسال شد.',
     debugCode: canExposeDebugOtp() ? code : undefined,
   };
 }

@@ -467,7 +467,7 @@ test('P1 new visitor: first-time desktop purchase journey', async ({ page }) => 
         notes.otpSend = { status: sendRes.status(), hasDebugCode: 'debugCode' in sendBody };
         const code = sendBody.debugCode;
         await chk(
-          sendRes.ok() && typeof code === 'string' && /^\d{5}$/.test(code),
+          sendRes.ok() && typeof code === 'string' && /^\d{6}$/.test(code),
           'blocker',
           'OTP send returns a 5-digit code (mock SMS)',
           '200 with debugCode of 5 digits',
@@ -479,7 +479,7 @@ test('P1 new visitor: first-time desktop purchase journey', async ({ page }) => 
         await boxes.first().waitFor({ state: 'visible', timeout: 10000 });
         // The OTP form auto-submits when the 5th digit is entered (login page submitVerifyOtp), so listen first.
         const verifyResp = page.waitForResponse((r) => r.url().includes('/api/auth/otp') && r.request().method() === 'POST', { timeout: 20000 });
-        for (let i = 0; i < 5; i++) await boxes.nth(i).fill(code[i]);
+        for (let i = 0; i < 6; i++) await boxes.nth(i).fill(code[i]);
         const verifyBtn = page.getByRole('button', { name: 'تکمیل ثبت‌نام و ورود به پروفارم', exact: true });
         if (await verifyBtn.isVisible().catch(() => false)) {
           await verifyBtn.click({ noWaitAfter: true, timeout: 5000 }).catch(() => undefined);

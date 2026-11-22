@@ -285,11 +285,11 @@ test.describe('P2 mobile returning customer journey', () => {
     const otpBody = await otpRes.json();
     expect(otpRes.status(), otpBody.message).toBe(200);
     expect(otpBody.success).toBe(true);
-    expect(otpBody.debugCode, 'mock SMS exposes the 5-digit code').toMatch(/^\d{5}$/);
+    expect(otpBody.debugCode, 'mock SMS exposes the 6-digit code').toMatch(/^\d{6}$/);
 
     const boxes = page.locator('input[aria-label^="رقم"]');
-    await expect(boxes).toHaveCount(5);
-    for (let i = 0; i < 5; i++) await boxes.nth(i).fill(otpBody.debugCode[i]);
+    await expect(boxes).toHaveCount(6);
+    for (let i = 0; i < 6; i++) await boxes.nth(i).fill(otpBody.debugCode[i]);
     await page.waitForURL(/\/account/, { timeout: 20000 });
     await expect(page.getByRole('button', { name: 'اطلاعات حساب', exact: true })).toBeVisible();
     await checkLayout(page, 'account after OTP registration');

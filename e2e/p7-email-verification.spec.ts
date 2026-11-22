@@ -70,7 +70,7 @@ async function login(phone: string, ip: string) {
   const s = await send('POST', '/api/auth/otp', { body: { action: 'send', phone }, ip });
   expect(s.status, `OTP send for ${phone}: ${s.text}`).toBe(200);
   const code = s.json?.debugCode;
-  expect(code, 'debugCode is exposed only by the dev MOCK SMS provider').toMatch(/^\d{5}$/);
+  expect(code, 'debugCode is exposed only by the dev MOCK SMS provider').toMatch(/^\d{6}$/);
   const v = await send('POST', '/api/auth/otp', { body: { action: 'verify', phone, code }, ip });
   expect(v.status, `OTP verify for ${phone}: ${v.text}`).toBe(200);
   const cookie = sessionFrom(v);
